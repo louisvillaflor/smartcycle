@@ -1,0 +1,361 @@
+/* Base */
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f6f6f6;
+    color: #1f2937;
+}
+
+/* Main content wrapper */
+.main-content {
+    padding: 28px 28px 60px 28px;
+    margin-left: 250px;
+}
+
+/* Page Header */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.page-header h1 {
+    font-size: 32px;
+    font-weight: 600;
+    color: #000000;
+    margin: 0;
+}
+
+/* White Box Container */
+.contacts-content-box {
+    background: white;
+    padding: 22px;
+    border-radius: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+/* Toolbar */
+.contacts-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 20px;
+    gap: 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    gap: 25px;
+}
+
+.tab-btn {
+    padding: 12px 5px;
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    user-select: none;
+    font-family: inherit;
+}
+
+.tab-btn:hover {
+    color: #1e293b;
+}
+
+.tab-btn.active {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 2.5px;
+    background-color: #46B336;
+    border-radius: 2px;
+}
+
+/* Search */
+.search-container {
+    margin-bottom: 8px;
+}
+
+.search-input {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8fafc;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.06);
+    width: auto;
+    transition: none;
+    font-family: inherit;
+    font-size: 14px;
+    color: #0f172a;
+}
+
+/* Override browser default for input inside search-input */
+.search-input input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    color: #0f172a;
+    min-width: 180px;
+}
+
+.search-input input::placeholder {
+    color: #94a3b8;
+}
+
+.search-icon {
+    color: #94a3b8;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    position: static;
+    transform: none;
+    top: auto;
+    left: auto;
+    pointer-events: none;
+}
+
+/* Table */
+.table-container {
+    background: transparent;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+}
+
+.contacts-table {
+    width: 100%;
+    min-width: 600px;
+    border-collapse: collapse;
+}
+
+.contacts-table thead th {
+    text-align: left;
+    padding: 14px 12px;
+    background: #edf3f8;
+    color: #526072;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    border-bottom: none;
+    white-space: nowrap;
+}
+
+.contacts-table th,
+.contacts-table td {
+    padding: 14px 12px;
+    font-size: 14px;
+    border-bottom: 1px solid #eff3f6;
+    vertical-align: middle;
+}
+
+.contacts-table tbody tr {
+    background: white;
+    transition: background 0.15s ease;
+}
+
+.contacts-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.contacts-table tbody tr:hover {
+    background: #fbfdff;
+}
+
+.contacts-table tbody td {
+    color: #1f2937;
+}
+
+/* Customer Cell */
+.customer-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.customer-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+}
+
+.customer-cell span {
+    font-weight: 500;
+    color: #111827;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-btn {
+    background: #fff;
+    border: 1px solid #edf2f7;
+    cursor: pointer;
+    padding: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    color: #526072;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.action-btn i {
+    width: 15px;
+    height: 15px;
+    pointer-events: none;
+    display: block;
+}
+
+.action-btn:hover {
+    background: #f8f9fa;
+    border-color: #d1d5db;
+    transform: scale(1.05);
+}
+
+.action-btn:active {
+    transform: scale(0.95);
+}
+
+.edit-btn {
+    color: #526072;
+}
+
+.delete-btn {
+    background: #fff0f0;
+    border-color: #fecaca;
+    color: #ef4444;
+}
+
+.delete-btn:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+}
+
+/* Empty State */
+.empty-state {
+    
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #94a3b8;
+    gap: 12px;
+    text-align: center;
+}
+
+.empty-state i {
+    width: 48px;
+    height: 48px;
+    color: #cbd5e1;
+}
+
+.empty-state p {
+    font-size: 14px;
+    margin: 0;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+    .main-content {
+        padding: 14px;
+        margin-left: 0;
+        margin-top: 60px;
+    }
+
+    .page-header h1 {
+        font-size: 24px;
+    }
+
+    .contacts-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .tab-navigation {
+        order: -1;
+        width: 100%;
+        gap: 16px;
+        overflow-x: auto;
+    }
+
+    .tab-btn {
+        font-size: 12px;
+    }
+
+    .search-container {
+        width: 100%;
+    }
+
+    .search-input {
+        width: 100%;
+    }
+
+    .search-input input {
+        width: 100%;
+        min-width: unset;
+    }
+
+    .contacts-table th,
+    .contacts-table td {
+        font-size: 13px;
+        padding: 10px;
+    }
+
+    .action-btn {
+        width: 28px;
+        height: 28px;
+        padding: 5px;
+    }
+
+    .action-btn i {
+        width: 13px;
+        height: 13px;
+    }
+
+    .action-buttons {
+        gap: 4px;
+    }
+
+    .customer-avatar {
+        width: 32px;
+        height: 32px;
+    }
+}

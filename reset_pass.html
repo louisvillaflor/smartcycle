@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Password</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="reset_pass.css">
+</head>
+<body>
+    <main class="reset-password-container">
+        <!-- Form side on the left -->
+        <section class="form-side" aria-label="Reset password form">
+            <div class="content-wrapper">
+                <form id="resetPasswordForm" method="post" action="" novalidate>
+                    <header>
+                        <div class="icon-container">
+                            <img src="photo/resetpass_icon.png" alt="Reset Password Icon" class="reset-icon">
+                        </div>
+                        <h1>Reset your password</h1>
+                        <p class="subtitle">Kindly set your new password</p>
+                    </header>
+
+                    <!-- New Password Field -->
+                    <div class="form-group">
+                        <label for="newPassword">New password</label>
+                        <div class="input-wrapper">
+                            <input 
+                                type="password" 
+                                id="newPassword" 
+                                name="newPassword"
+                                placeholder="Enter new password" 
+                                autocomplete="new-password" 
+                                required 
+                                aria-required="true"
+                                aria-invalid="false"
+                                aria-describedby="passwordError">
+                            <button type="button" class="toggle-password" onclick="togglePassword('newPassword', 'toggleIconNew')"
+                                aria-label="Show password" aria-pressed="false" id="toggleButtonNew">
+                                <svg id="toggleIconNew" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"  
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Password Strength Indicator -->
+                        <div class="password-strength">
+                            <div class="strength-bars">
+                                <div class="strength-bar"></div>
+                                <div class="strength-bar"></div>
+                                <div class="strength-bar"></div>
+                                <div class="strength-bar"></div>
+                            </div>
+                            <small id="strengthText" class="strength-text">Password strength: <span id="strengthLabel"></span></small>
+                        </div>
+
+                        <small id="passwordError" role="alert">
+                            Password must be at least 8 characters with uppercase, lowercase, number, and special character
+                        </small>
+                    </div>
+
+                    <!-- Confirm Password Field -->
+                    <div class="form-group">
+                        <label for="confirmPassword">Re-enter password</label>
+                        <div class="input-wrapper">
+                            <input 
+                                type="password" 
+                                id="confirmPassword" 
+                                name="confirmPassword"
+                                placeholder="Enter your password" 
+                                autocomplete="new-password" 
+                                required 
+                                aria-required="true"
+                                aria-invalid="false"
+                                aria-describedby="confirmError">
+                            <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword', 'toggleIconConfirm')"
+                                aria-label="Show password" aria-pressed="false" id="toggleButtonConfirm">
+                                <svg id="toggleIconConfirm" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"  
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <small id="confirmError" role="alert">
+                            Passwords do not match
+                        </small>
+                    </div>
+
+                    <button type="submit" class="reset-button">Reset Password</button>
+                </form>
+
+                <!-- Success message - hidden by default -->
+                <div id="successMessage" class="success-message" role="status" aria-live="polite">
+                    <div class="success-icon-container">
+                        <img src="photo/resetpass_iconsuccess.png" alt="Password Changed" class="success-icon-image">
+                    </div>
+                    <div class="success-content">
+                        <h2>Password changed!</h2>
+                        <p class="success-description">Password Updated Successfully!</p>
+                        <button type="button" id="loginButton" class="login-button" onclick="window.location.href='login.html'">Login now</button>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="logo">
+                <img src="photo/logo_name.png" alt="Smartcycle Logo" class="logo-image">
+            </footer>
+        </section>
+
+        <!-- Glass side on the right -->
+        <aside class="glass-side" aria-hidden="true"></aside>
+    </main>
+    <script src="reset_pass.js"></script>
+</body>
+</html>

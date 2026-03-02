@@ -1,0 +1,108 @@
+<link rel="stylesheet" href="sales_form.css">
+
+<div id="saleModal" class="modal-overlay" role="dialog" aria-labelledby="saleModalTitle" aria-modal="true">
+  <div class="modal-container-form">
+
+    <section class="modal-left">
+      <div class="modal-logo-section">
+        <img src="photo/logo_name.png" alt="SmartCycle" width="120" onerror="this.style.display='none'">
+      </div>
+
+      <!-- Type Tabs -->
+      <nav class="modal-tabs-small" role="tablist" aria-label="Sale type">
+        <button class="m-tab active" role="tab" aria-selected="true" data-type="organization" type="button">Organization</button>
+        <button class="m-tab" role="tab" aria-selected="false" data-type="junkshop" type="button">Junk-Shop</button>
+      </nav>
+
+      <!-- Partner / Contact / Date -->
+      <div class="form-grid-modal">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label for="partnerName">Partner Name</label>
+          <input type="text" id="partnerName" placeholder="Enter partner name">
+          <span class="field-error" id="partnerNameError"></span>
+        </div>
+        <div class="form-group">
+          <label for="saleContact">Contact Number</label>
+          <input type="tel" id="saleContact" placeholder="09XX-XXX-XXXX">
+          <span class="field-error" id="saleContactError"></span>
+        </div>
+        <div class="form-group">
+          <label for="saleDate">Date</label>
+          <input type="date" id="saleDate">
+          <span class="field-error" id="saleDateError"></span>
+        </div>
+      </div>
+
+      <!-- Material Input -->
+      <div class="material-input-section">
+        <label for="materialSelect">Material</label>
+        <div class="material-row-input">
+          <select id="materialSelect">
+            <option value="PET" data-rate="6">PET - &#8369;6/kg</option>
+            <option value="Plastic" data-rate="4">Plastic - &#8369;4/kg</option>
+            <option value="Paper" data-rate="8">Paper - &#8369;8/kg</option>
+            <option value="Bakal" data-rate="9">Bakal - &#8369;9/kg</option>
+          </select>
+          <input type="number" id="materialWeight" placeholder="Weight (kg)" min="0.1" step="0.1">
+          <button class="btn-add-item" type="button" id="addMaterialBtn">
+            <i data-lucide="plus"></i>
+            Add
+          </button>
+        </div>
+        <span class="items-error" id="materialsError"></span>
+      </div>
+
+      <!-- Materials Table -->
+      <div class="items-table-container">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th scope="col">Material</th>
+              <th scope="col">Weight</th>
+              <th scope="col">Subtotal</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody id="materialsBody">
+            <tr>
+              <td colspan="5" style="text-align:center; color:#94a3b8; padding:20px;">No materials added yet</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="form-total-line" id="saleFormTotalLine" style="display:none;">
+          <span>Total Amount:</span>
+          <strong id="saleFormTotal">0.00</strong>
+        </div>
+      </div>
+
+      <!-- Receipt Attach -->
+      <div class="sale-receipt-section">
+        <label class="receipt-label">Receipt Picture <span style="color:#94a3b8; font-weight:400;">(optional)</span></label>
+        <button class="btn-receipt" type="button" id="attachReceiptBtn">
+          <i data-lucide="paperclip"></i>
+          <span class="receipt-filename" id="receiptFilenameLabel">Attach Receipt</span>
+        </button>
+        <div class="receipt-preview" id="receiptPreview">
+          <img id="receiptPreviewImg" src="" alt="Receipt preview">
+          <button class="remove-receipt" id="removeReceiptBtn" type="button" aria-label="Remove receipt">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <input type="file" id="receiptInput" accept="image/*" hidden>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="modal-footer-actions">
+        <button class="btn-cancel" type="button" id="cancelSaleBtn">
+          <i data-lucide="x"></i>
+          Cancel
+        </button>
+        <button class="btn-submit-green" type="button" id="submitSaleBtn">
+          <i data-lucide="check"></i>
+          Submit
+        </button>
+      </div>
+    </section>
+
+  </div>
+</div>

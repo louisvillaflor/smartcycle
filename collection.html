@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Collection</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="collection.css">
+  <link rel="stylesheet" href="add_collection.css">
+  <link rel="stylesheet" href="navbar.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div id="navbar-container"></div>
+
+  <main class="main-content">
+    <header class="page-header">
+      <h1 class="greeting">List of All Collections</h1>
+      <button class="btn-primary" onclick="openAddModal()">
+        <i data-lucide="plus"></i>
+        <span class="btn-text">Add Collection</span>
+      </button>
+    </header>
+
+    <section class="table-section">
+      <article class="table-card">
+        <nav class="table-controls">
+          <div class="table-tabs" role="tablist">
+            <button class="tab active" role="tab" data-filter="all" onclick="filterByCategory('all', this)">All</button>
+            <button class="tab" role="tab" data-filter="barangay" onclick="filterByCategory('barangay', this)">Barangay</button>
+            <button class="tab" role="tab" data-filter="school" onclick="filterByCategory('school', this)">School</button>
+            <button class="tab" role="tab" data-filter="walk-ins" onclick="filterByCategory('walk-ins', this)">Walk-ins</button>
+          </div>
+
+          <div class="search-input">
+            <i data-lucide="search" style="width: 18px; height: 18px; color: #94a3b8;"></i>
+            <input type="text" id="collectionSearch" placeholder="Search Customer Name/ID" aria-label="Search collections">
+          </div>
+        </nav>
+
+        <div class="table-wrapper">
+          <table class="main-table">
+            <thead>
+              <tr>
+                <th scope="col"></th>
+                <th scope="col">Date</th>
+                <th scope="col">ID</th>
+                <th scope="col">Customer</th>
+                <th scope="col">Material</th>
+                <th scope="col">Weight</th>
+                <th scope="col">Total Price</th>
+                <th scope="col">Action</th>
+              </tr>
+            </thead>
+            <tbody id="collectionTableBody">
+              <!-- Rows will be dynamically inserted here -->
+            </tbody>
+          </table>
+        </div>
+
+        <nav class="pagination" aria-label="Pagination"></nav>
+      </article>
+    </section>
+  </main>
+
+  <!-- Modal container will be loaded here -->
+  <div id="modalContainer"></div>
+
+  <script src="navbar.js"></script>
+  <script src="collection.js"></script>
+  <script src="add_collection.js"></script>   
+</body>
+</html>

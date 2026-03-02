@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="login.css">
+</head>
+<body>
+    <main class="login-container">
+        <!-- Form side -->
+        <section class="form-side" aria-label="Login form">
+            <header>
+                <h1>Login to your account</h1>
+            </header>
+
+            <form id="loginForm" method="post" action="" novalidate>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email"
+                        placeholder="Enter your email" 
+                        autocomplete="email" 
+                        required 
+                        aria-required="true"
+                        aria-invalid="false"
+                        aria-describedby="emailError">
+                    <small id="emailError" role="alert">Please enter a valid email address</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-wrapper">
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Enter your password" 
+                            autocomplete="current-password" 
+                            required 
+                            aria-required="true"
+                            aria-invalid="false"
+                            aria-describedby="passwordError">
+                        <button type="button" class="toggle-password" onclick="togglePassword()"
+                            aria-label="Show password" aria-pressed="false" id="toggleButton">
+                            <svg id="toggleIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        </button>
+                    </div>
+                    <small id="passwordError" role="alert">Password is required</small>
+                </div>
+
+                <button type="submit" class="login-button">Login now</button>
+                <nav class="forgot-password" aria-label="Password recovery">
+                    Forgot Your Password? <a href="forgot_pass.html">Reset</a>
+                </nav>
+            </form>
+
+            <footer class="logo">
+                <img src="photo/logo_name.png" alt="Smartcycle Logo" class="logo-image">
+            </footer>
+        </section>
+
+        <aside class="glass-side" aria-hidden="true"></aside>
+    </main>
+
+    <!-- Success Modal -->
+    <dialog id="successModal" aria-labelledby="successTitle" aria-describedby="successDesc">
+        <div class="modal-icon success" aria-hidden="true">✓</div>
+        <h2 id="successTitle" class="modal-title">Login Successful!</h2>
+        <p id="successDesc" class="modal-message">Welcome back! Redirecting you to the dashboard...</p>
+    </dialog>
+
+    <!-- Error Modal -->
+    <dialog id="errorModal" aria-labelledby="errorTitle" aria-describedby="errorDesc">
+        <button class="modal-close" id="modalCloseBtn" aria-label="Close">✕</button>
+        <div class="modal-icon error" aria-hidden="true">✕</div>
+        <h2 id="errorTitle" class="modal-title">Login Failed</h2>
+        <p id="errorDesc" class="modal-message">Invalid email or password. Please try again.</p>
+    </dialog>
+
+    <script src="login.js"></script>
+</body>
+</html>

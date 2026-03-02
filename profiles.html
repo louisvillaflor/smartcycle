@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profiles</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="navbar.css">
+    <link rel="stylesheet" href="profiles.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <nav id="navbar-container"></nav>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>Profiles</h1>
+        </header>
+
+        <div class="contacts-content-box">
+            <section class="contacts-toolbar">
+                <nav class="tab-navigation" role="tablist">
+                    <button class="tab-btn active" data-tab="all" role="tab" aria-selected="true" id="all-tab">All</button>
+                    <button class="tab-btn" data-tab="collections" role="tab" aria-selected="false" id="collections-tab">Collections</button>
+                    <button class="tab-btn" data-tab="sales" role="tab" aria-selected="false" id="sales-tab">Sales</button>
+                </nav>
+
+                <div class="search-container">
+                    <div class="search-input">
+                        <i data-lucide="search" class="search-icon"></i>
+                        <input type="text" id="searchInput" placeholder="Search Customer Name/ID" aria-label="Search contacts">
+                    </div>
+                </div>
+            </section>
+
+            <section class="table-container">
+                <div class="table-wrapper">
+                    <table class="contacts-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Customer</th>
+                                <th scope="col">Category</th>
+                                <th scope="col">ID</th>
+                                <th scope="col">Address</th>
+                                <th scope="col">Contact Num</th>
+                                <th scope="col">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contactsTableBody">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="navbar.js"></script>
+    <script src="profiles.js"></script>
+</body>
+</html>

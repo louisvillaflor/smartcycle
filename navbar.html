@@ -1,0 +1,101 @@
+<!-- Mobile Header (visible only on mobile) -->
+<header class="mobile-header">
+    <button class="hamburger-btn" type="button" aria-label="Open menu" id="hamburger-btn">
+        <i data-lucide="menu" aria-hidden="true"></i>
+    </button>
+    <div class="mobile-logo">
+        <img src="photo/logo_name.png" alt="SmartCycle Logo">
+    </div>
+</header>
+
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<aside class="sidebar" role="navigation" aria-label="Main navigation" id="sidebar">
+    <!-- Close button (visible only on mobile) -->
+    <button class="close-sidebar-btn" type="button" aria-label="Close menu" id="close-sidebar-btn">
+        <i data-lucide="x" aria-hidden="true"></i>
+    </button>
+
+    <!-- Logo Section -->
+    <header class="logo-section">
+        <div class="logo">
+            <img src="photo/logo_name.png" alt="SmartCycle Logo">
+        </div>
+    </header>
+
+    <!-- Navigation Items -->
+    <nav class="nav-items" aria-label="Primary">
+        <a href="dashboard.html" class="nav-item" data-page="dashboard" aria-label="Dashboard">
+            <i data-lucide="layout-dashboard" aria-hidden="true"></i>
+            <span>Dashboard</span>
+        </a>
+
+        <a href="collection.html" class="nav-item" data-page="collection" aria-label="Collection">
+            <i data-lucide="recycle" aria-hidden="true"></i>
+            <span>Collection</span>
+        </a>
+
+        <a href="sales.html" class="nav-item" data-page="sales" aria-label="Sales">
+            <i data-lucide="shopping-cart" aria-hidden="true"></i>
+            <span>Sales</span>
+        </a>
+
+        <a href="reports.html" class="nav-item" data-page="report" aria-label="Reports">
+            <i data-lucide="bar-chart-3" aria-hidden="true"></i>
+            <span>Reports</span>
+        </a>
+
+        <a href="profiles.html" class="nav-item" data-page="contacts" aria-label="Contacts">
+            <i data-lucide="contact" aria-hidden="true"></i>
+            <span>Profiles</span>
+        </a>
+
+        <a href="pricelist.html" class="nav-item" data-page="pricelist" aria-label="Price List">
+            <i data-lucide="file-text" aria-hidden="true"></i>
+            <span>Price List</span>
+        </a>
+    </nav>
+
+    <!-- Admin Section at Bottom -->
+    <footer class="admin-section">
+        <!-- Profile button — navigates to profile page -->
+        <button class="admin-item" type="button" aria-label="View profile" id="admin-profile-btn">
+            <div class="admin-avatar">
+                <i data-lucide="user" aria-hidden="true"></i>
+            </div>
+            <div class="admin-info">
+                <span class="admin-name" id="admin-name">Admin</span>
+            </div>
+            <!-- Three dots — opens dropdown -->
+            <div class="admin-more" id="admin-more-btn" role="button" aria-label="More options" aria-haspopup="true" aria-expanded="false">
+                <i data-lucide="more-horizontal" aria-hidden="true"></i>
+            </div>
+        </button>
+
+        <!-- Dropdown: history n logout (triggered by three dots) -->
+        <div class="admin-dropdown" id="admin-dropdown" role="menu">
+            <a href="history.html" class="dropdown-item" role="menuitem">
+                <i data-lucide="history" aria-hidden="true"></i>
+                <span>History</span>
+            </a>
+            <button class="dropdown-item" id="logout-btn" type="button" role="menuitem">
+                <i data-lucide="log-out" aria-hidden="true"></i>
+                <span>Logout</span>
+            </button>
+        </div>
+    </footer>
+</aside>
+
+<!-- Logout Confirmation Modal -->
+<dialog id="logoutModal" aria-labelledby="logoutTitle" aria-describedby="logoutDesc">
+    <div class="modal-icon logout" aria-hidden="true">
+        <i data-lucide="log-out"></i>
+    </div>
+    <h2 id="logoutTitle" class="modal-title">Logout</h2>
+    <p id="logoutDesc" class="modal-message">Are you sure you want to logout?</p>
+    <div class="modal-actions">
+        <button class="modal-btn cancel" id="logoutCancelBtn" type="button">Cancel</button>
+        <button class="modal-btn confirm" id="logoutConfirmBtn" type="button">Logout</button>
+    </div>
+</dialog>

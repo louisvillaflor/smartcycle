@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forgot Password</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Import Poppins font with weights 400, 500, 600 -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap">
+    <link rel="stylesheet" href="forgot_pass.css">
+</head>
+<body>
+    <main class="forgot-password-container">
+        <!-- Form side on the left -->
+        <section class="form-side" aria-label="Password reset form">
+            <div class="content-wrapper">
+
+                <form id="forgotPasswordForm" method="post" action="" novalidate>
+                    
+                    <header>
+                        <div class="icon-container">
+                            <img src="photo/forgotpass_icon.png" alt="Forgot Password Icon" class="forgot-icon">
+                        </div>
+                        <h1>Forgot your password?</h1>
+                    </header>
+                
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email"
+                            placeholder="Enter your email" 
+                            autocomplete="email" 
+                            required 
+                            aria-required="true"
+                            aria-invalid="false"
+                            aria-describedby="emailError">
+
+                        <small id="emailError" role="alert">
+                            Please enter a valid email address
+                        </small>
+                    </div>
+
+                    <button type="submit" class="reset-button">Send reset link</button>
+
+                    <nav class="back-to-login" aria-label="Return to login">
+                        <a href="login.html" class="back-link">
+                            <span class="back-arrow">&lt;</span>
+                            Back to login
+                        </a>
+                    </nav>
+                </form>
+
+                <!-- Success message - hidden by default -->
+                <div id="successMessage" class="success-message" role="status" aria-live="polite">
+                    <div class="success-icon-container">
+                        <img src="photo/forgotpass_iconsuccess.png" alt="Email sent" class="success-icon-image">
+                    </div>
+                    <div class="success-content">
+                        <h2>Check your email!</h2>
+                        <p class="success-description">Please check your inbox for the password reset link.</p>
+                        <button type="button" id="resendButton" class="resend-button">Resend Email</button>
+                        <nav class="back-to-login-success" aria-label="Return to login">
+                            <a href="login.html" class="back-link-success">
+                                <span class="back-arrow">&lt;</span>
+                                Back to login
+                            </a>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="logo">
+                <img src="photo/logo_name.png" alt="Smartcycle Logo" class="logo-image">
+            </footer>
+        </section>
+
+        <!-- Glass side on the right -->
+        <aside class="glass-side" aria-hidden="true"></aside>
+    </main>
+    <script src="forgot_pass.js"></script>
+</body>
+</html>

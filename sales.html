@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sales</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="navbar.css">
+    <link rel="stylesheet" href="sales.css">
+    <link rel="stylesheet" href="sales_form.css">
+</head>
+
+<body>
+    <div id="navbar-container"></div>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1 class="greeting">List of All Sales</h1>
+            <button class="btn-primary" id="openSaleModalBtn" type="button">
+                <i data-lucide="plus" aria-hidden="true"></i>
+                <span class="btn-text">Add Sale</span>
+            </button>
+        </header>
+
+        <section class="table-section" aria-label="Sales records">
+            <div class="table-card">
+
+                <div class="table-controls">
+                    <div class="table-tabs" role="tablist" aria-label="Filter sales by type">
+                        <span class="tab active" role="tab" aria-selected="true" data-filter="all">All</span>
+                        <span class="tab" role="tab" aria-selected="false" data-filter="organization">Organization</span>
+                        <span class="tab" role="tab" aria-selected="false" data-filter="junkshop">Junkshop</span>
+                    </div>
+
+                    <div class="search-input" role="search">
+                        <i data-lucide="search" width="18" height="18" aria-hidden="true"></i>
+                        <input type="text" id="salesSearch" placeholder="Search Partner Name/ID" aria-label="Search sales">
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="main-table">
+                        <thead>
+                            <tr>
+                                <th scope="col"></th>
+                                <th scope="col">Date</th>
+                                <th scope="col">ID</th>
+                                <th scope="col">Partner</th>
+                                <th scope="col">Material</th>
+                                <th scope="col">Weight</th>
+                                <th scope="col">Total Price</th>
+                                <th scope="col">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salesTableBody">
+                            <!-- Rows rendered by JS -->
+                        </tbody>
+                    </table>
+
+                    <div class="empty-state" id="emptyState">
+                        <i data-lucide="inbox" aria-hidden="true"></i>
+                        <p>No sales records yet. Click <strong>Add Sale</strong> to get started.</p>
+                    </div>
+                </div>
+
+                <nav class="pagination" id="pagination" aria-label="Table pagination">
+                    <!-- Rendered by JS -->
+                </nav>
+
+            </div>
+        </section>
+    </main>
+
+    <!-- Sale Modal loaded separately -->
+    <div id="sale-modal-container"></div>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="navbar.js"></script>
+    <script src="sales.js"></script>
+</body>
+</html>
