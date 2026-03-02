@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="navbar.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Chart.js for charts -->
+    <script src="https://unpkg.com/lucide@latest"></script> <!-- Lucide Icons CDN -->
+</head>
+<body>
+    <!-- Navigation will be loaded here -->
+    <div id="navbar-container"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Page Header with Greeting -->
+        <header class="page-header">
+            <!-- replace with the actual name stored from databae -->
+            <h1 class="greeting">Good Morning, <span id="user-name">Admin</span> !</h1>
+        </header>
+
+        <!-- Stats Cards -->
+        <section class="stats-grid">
+            <!-- Total Collection Card -->
+            <article class="stat-card">
+                <div class="stat-header">
+                    <i data-lucide="recycle" class="stat-icon"></i> <!-- Recycle icon -->
+                    <span class="stat-label">Total Collection</span>
+                </div>
+                <div class="stat-content">
+                    <!-- Backend will populate this value -->
+                    <h2 class="stat-number" id="total-collection">0</h2>
+                    <div class="stat-trend positive" id="collection-trend">
+                        <i data-lucide="trending-up"></i>
+                        <!-- Backend will populate trend percentage -->
+                        <span id="collection-trend-value">0%</span>
+                    </div>
+                </div>
+                <!-- Backend will populate sparkline data -->
+                <canvas id="collectionSparkline" class="sparkline"></canvas>
+            </article>
+
+            <!-- Total Sales Card -->
+            <article class="stat-card">
+                <div class="stat-header">
+                    <i data-lucide="shopping-cart" class="stat-icon"></i> <!-- Sales icon -->
+                    <span class="stat-label">Total Sales</span>
+                </div>
+                <div class="stat-content">
+                    <!-- Backend will populate this value -->
+                    <h2 class="stat-number" id="total-sales">0</h2>
+                    <div class="stat-trend positive" id="sales-trend">
+                        <i data-lucide="trending-up"></i>
+                        <!-- Backend will populate trend percentage -->
+                        <span id="sales-trend-value">0%</span>
+                    </div>
+                </div>
+                <!-- Backend will populate sparkline data -->
+                <canvas id="salesSparkline" class="sparkline"></canvas>
+            </article>
+
+            <!-- Total Distributor Card -->
+            <article class="stat-card">
+                <div class="stat-header">
+                    <i data-lucide="users" class="stat-icon"></i> <!-- Distributor icon-->
+                    <span class="stat-label">Total Distributor</span>
+                </div>
+                <div class="stat-content">
+                    <!-- Backend will populate this value -->
+                    <h2 class="stat-number" id="total-distributors">0</h2>
+                    <div class="stat-trend positive" id="distributor-trend">
+                        <i data-lucide="trending-up"></i>
+                        <!-- Backend will populate trend percentage -->
+                        <span id="distributor-trend-value">0%</span>
+                    </div>
+                </div>
+                <!-- Backend will populate sparkline data -->
+                <canvas id="distributorSparkline" class="sparkline"></canvas>
+            </article>
+        </section>
+
+        <!-- Charts Section -->
+        <section class="charts-grid">
+            <!-- Most Collected Materials Chart -->
+            <article class="chart-card">
+                <header class="chart-header">
+                    <h3>Most Collected Materials</h3>
+                </header>
+                <div class="chart-container">
+                    <!-- Backend will populate this chart with materials data -->
+                    <canvas id="materialsChart"></canvas>
+                </div>
+            </article>
+
+            <!-- Top Contribution by Category Chart -->
+            <article class="chart-card">
+                <header class="chart-header">
+                    <h3>Top Contribution by Category</h3>
+                </header>
+                <div class="chart-container donut-container">
+                    <!-- Backend will populate this chart with category data -->
+                    <canvas id="categoryChart"></canvas>
+                    <div class="chart-legend" id="category-legend">
+                        <!-- Backend can dynamically add legend items here -->
+                        <div class="legend-item">
+                            <span class="legend-dot barangay"></span>
+                            <span class="legend-label">Barangay</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot school"></span>
+                            <span class="legend-label">School</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-dot walk-in"></span>
+                            <span class="legend-label">Walk-in</span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </section>
+    </main>
+
+    <script src="navbar.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>
