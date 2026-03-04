@@ -15,7 +15,7 @@ window.collections = [];
 async function fetchAllCollections() {
     // We fetch from the VIEW we created in the previous step to get totals automatically
     const { data, error } = await _supabase
-        .from('collection_summary') 
+        .from('collections') 
         .select('*')
         .order('date_collected', { ascending: false });
 
