@@ -1,3 +1,7 @@
+const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 let currentItems = [];
 let currentCategory = 'School';
 let currentPage = 1;
@@ -6,12 +10,43 @@ let editingIndex = -1;
 const itemsPerPage = 10;
 
 // Initialize collections from localStorage
-window.collections = JSON.parse(localStorage.getItem('smartCycleCollections')) || [];
+window.collections = [];
 
-// SAVE COLLECTIONS TO LOCALSTORAGE
-window.saveCollections = () => {
-  localStorage.setItem('smartCycleCollections', JSON.stringify(window.collections));
-};
+async function fetchAllCollections() {
+    // We fetch from the VIEW we created in the previous step to get totals automatically
+    const { data, error } = await _supabase
+        .from('collection_summary') 
+        .select('*')
+        .order('date_collected', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching data:", error.message);
+        return;
+    }
+
+    // Map Supabase column names to your existing frontend names
+    window.collections = data.map(col => ({
+        id: col.id, // Using the UUID from DB
+        customId: col.custom_id, // e.g., '001'
+        date: col.date_collected,
+        customer: col.customer_name,
+        category: col.type,
+        totalAmount: col.total_price,
+        itemCount: col.item_count,
+        // We will fetch sub-items only when a row is expanded to keep it fast
+        items: [] 
+    }));
+
+    renderTable();
+}
+
+// Update DOMContentLoaded to use the database fetch
+document.addEventListener('DOMContentLoaded', () => {
+    loadModalHTML();
+    fetchAllCollections(); // Fetch from Supabase instead of localStorage
+    setupSearch();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+});
 
 // SHARED FILTER HELPER — single source of truth for filtered collections
 function getFilteredCollections() {
