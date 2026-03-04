@@ -262,82 +262,100 @@ window.removeItem = (index) => {
 };
 
 // SUBMIT COLLECTION
-window.submitCollection = function() {
-  const customer = document.getElementById('inCustomer')?.value.trim();
-  const date = document.getElementById('inDate')?.value;
-  const address = document.getElementById('inAddress')?.value.trim();
-  const contact = document.getElementById('inContact')?.value.trim();
+// UPDATED SUBMIT COLLECTION FOR SUPABASE
+// UPDATED SUBMIT COLLECTION FOR SUPABASE
+window.submitCollection = async function() {
+    const customer = document.getElementById('inCustomer')?.value.trim();
+    const date = document.getElementById('inDate')?.value;
+    const address = document.getElementById('inAddress')?.value.trim();
+    const contact = document.getElementById('inContact')?.value.trim();
+    const submitBtn = document.querySelector('.btn-submit-green');
 
-  clearAllErrors();
+    clearAllErrors();
+    let hasError = false;
 
-  let hasError = false;
+    // --- Standard Validations (Existing Logic) ---
+    if (!customer) {
+        showError('inCustomer', 'Customer name is required');
+        hasError = true;
+    }
+    if (!date) {
+        showError('inDate', 'Date is required');
+        hasError = true;
+    }
+    if (contact && !validateContact(contact)) {
+        showError('inContact', 'Use format: 09XX-XXX-XXXX');
+        hasError = true;
+    }
+    if (currentItems.length === 0) {
+        const itemsErr = document.getElementById('itemsError');
+        if (itemsErr) itemsErr.textContent = 'Please add at least one item';
+        hasError = true;
+    }
+    if (hasError) return;
 
-  if (!customer) {
-    showError('inCustomer', 'Customer name is required');
-    hasError = true;
-  } else if (customer.length > 100) {
-    showError('inCustomer', 'Customer name is too long (max 100 characters)');
-    hasError = true;
-  }
+    // --- Supabase Integration Logic ---
+    try {
+        // Disable button to prevent double-submitting
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = 'Saving...';
+        }
 
-  if (!date) {
-    showError('inDate', 'Date is required');
-    hasError = true;
-  }
+        if (editingIndex !== -1) {
+            // OPTIONAL: Logic for updating existing records would go here
+            alert("Edit mode via Supabase coming soon! Currently only supporting new adds.");
+        } else {
+            // 1. Insert the Header (The Collection)
+            const { data: headerData, error: headerError } = await _supabase
+                .from('collections')
+                .insert([{
+                    customer_name: customer,
+                    date_collected: date,
+                    address: address,
+                    contact_number: contact,
+                    type: currentCategory // 'School', 'Barangay', etc.
+                }])
+                .select()
+                .single();
 
-  if (contact && !validateContact(contact)) {
-    showError('inContact', 'Use format: 09XX-XXX-XXXX');
-    hasError = true;
-  }
+            if (headerError) throw headerError;
 
-  if (currentItems.length === 0) {
-    const itemsErr = document.getElementById('itemsError');
-    if (itemsErr) itemsErr.textContent = 'Please add at least one item';
-    hasError = true;
-  }
+            // 2. Insert the Line Items linked to that Header ID
+            const itemsToInsert = currentItems.map(item => ({
+                collection_id: headerData.id, // Linking to the UUID created above
+                material_name: item.material,
+                rate: item.rate,
+                weight: item.weight,
+                subtotal: item.subtotal
+            }));
 
-  if (hasError) return;
+            const { error: itemsError } = await _supabase
+                .from('collection_items')
+                .insert(itemsToInsert);
 
-  const total = currentItems.reduce((sum, item) => sum + item.subtotal, 0);
+            if (itemsError) throw itemsError;
+        }
 
-  const dateObj = new Date(date);
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  const year = String(dateObj.getFullYear()).slice(-2);
-  const formattedDate = `${month}-${day}-${year}`;
+        // --- Success Handlers ---
+        alert("Collection saved to database!");
+        closeAddModal();
+        
+        // Refresh the main table in collection.js
+        if (typeof fetchAllCollections === 'function') {
+            await fetchAllCollections(); 
+        }
 
-  let id;
-  if (editingIndex !== -1) {
-    id = window.collections[editingIndex].id;
-  } else {
-    const maxId = window.collections.length > 0
-      ? Math.max(...window.collections.map(c => parseInt(c.id) || 0))
-      : 0;
-    id = String(maxId + 1).padStart(3, '0');
-  }
-
-  const collection = {
-    id,
-    date: formattedDate,
-    customer,
-    address,
-    contact,
-    category: currentCategory,
-    items: [...currentItems],
-    totalAmount: total
-  };
-
-  if (editingIndex !== -1) {
-    window.collections[editingIndex] = collection;
-  } else {
-    window.collections.push(collection);
-  }
-
-  window.saveCollections();
-  closeAddModal();
-  renderTable();
-
-  editingIndex = -1;
+    } catch (err) {
+        console.error("Database Error:", err.message);
+        alert("Failed to save: " + err.message);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
+            lucide.createIcons();
+        }
+    }
 };
 
 // REAL-TIME FIELD LISTENERS
