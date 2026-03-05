@@ -32,29 +32,31 @@ async function fetchAllCollections() {
         return;
     }
 
-    window.collections = data.map(col => {
-        const mappedItems = (col.collection_items || []).map(item => ({
-            material: item.material_name || 'Unknown',
-            rate: item.rate || 0,
-            weight: item.weight || 0,
-            subtotal: item.subtotal || 0
-        }));
+   // Updated mapping inside fetchAllCollections
+window.collections = data.map(col => {
+    const mappedItems = (col.collection_items || []).map(item => ({
+        material: item.material_name || 'Unknown',
+        rate: parseFloat(item.rate) || 0,
+        weight: parseFloat(item.weight) || 0,
+        subtotal: parseFloat(item.subtotal) || 0
+    }));
 
-        const calcWeight = mappedItems.reduce((sum, i) => sum + i.weight, 0);
-        const calcPrice = mappedItems.reduce((sum, i) => sum + i.subtotal, 0);
+    // Manually sum up the sub-items for the main row display
+    const calcWeight = mappedItems.reduce((sum, i) => sum + i.weight, 0);
+    const calcPrice = mappedItems.reduce((sum, i) => sum + i.subtotal, 0);
 
-        return {
-            id: col.id, 
-            date: col.date_collected,
-            customer: col.customer_name,
-            category: col.type,
-            totalAmount: col.total_price > 0 ? col.total_price : calcPrice,
-            totalWeight: calcWeight, 
-            address: col.address,
-            contact: col.contact_number,
-            items: mappedItems
-        };
-    });
+    return {
+        id: col.id, 
+        date: col.date_collected,
+        customer: col.customer_name,
+        category: col.type,
+        totalAmount: calcPrice, // Use the calculated sum
+        totalWeight: calcWeight, // Use the calculated sum
+        address: col.address,
+        contact: col.contact_number,
+        items: mappedItems
+    };
+});
     renderTable();
 }
 
