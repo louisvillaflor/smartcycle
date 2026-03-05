@@ -66,8 +66,6 @@ async function fetchAllCollections() {
     });
     renderTable();
 }
-renderTable();
-}
 
 // SHARED FILTER HELPER — single source of truth for filtered collections
 function getFilteredCollections() {
