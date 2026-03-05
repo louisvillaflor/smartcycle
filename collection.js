@@ -505,11 +505,10 @@ function buildReceiptItemRows(items, minRows) {
   items.forEach(item => {
     rows += `
       <tr>
-        <td style="text-align:center;">${item.weight}</td>
-        <td style="text-align:center;">kg</td>
-        <td style="text-align:left; padding-left:8px;">${item.material}</td>
-        <td style="text-align:center;">₱${item.rate}</td>
-        <td style="text-align:center;">₱${item.subtotal.toFixed(2)}</td>
+          <td style="text-align:left; padding-left:15px; width: 40%;">${item.material}</td>
+          <td style="text-align:center; width: 20%;">${item.weight} kg</td>
+          <td style="text-align:center; width: 20%;">₱${item.rate}</td>
+          <td style="text-align:right; padding-right:15px; width: 20%;">₱${item.subtotal.toFixed(2)}</td>
       </tr>
     `;
   });
