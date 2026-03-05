@@ -12,6 +12,18 @@ const itemsPerPage = 10;
 // Initialize collections from localStorage
 window.collections = [];
 
+// 1. COMBINE YOUR LISTENERS INTO ONE
+document.addEventListener('DOMContentLoaded', async () => {
+    loadModalHTML();
+    setupSearch();
+    
+    // Ensure data is fetched BEFORE we try to render the first time
+    await fetchAllCollections(); 
+    
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+});
+
+// 2. UPDATE YOUR FETCH FUNCTION
 async function fetchAllCollections() {
     const { data, error } = await _supabase
         .from('collections') 
@@ -23,18 +35,20 @@ async function fetchAllCollections() {
         return;
     }
 
+    // Map database columns to local state
     window.collections = data.map(col => ({
         id: col.id, 
         date: col.date_collected,
         customer: col.customer_name,
-        category: col.type,
+        category: col.type, // Ensure this matches your tab names (Barangay, School, etc.)
         totalAmount: col.total_price || 0,
         itemCount: col.item_count || 0,
-        address: col.address,    // Added for Edit mode
-        contact: col.contact_number, // Added for Edit mode
-        items: [] // Initially empty
+        address: col.address,
+        contact: col.contact_number,
+        items: [] 
     }));
 
+    // CRITICAL: Call renderTable here so it populates once data exists
     renderTable();
 }
 
@@ -63,14 +77,6 @@ async function fetchItemsForCollection(index) {
     subtotal: item.subtotal
   }));
 }
-
-// Update DOMContentLoaded to use the database fetch
-document.addEventListener('DOMContentLoaded', () => {
-    loadModalHTML();
-    fetchAllCollections(); // Fetch from Supabase instead of localStorage
-    setupSearch();
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-});
 
 // SHARED FILTER HELPER — single source of truth for filtered collections
 function getFilteredCollections() {
