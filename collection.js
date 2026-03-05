@@ -173,13 +173,14 @@ function renderTable() {
     const totalAmount = collection.totalAmount ? collection.totalAmount.toFixed(2) : '0.00';
 
     // Inside your renderTable function loop:
+    // Inside your renderTable function loop:
     const materialRows = collection.items && collection.items.length > 0
       ? collection.items.map(item => `
-          <tr>
-            <td style="width: 35%; padding: 12px 20px; text-align: left;">${item.material}</td>
-            <td style="width: 20%; text-align: center; padding: 12px;">${item.weight}kg</td>
-            <td style="width: 20%; text-align: center; padding: 12px 10px;">₱${item.rate}</td>
-            <td style="width: 25%; text-align: right; padding: 12px 20px;"><strong>₱${item.subtotal.toFixed(2)}</strong></td>
+          <tr style="border-bottom: 1px solid #f8fafc;">
+            <td style="width: 40%; padding: 10px 20px; text-align: left; color: #334155;">${item.material}</td>
+            <td style="width: 20%; padding: 10px; text-align: center; color: #64748b;">${item.weight} kg</td>
+            <td style="width: 20%; padding: 10px; text-align: center; color: #64748b;">₱${item.rate}</td>
+            <td style="width: 20%; padding: 10px 20px; text-align: right; color: #1e293b;"><strong>₱${item.subtotal.toFixed(2)}</strong></td>
           </tr>
         `).join('')
       : '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No items found</td></tr>';
@@ -502,23 +503,26 @@ window.deleteEntry = function(index) {
 // FIX: was duplicated between viewReceipt() inline HTML and add_collection.html preview
 function buildReceiptItemRows(items, minRows) {
   let rows = '';
-  items.forEach(item => {
-    rows += `
-      <tr>
+  if (items && items.length > 0) {
+    items.forEach(item => {
+      rows += `
+        <tr>
           <td style="text-align:left; padding-left:15px; width: 40%;">${item.material}</td>
           <td style="text-align:center; width: 20%;">${item.weight} kg</td>
           <td style="text-align:center; width: 20%;">₱${item.rate}</td>
           <td style="text-align:right; padding-right:15px; width: 20%;">₱${item.subtotal.toFixed(2)}</td>
-      </tr>
-    `;
-  });
-  const emptyCount = Math.max(0, minRows - items.length);
+        </tr>
+      `;
+    });
+  }
+
+  // Fill remaining space with empty rows
+  const emptyCount = Math.max(0, minRows - (items ? items.length : 0));
   for (let i = 0; i < emptyCount; i++) {
-    rows += `<tr class="empty-row"><td></td><td></td><td></td><td></td><td></td></tr>`;
+    rows += `<tr class="empty-row"><td colspan="4" style="height: 30px; border-bottom: 1px solid #eee;"></td></tr>`;
   }
   return rows;
 }
-
 // VIEW RECEIPT
 window.viewReceipt = function(index) {
   const data = window.collections[index];
