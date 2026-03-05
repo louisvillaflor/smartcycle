@@ -75,17 +75,6 @@ function getFilteredCollections() {
   );
 }
 
-// INITIALIZE ON PAGE LOAD
-document.addEventListener('DOMContentLoaded', () => {
-  loadModalHTML();
-  renderTable();
-  setupSearch();
-
-  if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-  }
-});
-
 // LOAD MODAL HTML
 function loadModalHTML() {
   fetch('add_collection.html')
@@ -299,7 +288,6 @@ window.toggleDetails = async function(id, rowEl, index) {
 
   if (!isOpen) {
     // 1. Fetch the items first
-    await fetchItemsForCollection(index);
     
     // 2. Build the rows and inject them into the sub-row
     const itemRows = buildReceiptItemRows(window.collections[index].items, 0);
