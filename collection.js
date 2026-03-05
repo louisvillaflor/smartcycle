@@ -25,9 +25,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // 2. UPDATE YOUR FETCH FUNCTION
 async function fetchAllCollections() {
+    // 1. Fetch collections AND their items in one go using join
     const { data, error } = await _supabase
         .from('collections') 
-        .select('*')
+        .select(`
+            *,
+            collection_items (*)
+        `)
         .order('date_collected', { ascending: false });
 
     if (error) {
@@ -35,47 +39,28 @@ async function fetchAllCollections() {
         return;
     }
 
-    // Map database columns to local state
     window.collections = data.map(col => ({
         id: col.id, 
         date: col.date_collected,
         customer: col.customer_name,
-        category: col.type, // Ensure this matches your tab names (Barangay, School, etc.)
+        category: col.type,
         totalAmount: col.total_price || 0,
         itemCount: col.item_count || 0,
         address: col.address,
         contact: col.contact_number,
-        items: [] 
+        // 2. Map the joined items immediately
+        items: col.collection_items.map(item => ({
+            material: item.material_name,
+            rate: item.rate,
+            weight: item.weight,
+            subtotal: item.subtotal
+        }))
     }));
 
-    // CRITICAL: Call renderTable here so it populates once data exists
     renderTable();
 }
-
-// FETCH LINE ITEMS FOR A SPECIFIC COLLECTION
-async function fetchItemsForCollection(index) {
-  const col = window.collections[index];
-  
-  // Optimization: Don't hit the database if we already have the items locally
-  if (col.items && col.items.length > 0) return;
-
-  const { data, error } = await _supabase
-    .from('collection_items')
-    .select('*')
-    .eq('collection_id', col.id);
-
-  if (error) {
-    console.error("Error fetching items:", error.message);
-    return;
-  }
-
-  // Map database columns to your frontend item structure
-  window.collections[index].items = data.map(item => ({
-    material: item.material_name,
-    rate: item.rate,
-    weight: item.weight,
-    subtotal: item.subtotal
-  }));
+    // CRITICAL: Call renderTable here so it populates once data exists
+    renderTable();
 }
 
 // SHARED FILTER HELPER — single source of truth for filtered collections
