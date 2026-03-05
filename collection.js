@@ -173,16 +173,16 @@ function renderTable() {
     const totalAmount = collection.totalAmount ? collection.totalAmount.toFixed(2) : '0.00';
 
     // Inside your renderTable function loop:
-const materialRows = collection.items && collection.items.length > 0
-  ? collection.items.map(item => `
-      <tr>
-        <td style="width: 35%; padding: 12px 20px; text-align: left;">${item.material}</td>
-        <td style="width: 20%; text-align: center; padding: 12px;">${item.weight}kg</td>
-        <td style="width: 20%; text-align: center; padding: 12px 10px;">₱${item.rate}</td>
-        <td style="width: 25%; text-align: right; padding: 12px 20px;"><strong>₱${item.subtotal.toFixed(2)}</strong></td>
-      </tr>
-    `).join('')
-  : '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No items found</td></tr>';
+    const materialRows = collection.items && collection.items.length > 0
+      ? collection.items.map(item => `
+          <tr>
+            <td style="width: 35%; padding: 12px 20px; text-align: left;">${item.material}</td>
+            <td style="width: 20%; text-align: center; padding: 12px;">${item.weight}kg</td>
+            <td style="width: 20%; text-align: center; padding: 12px 10px;">₱${item.rate}</td>
+            <td style="width: 25%; text-align: right; padding: 12px 20px;"><strong>₱${item.subtotal.toFixed(2)}</strong></td>
+          </tr>
+        `).join('')
+      : '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No items found</td></tr>';
 
     tbody.innerHTML += `
       <tr class="main-row" onclick="toggleDetails('${rowId}', this, ${actualIndex})">
