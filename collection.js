@@ -12,25 +12,19 @@ const itemsPerPage = 10;
 // Initialize collections from localStorage
 window.collections = [];
 
-// 1. COMBINE YOUR LISTENERS INTO ONE
+// 1. COMBINED INITIALIZATION
 document.addEventListener('DOMContentLoaded', async () => {
     loadModalHTML();
     setupSearch();
-    
-    // Ensure data is fetched BEFORE we try to render the first time
-    await fetchAllCollections(); 
-    
+    await fetchAllCollections(); // This triggers renderTable() inside
     if (typeof lucide !== 'undefined') lucide.createIcons();
 });
 
-// 2. UPDATE YOUR FETCH FUNCTION
+// 2. FETCH DATA
 async function fetchAllCollections() {
     const { data, error } = await _supabase
         .from('collections') 
-        .select(`
-            *,
-            collection_items (*)
-        `)
+        .select(`*, collection_items (*)`)
         .order('date_collected', { ascending: false });
 
     if (error) {
@@ -39,15 +33,13 @@ async function fetchAllCollections() {
     }
 
     window.collections = data.map(col => {
-        // Map the items first so we can use them for totals
         const mappedItems = (col.collection_items || []).map(item => ({
-            material: item.material_name || 'Unknown', // Check if column is actually 'material_name'
+            material: item.material_name || 'Unknown',
             rate: item.rate || 0,
             weight: item.weight || 0,
             subtotal: item.subtotal || 0
         }));
 
-        // Calculate actual totals if the DB columns are 0
         const calcWeight = mappedItems.reduce((sum, i) => sum + i.weight, 0);
         const calcPrice = mappedItems.reduce((sum, i) => sum + i.subtotal, 0);
 
@@ -56,7 +48,6 @@ async function fetchAllCollections() {
             date: col.date_collected,
             customer: col.customer_name,
             category: col.type,
-            // Use DB value if exists, otherwise use calculated
             totalAmount: col.total_price > 0 ? col.total_price : calcPrice,
             totalWeight: calcWeight, 
             address: col.address,
@@ -106,113 +97,65 @@ function loadModalHTML() {
     });
 }
 
-// RENDER TABLE
+// 3. RENDER TABLE
 function renderTable() {
-  const tbody = document.getElementById('collectionTableBody');
-  if (!tbody) return;
+    const tbody = document.getElementById('collectionTableBody');
+    if (!tbody) return;
 
-  // FIX: now uses shared helper instead of inline duplicate logic
-  const filtered = getFilteredCollections();
+    const filtered = getFilteredCollections();
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    const pageCollections = filtered.slice(startIdx, startIdx + itemsPerPage);
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const startIdx = (currentPage - 1) * itemsPerPage;
-  const pageCollections = filtered.slice(startIdx, startIdx + itemsPerPage);
+    tbody.innerHTML = '';
 
-  tbody.innerHTML = '';
-
-  if (pageCollections.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="8" style="text-align: center; padding: 40px; color: #94a3b8;">
-          <div class="empty-state">
-            <i data-lucide="inbox" style="width: 48px; height: 48px; margin: 0 auto 16px; opacity: 0.3;"></i>
-            <p>No collections found</p>
-          </div>
-        </td>
-      </tr>
-    `;
-    updatePagination(totalPages);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-    return;
-  }
-
-  pageCollections.forEach((collection, pageIndex) => {
-    const actualIndex = startIdx + pageIndex;
-    const rowId = `col-${actualIndex}`;
-
-    let materialSummary = 'N/A';
-    if (collection.items && collection.items.length > 0) {
-      if (collection.items.length === 1) {
-        materialSummary = collection.items[0].material;
-      } else {
-        const uniqueMaterials = [...new Set(collection.items.map(item => item.material))];
-        materialSummary = `${uniqueMaterials.length} types (${collection.items.length} items)`;
-      }
+    if (pageCollections.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">No collections found</td></tr>`;
+        updatePagination(totalPages);
+        return;
     }
-    const totalWeight = collection.totalWeight ? collection.totalWeight.toFixed(1) : '0';
-    const totalAmount = collection.totalAmount ? collection.totalAmount.toFixed(2) : '0.00';
 
-    // Inside your renderTable function loop:
-const materialRows = collection.items && collection.items.length > 0
-  ? collection.items.map(item => `
-      <tr>
-        <td style="width: 35%; padding: 12px 20px; text-align: left;">${item.material}</td>
-        <td style="width: 20%; text-align: center; padding: 12px;">${item.weight}kg</td>
-        <td style="width: 20%; text-align: center; padding: 12px 10px;">₱${item.rate}</td>
-        <td style="width: 25%; text-align: right; padding: 12px 20px;"><strong>₱${item.subtotal.toFixed(2)}</strong></td>
-      </tr>
-    `).join('')
-  : '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No items found</td></tr>';
+    pageCollections.forEach((collection, pageIndex) => {
+        const actualIndex = startIdx + pageIndex;
+        const rowId = `col-${actualIndex}`;
 
-    tbody.innerHTML += `
-      <tr class="main-row" onclick="toggleDetails('${rowId}', this, ${actualIndex})">
-        <td class="chevron-cell">
-          <i data-lucide="chevron-down" style="width: 18px; height: 18px;"></i>
-        </td>
-        <td>${collection.date}</td>
-        <td><span style="background: #e0f2fe; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #0369a1;">${collection.id}</span></td>
-        <td style="font-weight: 600;">${collection.customer}</td>
-        <td><span style="color: #64748b; font-size: 13px;">${materialSummary}</span></td>
-        <td style="text-align:center">${totalWeight} kg</td>
-        <td style="text-align:right; font-weight: 700; color: #10b981;">₱${totalAmount}</td>
-        <td onclick="event.stopPropagation()">
-          <div class="action-btns">
-            <button class="icon-btn" onclick="viewReceipt(${actualIndex})" title="View Receipt">
-              <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
-            </button>
-            <button class="icon-btn" onclick="editEntry(${actualIndex})" title="Edit">
-              <i data-lucide="edit-2" style="width: 16px; height: 16px;"></i>
-            </button>
-            <button class="icon-btn delete" onclick="deleteEntry(${actualIndex})" title="Delete">
-              <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
-            </button>
-          </div>
-        </td>
-      </tr>
-      <tr id="${rowId}" class="sub-row-container">
-        <td colspan="8" style="padding: 0 !important; border: none;">
-          <div class="expanded-content">
-            <div class="expanded-inner">
-                <table class="expanded-table">
-                  <tbody>${materialRows}</tbody>
-                </table>
-              <div class="total-summary-line">
-                <span>Total Amount:</span>
-                <span class="green-text">₱${collection.items.reduce((sum, item) => sum + (item.subtotal || 0), 0).toFixed(2)}</span>
+        let materialSummary = 'N/A';
+        if (collection.items && collection.items.length > 0) {
+            const uniqueMaterials = [...new Set(collection.items.map(item => item.material))];
+            materialSummary = uniqueMaterials.length === 1 ? uniqueMaterials[0] : `${uniqueMaterials.length} types`;
+        }
+
+        const materialRows = buildReceiptItemRows(collection.items || [], 0);
+
+        tbody.innerHTML += `
+          <tr class="main-row" onclick="toggleDetails('${rowId}', this, ${actualIndex})">
+            <td class="chevron-cell"><i data-lucide="chevron-down" style="width:18px;"></i></td>
+            <td>${collection.date}</td>
+            <td><span class="id-badge">${collection.id}</span></td>
+            <td style="font-weight:600;">${collection.customer}</td>
+            <td><span style="color:#64748b;">${materialSummary}</span></td>
+            <td style="text-align:center">${collection.totalWeight.toFixed(1)} kg</td>
+            <td style="text-align:right; font-weight:700; color:#10b981;">₱${collection.totalAmount.toFixed(2)}</td>
+            <td onclick="event.stopPropagation()">
+              <div class="action-btns">
+                <button class="icon-btn" onclick="viewReceipt(${actualIndex})"><i data-lucide="eye"></i></button>
+                <button class="icon-btn" onclick="editEntry(${actualIndex})"><i data-lucide="edit-2"></i></button>
+                <button class="icon-btn delete" onclick="deleteEntry(${actualIndex})"><i data-lucide="trash-2"></i></button>
               </div>
-            </div>
-          </div>
-        </td>
-      </tr>
-    `;
-  });
+            </td>
+          </tr>
+          <tr id="${rowId}" class="sub-row-container">
+            <td colspan="8" style="padding:0 !important; border:none;">
+              <div class="expanded-content">
+                <table class="expanded-table"><tbody>${materialRows}</tbody></table>
+              </div>
+            </td>
+          </tr>`;
+    });
 
-  // FIX: single lucide init after all rows are rendered, before pagination
-  if (typeof lucide !== 'undefined') lucide.createIcons();
-
-  updatePagination(totalPages);
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    updatePagination(totalPages);
 }
-
 // UPDATE PAGINATION
 function updatePagination(totalPages) {
   const pagination = document.querySelector('.pagination');
@@ -280,29 +223,21 @@ window.changePage = function(direction) {
 };
 
 // TOGGLE DETAILS — Expand or Collapse
-window.toggleDetails = async function(id, rowEl, index) {
-  const subRow = document.getElementById(id);
-  if (!subRow) return;
+window.toggleDetails = function(id, rowEl, index) {
+    const subRow = document.getElementById(id);
+    if (!subRow) return;
 
-  const isOpen = subRow.classList.contains('show');
+    const isOpen = subRow.classList.contains('show');
 
-  if (!isOpen) {
-    // 1. Fetch the items first
-    
-    // 2. Build the rows and inject them into the sub-row
-    const itemRows = buildReceiptItemRows(window.collections[index].items, 0);
-    const tbody = subRow.querySelector('tbody');
-    if (tbody) tbody.innerHTML = itemRows;
-
-    // 3. Show the row
-    document.querySelectorAll('.sub-row-container').forEach(r => r.classList.remove('show'));
-    document.querySelectorAll('.main-row').forEach(r => r.classList.remove('open'));
-    subRow.classList.add('show');
-    rowEl.classList.add('open');
-  } else {
-    subRow.classList.remove('show');
-    rowEl.classList.remove('open');
-  }
+    if (!isOpen) {
+        document.querySelectorAll('.sub-row-container').forEach(r => r.classList.remove('show'));
+        document.querySelectorAll('.main-row').forEach(r => r.classList.remove('open'));
+        subRow.classList.add('show');
+        rowEl.classList.add('open');
+    } else {
+        subRow.classList.remove('show');
+        rowEl.classList.remove('open');
+    }
 };
 // FILTER BY CATEGORY
 window.filterByCategory = function(category, btn) {
