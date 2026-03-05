@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // 2. UPDATE YOUR FETCH FUNCTION
 async function fetchAllCollections() {
-    // 1. Fetch collections AND their items in one go using join
     const { data, error } = await _supabase
         .from('collections') 
         .select(`
@@ -39,27 +38,32 @@ async function fetchAllCollections() {
         return;
     }
 
-    window.collections = data.map(col => ({
-        id: col.id, 
-        date: col.date_collected,
-        customer: col.customer_name,
-        category: col.type,
-        totalAmount: col.total_price || 0,
-        itemCount: col.item_count || 0,
-        address: col.address,
-        contact: col.contact_number,
-        // 2. Map the joined items immediately
-        items: col.collection_items.map(item => ({
-            material: item.material_name,
-            rate: item.rate,
-            weight: item.weight,
-            subtotal: item.subtotal
-        }))
-    }));
+    window.collections = data.map(col => {
+        // Map the items first so we can use them for totals
+        const mappedItems = (col.collection_items || []).map(item => ({
+            material: item.material_name || 'Unknown', // Check if column is actually 'material_name'
+            rate: item.rate || 0,
+            weight: item.weight || 0,
+            subtotal: item.subtotal || 0
+        }));
 
-    renderTable();
-}
-    // CRITICAL: Call renderTable here so it populates once data exists
+        // Calculate actual totals if the DB columns are 0
+        const calcWeight = mappedItems.reduce((sum, i) => sum + i.weight, 0);
+        const calcPrice = mappedItems.reduce((sum, i) => sum + i.subtotal, 0);
+
+        return {
+            id: col.id, 
+            date: col.date_collected,
+            customer: col.customer_name,
+            category: col.type,
+            // Use DB value if exists, otherwise use calculated
+            totalAmount: col.total_price > 0 ? col.total_price : calcPrice,
+            totalWeight: calcWeight, 
+            address: col.address,
+            contact: col.contact_number,
+            items: mappedItems
+        };
+    });
     renderTable();
 }
 
@@ -156,11 +160,7 @@ function renderTable() {
         materialSummary = `${uniqueMaterials.length} types (${collection.items.length} items)`;
       }
     }
-
-    const totalWeight = collection.items && collection.items.length > 0
-      ? collection.items.reduce((sum, item) => sum + item.weight, 0).toFixed(1)
-      : '0';
-
+    const totalWeight = collection.totalWeight ? collection.totalWeight.toFixed(1) : '0';
     const totalAmount = collection.totalAmount ? collection.totalAmount.toFixed(2) : '0.00';
 
     // Inside your renderTable function loop:
@@ -209,7 +209,7 @@ const materialRows = collection.items && collection.items.length > 0
                 </table>
               <div class="total-summary-line">
                 <span>Total Amount:</span>
-                <span class="green-text">₱${totalAmount}</span>
+                <span class="green-text">₱${collection.items.reduce((sum, item) => sum + (item.subtotal || 0), 0).toFixed(2)}</span>
               </div>
             </div>
           </div>
