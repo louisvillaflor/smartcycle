@@ -13,7 +13,6 @@ const itemsPerPage = 10;
 window.collections = [];
 
 async function fetchAllCollections() {
-    // We fetch from the VIEW we created in the previous step to get totals automatically
     const { data, error } = await _supabase
         .from('collections') 
         .select('*')
@@ -24,20 +23,45 @@ async function fetchAllCollections() {
         return;
     }
 
-    // Map Supabase column names to your existing frontend names
     window.collections = data.map(col => ({
-        id: col.id, // Using the UUID from DB
-        customId: col.custom_id, // e.g., '001'
+        id: col.id, 
         date: col.date_collected,
         customer: col.customer_name,
         category: col.type,
-        totalAmount: col.total_price,
-        itemCount: col.item_count,
-        // We will fetch sub-items only when a row is expanded to keep it fast
-        items: [] 
+        totalAmount: col.total_price || 0,
+        itemCount: col.item_count || 0,
+        address: col.address,    // Added for Edit mode
+        contact: col.contact_number, // Added for Edit mode
+        items: [] // Initially empty
     }));
 
     renderTable();
+}
+
+// FETCH LINE ITEMS FOR A SPECIFIC COLLECTION
+async function fetchItemsForCollection(index) {
+  const col = window.collections[index];
+  
+  // Optimization: Don't hit the database if we already have the items locally
+  if (col.items && col.items.length > 0) return;
+
+  const { data, error } = await _supabase
+    .from('collection_items')
+    .select('*')
+    .eq('collection_id', col.id);
+
+  if (error) {
+    console.error("Error fetching items:", error.message);
+    return;
+  }
+
+  // Map database columns to your frontend item structure
+  window.collections[index].items = data.map(item => ({
+    material: item.material_name,
+    rate: item.rate,
+    weight: item.weight,
+    subtotal: item.subtotal
+  }));
 }
 
 // Update DOMContentLoaded to use the database fetch
@@ -160,7 +184,7 @@ function renderTable() {
       : '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No items</td></tr>';
 
     tbody.innerHTML += `
-      <tr class="main-row" onclick="toggleDetails('${rowId}', this)">
+      <tr class="main-row" onclick="toggleDetails('${rowId}', this, ${actualIndex})">
         <td class="chevron-cell">
           <i data-lucide="chevron-down" style="width: 18px; height: 18px;"></i>
         </td>
@@ -275,23 +299,31 @@ window.changePage = function(direction) {
 };
 
 // TOGGLE DETAILS — Expand or Collapse
-window.toggleDetails = function(id, rowEl) {
+window.toggleDetails = async function(id, rowEl, index) {
   const subRow = document.getElementById(id);
   if (!subRow) return;
 
   const isOpen = subRow.classList.contains('show');
 
-  document.querySelectorAll('.sub-row-container').forEach(r => r.classList.remove('show'));
-  document.querySelectorAll('.main-row').forEach(r => r.classList.remove('open'));
-
   if (!isOpen) {
+    // 1. Fetch the items first
+    await fetchItemsForCollection(index);
+    
+    // 2. Build the rows and inject them into the sub-row
+    const itemRows = buildReceiptItemRows(window.collections[index].items, 0);
+    const tbody = subRow.querySelector('tbody');
+    if (tbody) tbody.innerHTML = itemRows;
+
+    // 3. Show the row
+    document.querySelectorAll('.sub-row-container').forEach(r => r.classList.remove('show'));
+    document.querySelectorAll('.main-row').forEach(r => r.classList.remove('open'));
     subRow.classList.add('show');
     rowEl.classList.add('open');
+  } else {
+    subRow.classList.remove('show');
+    rowEl.classList.remove('open');
   }
-
-  // FIX: lucide.createIcons() removed here — icons don't change on expand/collapse
 };
-
 // FILTER BY CATEGORY
 window.filterByCategory = function(category, btn) {
   currentFilter = category;
@@ -437,12 +469,24 @@ window.deleteEntry = function(index) {
   confirmBtn.replaceWith(newConfirm);
   cancelBtn.replaceWith(newCancel);
 
-  newConfirm.addEventListener('click', () => {
-    window.collections.splice(index, 1);
-    window.saveCollections();
-    renderTable();
-    modal.style.display = 'none';
-  });
+  newConfirm.addEventListener('click', async () => {
+    try {
+        const { error } = await _supabase
+            .from('collections')
+            .delete()
+            .eq('id', collection.id);
+
+        if (error) throw error;
+
+        // Update local state and UI
+        window.collections.splice(index, 1);
+        renderTable();
+        modal.style.display = 'none';
+        alert("Collection deleted successfully.");
+    } catch (err) {
+        alert("Error deleting: " + err.message);
+    }
+});
 
   newCancel.addEventListener('click', () => {
     modal.style.display = 'none';
