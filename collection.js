@@ -502,26 +502,39 @@ window.deleteEntry = function(index) {
 // SHARED RECEIPT ITEM ROWS BUILDER
 // FIX: was duplicated between viewReceipt() inline HTML and add_collection.html preview
 function buildReceiptItemRows(items, minRows) {
+
   let rows = '';
-  if (items && items.length > 0) {
-    items.forEach(item => {
-      rows += `
-        <tr>
+
+  items.forEach(item => {
+
+    rows += `
+
+      <tr>
+
           <td style="text-align:left; padding-left:15px; width: 40%;">${item.material}</td>
+
           <td style="text-align:center; width: 20%;">${item.weight} kg</td>
+
           <td style="text-align:center; width: 20%;">₱${item.rate}</td>
+
           <td style="text-align:right; padding-right:15px; width: 20%;">₱${item.subtotal.toFixed(2)}</td>
-        </tr>
-      `;
-    });
+
+      </tr>
+
+    `;
+
+  });
+
+  const emptyCount = Math.max(0, minRows - items.length);
+
+  for (let i = 0; i < emptyCount; i++) {
+
+    rows += `<tr class="empty-row"><td></td><td></td><td></td><td></td><td></td></tr>`;
+
   }
 
-  // Fill remaining space with empty rows
-  const emptyCount = Math.max(0, minRows - (items ? items.length : 0));
-  for (let i = 0; i < emptyCount; i++) {
-    rows += `<tr class="empty-row"><td colspan="4" style="height: 30px; border-bottom: 1px solid #eee;"></td></tr>`;
-  }
   return rows;
+
 }
 // VIEW RECEIPT
 window.viewReceipt = function(index) {
