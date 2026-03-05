@@ -176,7 +176,7 @@ function renderTable() {
 const materialRows = collection.items && collection.items.length > 0
   ? collection.items.map(item => `
       <tr>
-        <td style="width: 35%; padding: 12px 20px; text-align: left;">${item.material_name}</td>
+        <td style="width: 35%; padding: 12px 20px; text-align: left;">${item.material}</td>
         <td style="width: 20%; text-align: center; padding: 12px;">${item.weight}kg</td>
         <td style="width: 20%; text-align: center; padding: 12px 10px;">₱${item.rate}</td>
         <td style="width: 25%; text-align: right; padding: 12px 20px;"><strong>₱${item.subtotal.toFixed(2)}</strong></td>
@@ -213,10 +213,9 @@ const materialRows = collection.items && collection.items.length > 0
         <td colspan="8" style="padding: 0 !important; border: none;">
           <div class="expanded-content">
             <div class="expanded-inner">
-             
-<table class="expanded-table">
-  <tbody>${materialRows}</tbody>
-</table>
+                <table class="expanded-table">
+                  <tbody>${materialRows}</tbody>
+                </table>
               <div class="total-summary-line">
                 <span>Total Amount:</span>
                 <span class="green-text">₱${totalAmount}</span>
