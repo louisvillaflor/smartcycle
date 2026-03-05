@@ -172,16 +172,17 @@ function renderTable() {
 
     const totalAmount = collection.totalAmount ? collection.totalAmount.toFixed(2) : '0.00';
 
-    const materialRows = collection.items && collection.items.length > 0
-      ? collection.items.map(item => `
-          <tr>
-            <td style="width: 40%; padding: 12px 20px;">${item.material}</td>
-            <td style="width: 15%; text-align:center; padding: 12px 10px;">${item.rate}</td>
-            <td style="width: 20%; text-align:center; padding: 12px 10px;">${item.weight} kg</td>
-            <td style="width: 25%; text-align:right; padding: 12px 20px;"><strong>₱${item.subtotal.toFixed(2)}</strong></td>
-          </tr>
-        `).join('')
-      : '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No items</td></tr>';
+    // Inside your renderTable function loop:
+const materialRows = collection.items && collection.items.length > 0
+  ? collection.items.map(item => `
+      <tr>
+        <td style="width: 35%; padding: 12px 20px; text-align: left;">${item.material}</td>
+        <td style="width: 20%; text-align: center; padding: 12px 10px;">${item.weight} kg</td>
+        <td style="width: 20%; text-align: center; padding: 12px 10px;">₱${item.rate}</td>
+        <td style="width: 25%; text-align: right; padding: 12px 20px;"><strong>₱${item.subtotal.toFixed(2)}</strong></td>
+      </tr>
+    `).join('')
+  : '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No items found</td></tr>';
 
     tbody.innerHTML += `
       <tr class="main-row" onclick="toggleDetails('${rowId}', this, ${actualIndex})">
@@ -212,9 +213,18 @@ function renderTable() {
         <td colspan="8" style="padding: 0 !important; border: none;">
           <div class="expanded-content">
             <div class="expanded-inner">
-              <table class="expanded-table">
-                <tbody>${materialRows}</tbody>
-              </table>
+              // Replace the expanded-table section in your tbody.innerHTML template:
+<table class="expanded-table">
+  <thead>
+    <tr style="border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+      <th style="text-align: left; padding: 10px 20px; font-size: 11px; color: #64748b; text-transform: uppercase;">Material</th>
+      <th style="text-align: center; padding: 10px; font-size: 11px; color: #64748b; text-transform: uppercase;">Weight</th>
+      <th style="text-align: center; padding: 10px; font-size: 11px; color: #64748b; text-transform: uppercase;">Rate</th>
+      <th style="text-align: right; padding: 10px 20px; font-size: 11px; color: #64748b; text-transform: uppercase;">Subtotal</th>
+    </tr>
+  </thead>
+  <tbody>${materialRows}</tbody>
+</table>
               <div class="total-summary-line">
                 <span>Total Amount:</span>
                 <span class="green-text">₱${totalAmount}</span>
