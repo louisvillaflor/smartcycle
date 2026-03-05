@@ -1,1044 +1,526 @@
 const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
-
 const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
-
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-
-
 let currentItems = [];
-
 let currentCategory = 'School';
-
 let currentPage = 1;
-
 let currentFilter = 'all';
-
 let editingIndex = -1;
-
 const itemsPerPage = 10;
 
-
-
 // Initialize collections from localStorage
-
 window.collections = [];
 
-
-
 async function fetchAllCollections() {
-
     const { data, error } = await _supabase
-
         .from('collections') 
-
         .select('*')
-
         .order('date_collected', { ascending: false });
 
-
-
     if (error) {
-
         console.error("Error fetching data:", error.message);
-
         return;
-
     }
 
-
-
     window.collections = data.map(col => ({
-
         id: col.id, 
-
         date: col.date_collected,
-
         customer: col.customer_name,
-
         category: col.type,
-
         totalAmount: col.total_price || 0,
-
         itemCount: col.item_count || 0,
-
         address: col.address,    // Added for Edit mode
-
         contact: col.contact_number, // Added for Edit mode
-
         items: [] // Initially empty
-
     }));
 
-
-
     renderTable();
-
 }
-
-
 
 // FETCH LINE ITEMS FOR A SPECIFIC COLLECTION
-
 async function fetchItemsForCollection(index) {
-
   const col = window.collections[index];
-
   
-
   // Optimization: Don't hit the database if we already have the items locally
-
   if (col.items && col.items.length > 0) return;
 
-
-
   const { data, error } = await _supabase
-
     .from('collection_items')
-
     .select('*')
-
     .eq('collection_id', col.id);
 
-
-
   if (error) {
-
     console.error("Error fetching items:", error.message);
-
     return;
-
   }
-
-
 
   // Map database columns to your frontend item structure
-
   window.collections[index].items = data.map(item => ({
-
     material: item.material_name,
-
     rate: item.rate,
-
     weight: item.weight,
-
     subtotal: item.subtotal
-
   }));
-
 }
-
-
 
 // Update DOMContentLoaded to use the database fetch
-
 document.addEventListener('DOMContentLoaded', () => {
-
     loadModalHTML();
-
     fetchAllCollections(); // Fetch from Supabase instead of localStorage
-
     setupSearch();
-
     if (typeof lucide !== 'undefined') lucide.createIcons();
-
 });
-
-
 
 // SHARED FILTER HELPER — single source of truth for filtered collections
-
 function getFilteredCollections() {
-
   if (currentFilter === 'all') return window.collections;
-
   return window.collections.filter(col =>
-
     col.category.toLowerCase() === currentFilter.toLowerCase()
-
   );
-
 }
-
-
 
 // INITIALIZE ON PAGE LOAD
-
 document.addEventListener('DOMContentLoaded', () => {
-
   loadModalHTML();
-
   renderTable();
-
   setupSearch();
 
-
-
   if (typeof lucide !== 'undefined') {
-
     lucide.createIcons();
-
   }
-
 });
 
-
-
 // LOAD MODAL HTML
-
 function loadModalHTML() {
-
   fetch('add_collection.html')
-
     .then(res => res.text())
-
     .then(html => {
-
       document.getElementById('modalContainer').innerHTML = html;
 
-
-
       const weightInput = document.getElementById('inWeight');
-
       if (weightInput) {
-
         weightInput.addEventListener('keypress', (e) => {
-
           if (e.key === 'Enter') {
-
             e.preventDefault();
-
             addItem();
-
           }
-
         });
-
       }
-
-
 
       if (typeof setupFieldListeners === 'function') {
-
         setupFieldListeners();
-
       }
-
-
 
       // Single lucide init after modal is injected
-
       if (typeof lucide !== 'undefined') {
-
         lucide.createIcons();
-
       }
-
     })
-
     .catch(() => {
-
       console.log('Modal HTML not found, using inline modal');
-
     });
-
 }
 
-
-
 // RENDER TABLE
-
 function renderTable() {
-
   const tbody = document.getElementById('collectionTableBody');
-
   if (!tbody) return;
 
-
-
   // FIX: now uses shared helper instead of inline duplicate logic
-
   const filtered = getFilteredCollections();
 
-
-
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
-
   const startIdx = (currentPage - 1) * itemsPerPage;
-
   const pageCollections = filtered.slice(startIdx, startIdx + itemsPerPage);
-
-
 
   tbody.innerHTML = '';
 
-
-
   if (pageCollections.length === 0) {
-
     tbody.innerHTML = `
-
       <tr>
-
         <td colspan="8" style="text-align: center; padding: 40px; color: #94a3b8;">
-
           <div class="empty-state">
-
             <i data-lucide="inbox" style="width: 48px; height: 48px; margin: 0 auto 16px; opacity: 0.3;"></i>
-
             <p>No collections found</p>
-
           </div>
-
         </td>
-
       </tr>
-
     `;
-
     updatePagination(totalPages);
-
     if (typeof lucide !== 'undefined') lucide.createIcons();
-
     return;
-
   }
 
-
-
   pageCollections.forEach((collection, pageIndex) => {
-
     const actualIndex = startIdx + pageIndex;
-
     const rowId = `col-${actualIndex}`;
 
-
-
     let materialSummary = 'N/A';
-
     if (collection.items && collection.items.length > 0) {
-
       if (collection.items.length === 1) {
-
         materialSummary = collection.items[0].material;
-
       } else {
-
         const uniqueMaterials = [...new Set(collection.items.map(item => item.material))];
-
         materialSummary = `${uniqueMaterials.length} types (${collection.items.length} items)`;
-
       }
-
     }
 
-
-
     const totalWeight = collection.items && collection.items.length > 0
-
       ? collection.items.reduce((sum, item) => sum + item.weight, 0).toFixed(1)
-
       : '0';
-
-
 
     const totalAmount = collection.totalAmount ? collection.totalAmount.toFixed(2) : '0.00';
 
-
-
     // Inside your renderTable function loop:
-
 const materialRows = collection.items && collection.items.length > 0
-
   ? collection.items.map(item => `
-
       <tr>
-
-        <td style="width: 35%; padding: 12px 20px; text-align: left;">${item.material}</td>
-
+        <td style="width: 35%; padding: 12px 20px; text-align: left;">${item.material_name}</td>
         <td style="width: 20%; text-align: center; padding: 12px;">${item.weight}kg</td>
-
         <td style="width: 20%; text-align: center; padding: 12px 10px;">₱${item.rate}</td>
-
         <td style="width: 25%; text-align: right; padding: 12px 20px;"><strong>₱${item.subtotal.toFixed(2)}</strong></td>
-
       </tr>
-
     `).join('')
-
   : '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No items found</td></tr>';
 
-
-
     tbody.innerHTML += `
-
       <tr class="main-row" onclick="toggleDetails('${rowId}', this, ${actualIndex})">
-
         <td class="chevron-cell">
-
           <i data-lucide="chevron-down" style="width: 18px; height: 18px;"></i>
-
         </td>
-
         <td>${collection.date}</td>
-
         <td><span style="background: #e0f2fe; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; color: #0369a1;">${collection.id}</span></td>
-
         <td style="font-weight: 600;">${collection.customer}</td>
-
         <td><span style="color: #64748b; font-size: 13px;">${materialSummary}</span></td>
-
         <td style="text-align:center">${totalWeight} kg</td>
-
         <td style="text-align:right; font-weight: 700; color: #10b981;">₱${totalAmount}</td>
-
         <td onclick="event.stopPropagation()">
-
           <div class="action-btns">
-
             <button class="icon-btn" onclick="viewReceipt(${actualIndex})" title="View Receipt">
-
               <i data-lucide="eye" style="width: 16px; height: 16px;"></i>
-
             </button>
-
             <button class="icon-btn" onclick="editEntry(${actualIndex})" title="Edit">
-
               <i data-lucide="edit-2" style="width: 16px; height: 16px;"></i>
-
             </button>
-
             <button class="icon-btn delete" onclick="deleteEntry(${actualIndex})" title="Delete">
-
               <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
-
             </button>
-
           </div>
-
         </td>
-
       </tr>
-
       <tr id="${rowId}" class="sub-row-container">
-
         <td colspan="8" style="padding: 0 !important; border: none;">
-
           <div class="expanded-content">
-
             <div class="expanded-inner">
-
-                <table class="expanded-table">
-
-                  <tbody>${materialRows}</tbody>
-
-                </table>
-
+             
+<table class="expanded-table">
+  <tbody>${materialRows}</tbody>
+</table>
               <div class="total-summary-line">
-
                 <span>Total Amount:</span>
-
                 <span class="green-text">₱${totalAmount}</span>
-
               </div>
-
             </div>
-
           </div>
-
         </td>
-
       </tr>
-
     `;
-
   });
 
-
-
   // FIX: single lucide init after all rows are rendered, before pagination
-
   if (typeof lucide !== 'undefined') lucide.createIcons();
 
-
-
   updatePagination(totalPages);
-
 }
 
-
-
 // UPDATE PAGINATION
-
 function updatePagination(totalPages) {
-
   const pagination = document.querySelector('.pagination');
-
   if (!pagination) return;
 
-
-
   if (totalPages <= 1) {
-
     pagination.innerHTML = '';
-
     pagination.style.display = 'none';
-
     return;
-
   }
-
-
 
   pagination.style.display = 'flex';
 
-
-
   let paginationHTML = `
-
     <button class="page-btn" onclick="changePage('prev')" aria-label="Previous page" ${currentPage === 1 ? 'disabled' : ''}>
-
       <i data-lucide="chevron-left"></i>
-
     </button>
-
     <button class="page-btn ${currentPage === 1 ? 'active' : ''}" data-page="1" onclick="goToPage(1)">1</button>
-
   `;
-
-
 
   if (currentPage > 3) {
-
     paginationHTML += `<span class="page-btn" style="cursor: default; border: none;">...</span>`;
-
   }
-
-
 
   for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
-
     paginationHTML += `<button class="page-btn ${currentPage === i ? 'active' : ''}" data-page="${i}" onclick="goToPage(${i})">${i}</button>`;
-
   }
-
-
 
   if (currentPage < totalPages - 2) {
-
     paginationHTML += `<span class="page-btn" style="cursor: default; border: none;">...</span>`;
-
   }
 
-
-
   paginationHTML += `
-
     <button class="page-btn ${currentPage === totalPages ? 'active' : ''}" data-page="${totalPages}" onclick="goToPage(${totalPages})">${totalPages}</button>
-
     <button class="page-btn" onclick="changePage('next')" aria-label="Next page" ${currentPage === totalPages ? 'disabled' : ''}>
-
       <i data-lucide="chevron-right"></i>
-
     </button>
-
   `;
-
-
 
   pagination.innerHTML = paginationHTML;
 
-
-
   // FIX: one lucide init here, not a second one in renderTable after updatePagination
-
   if (typeof lucide !== 'undefined') lucide.createIcons();
-
 }
 
-
-
 // PAGINATION FUNCTIONS
-
 window.goToPage = function(page) {
-
   currentPage = page;
-
   renderTable();
-
   window.scrollTo({ top: 0, behavior: 'smooth' });
-
 };
-
-
 
 window.changePage = function(direction) {
-
   // FIX: now uses shared helper instead of inline duplicate logic
-
   const totalPages = Math.ceil(getFilteredCollections().length / itemsPerPage);
 
-
-
   if (direction === 'prev' && currentPage > 1) {
-
     currentPage--;
-
     renderTable();
-
   } else if (direction === 'next' && currentPage < totalPages) {
-
     currentPage++;
-
     renderTable();
-
   }
-
   window.scrollTo({ top: 0, behavior: 'smooth' });
-
 };
 
-
-
 // TOGGLE DETAILS — Expand or Collapse
-
 window.toggleDetails = async function(id, rowEl, index) {
-
   const subRow = document.getElementById(id);
-
   if (!subRow) return;
-
-
 
   const isOpen = subRow.classList.contains('show');
 
-
-
   if (!isOpen) {
-
     // 1. Fetch the items first
-
     await fetchItemsForCollection(index);
-
     
-
     // 2. Build the rows and inject them into the sub-row
-
     const itemRows = buildReceiptItemRows(window.collections[index].items, 0);
-
     const tbody = subRow.querySelector('tbody');
-
     if (tbody) tbody.innerHTML = itemRows;
 
-
-
     // 3. Show the row
-
     document.querySelectorAll('.sub-row-container').forEach(r => r.classList.remove('show'));
-
     document.querySelectorAll('.main-row').forEach(r => r.classList.remove('open'));
-
     subRow.classList.add('show');
-
     rowEl.classList.add('open');
-
   } else {
-
     subRow.classList.remove('show');
-
     rowEl.classList.remove('open');
-
   }
-
 };
-
 // FILTER BY CATEGORY
-
 window.filterByCategory = function(category, btn) {
-
   currentFilter = category;
-
   currentPage = 1;
 
-
-
   document.querySelectorAll('.table-tabs .tab').forEach(tab => tab.classList.remove('active'));
-
   btn.classList.add('active');
 
-
-
   renderTable();
-
 };
-
-
 
 // SEARCH FUNCTIONALITY
-
 function setupSearch() {
-
   const searchInput = document.getElementById('collectionSearch');
-
   if (!searchInput) return;
 
-
-
   searchInput.addEventListener('input', (e) => {
-
     const searchTerm = e.target.value.toLowerCase().trim();
-
     const rows = document.querySelectorAll('.main-row');
 
-
-
     rows.forEach(row => {
-
       const text = row.innerText.toLowerCase();
-
       const subRowId = row.getAttribute('onclick').match(/'col-\d+'/)?.[0]?.replace(/'/g, '');
-
       const subRow = subRowId ? document.getElementById(subRowId) : null;
 
-
-
       if (text.includes(searchTerm)) {
-
         row.style.display = '';
-
         if (subRow && row.classList.contains('open')) {
-
           subRow.style.display = 'table-row';
-
         }
-
       } else {
-
         row.style.display = 'none';
-
         if (subRow) subRow.style.display = 'none';
-
       }
-
     });
-
   });
-
 }
 
-
-
 // EDIT ENTRY
-
 window.editEntry = function(index) {
-
   editingIndex = index;
-
   const data = window.collections[index];
 
-
-
   document.getElementById('inCustomer').value = data.customer;
-
   document.getElementById('inAddress').value = data.address || '';
-
   document.getElementById('inContact').value = data.contact || '';
 
-
-
   const dateParts = data.date.split('-');
-
   const fullYear = '20' + dateParts[2];
-
   document.getElementById('inDate').value = `${fullYear}-${dateParts[0]}-${dateParts[1]}`;
 
-
-
   currentCategory = data.category;
-
   // FIX: removed unused `i` index parameter from forEach
-
   document.querySelectorAll('.m-tab').forEach(tab => {
-
     tab.classList.remove('active');
-
     if (tab.innerText === data.category) tab.classList.add('active');
-
   });
 
-
-
   currentItems = [...(data.items || [])];
-
   if (typeof renderItems === 'function') renderItems();
 
-
-
   const submitBtn = document.querySelector('.btn-submit-green');
-
   if (submitBtn) {
-
     submitBtn.innerHTML = '<i data-lucide="check"></i> Update';
-
   }
-
-
 
   openAddModal();
-
   if (typeof updatePreview === 'function') updatePreview();
 
-
-
   if (typeof lucide !== 'undefined') {
-
     setTimeout(() => lucide.createIcons(), 100);
-
   }
-
 };
 
-
-
 // DELETE ENTRY
-
 window.deleteEntry = function(index) {
-
   const collection = window.collections[index];
 
-
-
   if (!document.getElementById('deleteConfirmModal')) {
-
     const modalHTML = `
-
       <div id="deleteConfirmModal" style="
-
         display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45);
-
         z-index:3000; justify-content:center; align-items:center;
-
         backdrop-filter:blur(4px);
-
       ">
-
         <div style="
-
           background:white; border-radius:20px; padding:36px 32px 28px;
-
           width:360px; max-width:90vw; text-align:center;
-
           box-shadow:0 20px 60px rgba(0,0,0,0.2);
-
           animation: deleteModalIn 0.25s ease-out;
-
         ">
-
           <div style="
-
             width:64px; height:64px; background:#fef2f2; border-radius:50%;
-
             display:flex; align-items:center; justify-content:center;
-
             margin:0 auto 18px;
-
           ">
-
             <i data-lucide="trash-2" style="width:28px;height:28px;color:#ef4444;"></i>
-
           </div>
-
           <h3 style="font-size:20px;font-weight:700;color:#111827;margin:0 0 8px;">Delete Collection</h3>
-
           <p id="deleteConfirmText" style="font-size:14px;color:#6b7280;margin:0 0 28px;line-height:1.5;"></p>
-
           <div style="display:flex;gap:12px;">
-
             <button id="deleteCancelBtn" style="
-
               flex:1; padding:12px; border-radius:10px; border:1px solid #e5e7eb;
-
               background:white; font-size:14px; font-weight:600; color:#374151;
-
               cursor:pointer; font-family:inherit; transition:background 0.2s;
-
             " onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
-
               Cancel
-
             </button>
-
             <button id="deleteConfirmBtn" style="
-
               flex:1; padding:12px; border-radius:10px; border:none;
-
               background:#ef4444; color:white; font-size:14px; font-weight:600;
-
               cursor:pointer; font-family:inherit; transition:background 0.2s;
-
             " onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
-
               Delete
-
             </button>
-
           </div>
-
         </div>
-
       </div>
-
       <style>
-
         @keyframes deleteModalIn {
-
           from { opacity:0; transform:scale(0.93) translateY(16px); }
-
           to   { opacity:1; transform:scale(1) translateY(0); }
-
         }
-
       </style>
-
     `;
-
     document.body.insertAdjacentHTML('beforeend', modalHTML);
-
     if (typeof lucide !== 'undefined') lucide.createIcons();
-
   }
 
-
-
   const modal = document.getElementById('deleteConfirmModal');
-
   const text = document.getElementById('deleteConfirmText');
-
   const confirmBtn = document.getElementById('deleteConfirmBtn');
-
   const cancelBtn = document.getElementById('deleteCancelBtn');
 
-
-
   text.textContent = `Are you sure you want to delete the collection for "${collection.customer}"? This action cannot be undone.`;
-
   modal.style.display = 'flex';
 
-
-
   // FIX: removed duplicate lucide.createIcons() call here — already called above when modal is first injected
-
   // For subsequent opens, icons are already rendered in the static modal markup
 
-
-
   const newConfirm = confirmBtn.cloneNode(true);
-
   const newCancel = cancelBtn.cloneNode(true);
-
   confirmBtn.replaceWith(newConfirm);
-
   cancelBtn.replaceWith(newCancel);
 
-
-
   newConfirm.addEventListener('click', async () => {
-
     try {
-
         const { error } = await _supabase
-
             .from('collections')
-
             .delete()
-
             .eq('id', collection.id);
-
-
 
         if (error) throw error;
 
-
-
         // Update local state and UI
-
         window.collections.splice(index, 1);
-
         renderTable();
-
         modal.style.display = 'none';
-
         alert("Collection deleted successfully.");
-
     } catch (err) {
-
         alert("Error deleting: " + err.message);
-
     }
-
 });
 
-
-
   newCancel.addEventListener('click', () => {
-
     modal.style.display = 'none';
-
   });
-
-
 
   modal.onclick = (e) => {
-
     if (e.target === modal) modal.style.display = 'none';
-
   };
-
 };
 
-
-
 // SHARED RECEIPT ITEM ROWS BUILDER
-
 // FIX: was duplicated between viewReceipt() inline HTML and add_collection.html preview
-
 function buildReceiptItemRows(items, minRows) {
-
   let rows = '';
-
   items.forEach(item => {
-
     rows += `
-
       <tr>
-
         <td style="text-align:center;">${item.weight}</td>
-
         <td style="text-align:center;">kg</td>
-
         <td style="text-align:left; padding-left:8px;">${item.material}</td>
-
         <td style="text-align:center;">₱${item.rate}</td>
-
         <td style="text-align:center;">₱${item.subtotal.toFixed(2)}</td>
-
       </tr>
-
     `;
-
   });
-
   const emptyCount = Math.max(0, minRows - items.length);
-
   for (let i = 0; i < emptyCount; i++) {
-
     rows += `<tr class="empty-row"><td></td><td></td><td></td><td></td><td></td></tr>`;
-
   }
-
   return rows;
 }
-}
+
 // VIEW RECEIPT
 window.viewReceipt = function(index) {
   const data = window.collections[index];
