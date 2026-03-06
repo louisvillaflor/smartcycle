@@ -35,7 +35,7 @@ window.fetchAllCollections = async function() {
     console.log("Supabase data:", data);
 
    // Updated mapping inside fetchAllCollections
-  window.fetchAllCollections = async function() {
+ window.collections = data.map(col => {
     const { data, error } = await _supabase
         .from('collections')
         .select(`*, collection_items (*)`)
