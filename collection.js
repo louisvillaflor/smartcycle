@@ -61,7 +61,7 @@ window.fetchAllCollections = async function() {
     });
         renderTable();
     }
-
+}
 // SHARED FILTER HELPER — single source of truth for filtered collections
 function getFilteredCollections() {
   if (currentFilter === 'all') return window.collections;
