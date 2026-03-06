@@ -153,7 +153,18 @@ function renderTable() {
           <tr id="${rowId}" class="sub-row-container">
             <td colspan="8" style="padding:0 !important; border:none;">
               <div class="expanded-content">
-                <table class="expanded-table"><tbody>${materialRows}</tbody></table>
+                <table class="expanded-table">
+                    <thead>
+                        <tr>
+                          <th style="text-align:center;">QTY</th>
+                          <th style="text-align:center;">UNIT</th>
+                          <th style="text-align:left; padding-left:8px;">DESCRIPTION</th>
+                          <th style="text-align:center;">PRICE</th>
+                          <th style="text-align:center;">AMOUNT</th>
+                        </tr>
+                      </thead>
+                    <tbody>${materialRows}</tbody>
+                </table>
               </div>
             </td>
           </tr>`;
