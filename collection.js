@@ -23,19 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // 2. FETCH DATA
 window.fetchAllCollections = async function() {
-    const { data, error } = await _supabase
-        .from('collections') 
-        .select(`*, collection_items (*)`)
-        .order('date_collected', { ascending: false });
 
-    if (error) {
-        console.error("Error fetching data:", error.message);
-        return;
-    }
-    console.log("Supabase data:", data);
-
-   // Updated mapping inside fetchAllCollections
- window.collections = data.map(col => {
     const { data, error } = await _supabase
         .from('collections')
         .select(`*, collection_items (*)`)
@@ -49,6 +37,7 @@ window.fetchAllCollections = async function() {
     console.log("Supabase data:", data);
 
     window.collections = data.map(col => {
+
         const mappedItems = (col.collection_items || []).map(item => ({
             material: item.material_name || 'Unknown',
             rate: parseFloat(item.rate) || 0,
@@ -74,7 +63,6 @@ window.fetchAllCollections = async function() {
 
     renderTable();
 };
-
 
 // SHARED FILTER HELPER — single source of truth for filtered collections
 function getFilteredCollections() {
