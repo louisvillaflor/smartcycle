@@ -1,6 +1,7 @@
 const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
-const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
 
 let currentItems = [];
 let currentCategory = 'School';
@@ -21,7 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // 2. FETCH DATA
-async function fetchAllCollections() {
+window.fetchAllCollections = async function() {
     const { data, error } = await _supabase
         .from('collections') 
         .select(`*, collection_items (*)`)
