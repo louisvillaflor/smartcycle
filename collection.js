@@ -35,33 +35,33 @@ window.fetchAllCollections = async function() {
     console.log("Supabase data:", data);
 
    // Updated mapping inside fetchAllCollections
-    window.collections = data.map(col => {
-        const mappedItems = (col.collection_items || []).map(item => ({
-            material: item.material_name || 'Unknown',
-            rate: parseFloat(item.rate) || 0,
-            weight: parseFloat(item.weight) || 0,
-            subtotal: parseFloat(item.subtotal) || 0
-        }));
-    
-        // Manually sum up the sub-items for the main row display
-        const calcWeight = mappedItems.reduce((sum, i) => sum + i.weight, 0);
-        const calcPrice = mappedItems.reduce((sum, i) => sum + i.subtotal, 0);
-    
-        return {
-            id: col.id, 
-            date: col.date_collected,
-            customer: col.customer_name,
-            category: col.type,
-            totalAmount: calcPrice, // Use the calculated sum
-            totalWeight: calcWeight, // Use the calculated sum
-            address: col.address,
-            contact: col.contact_number,
-            items: mappedItems
-        };
-    });
-        renderTable();
-    }
+   window.collections = data.map(col => {
+    const mappedItems = (col.collection_items || []).map(item => ({
+        material: item.material_name || 'Unknown',
+        rate: parseFloat(item.rate) || 0,
+        weight: parseFloat(item.weight) || 0,
+        subtotal: parseFloat(item.subtotal) || 0
+    }));
+
+    const calcWeight = mappedItems.reduce((sum, i) => sum + i.weight, 0);
+    const calcPrice = mappedItems.reduce((sum, i) => sum + i.subtotal, 0);
+
+    return {
+        id: col.id,
+        date: col.date_collected,
+        customer: col.customer_name,
+        category: col.type,
+        totalAmount: calcPrice,
+        totalWeight: calcWeight,
+        address: col.address,
+        contact: col.contact_number,
+        items: mappedItems
+    };
+});
+
+renderTable();
 }
+
 // SHARED FILTER HELPER — single source of truth for filtered collections
 function getFilteredCollections() {
   if (currentFilter === 'all') return window.collections;
