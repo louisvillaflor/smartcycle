@@ -158,7 +158,7 @@ function renderTable() {
                         <tr>
                           <th style="text-align:center;">QTY</th>
                           <th style="text-align:center;">UNIT</th>
-                          <th style="text-align:left; padding-left:8px;">DESCRIPTION</th>
+                          <th style="text-align:left; padding-left:5px;">DESCRIPTION</th>
                           <th style="text-align:center;">PRICE</th>
                           <th style="text-align:center;">AMOUNT</th>
                         </tr>
