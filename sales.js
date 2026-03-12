@@ -654,3 +654,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (submitBtn) submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
             lucide.createIcons();
     }
+ }   // ✅ closes wireModal()
+
+});    
