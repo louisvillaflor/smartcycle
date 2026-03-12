@@ -552,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         //  Submit/ Update 
-        submitSaleBtn?.addEventListener('click', () => {
+        submitSaleBtn?.addEventListener('click', async () => {
             const partnerVal = document.getElementById('partnerName')?.value.trim();
             const dateVal    = document.getElementById('saleDate')?.value;
             const contactVal = document.getElementById('saleContact')?.value.trim();
