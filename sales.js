@@ -1,3 +1,7 @@
+const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
+window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // STATE 
@@ -9,12 +13,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let editingId = null;
 
     // STORAGE 
-    function loadSales() {
-        return JSON.parse(localStorage.getItem('smartCycleSales') || '[]');
+    async function loadSales() {
+    const { data, error } = await supabase
+        .from('sales')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Error fetching sales:', error);
+        return [];
     }
-    function saveSales(data) {
-        localStorage.setItem('smartCycleSales', JSON.stringify(data));
-    }
+    return data;
+}
 
     // ELEMENTS 
     const salesTableBody = document.getElementById('salesTableBody');
@@ -23,8 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput    = document.getElementById('salesSearch');
 
     //RENDER TABLE 
-    function renderTable() {
-        const allSales = loadSales();
+    async function renderTable() {
+        const allSales = await loadSales(); // Add 'await'
         let filtered = allSales;
 
         if (currentFilter !== 'all') {
@@ -243,12 +253,19 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmBtn.replaceWith(newConfirm);
         cancelBtn.replaceWith(newCancel);
 
-        newConfirm.addEventListener('click', () => {
-            const updated = loadSales().filter(s => s.id !== id);
-            saveSales(updated);
-            modal.style.display = 'none';
-            renderTable();
-        });
+       newConfirm.addEventListener('click', async () => {
+    const { error } = await supabase
+        .from('sales')
+        .delete()
+        .eq('id', id);
+
+    if (!error) {
+        modal.style.display = 'none';
+        renderTable();
+    } else {
+        alert("Delete failed: " + error.message);
+    }
+});
         newCancel.addEventListener('click', () => { modal.style.display = 'none'; });
         modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
     }
@@ -576,52 +593,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 receiptImage = receiptPreviewImg.src;
             }
 
-            const allSales = loadSales();
-
-            if (editingId) {
-                // Update existing
-                const idx = allSales.findIndex(s => s.id === editingId);
-                if (idx !== -1) {
-                    // keep existing receipt if none uploaded
-                    const existingReceipt = allSales[idx].receiptImage;
-                    allSales[idx] = {
-                        ...allSales[idx],
-                        date: displayDate,
-                        rawDate: dateVal,
-                        partner: partnerVal,
-                        contact: contactVal,
-                        type,
-                        materials: [...saleMaterials],
-                        materialNames,
-                        totalAmount,
-                        totalWeight,
-                        receiptImage: receiptImage || existingReceipt || null
-                    };
-                }
-            } else {
-                // New sale
-                const newSale = {
-                    id: generateId(),
-                    date: displayDate,
-                    rawDate: dateVal,
-                    partner: partnerVal,
-                    contact: contactVal,
-                    type,
-                    materials: [...saleMaterials],
-                    materialNames,
-                    totalAmount,
-                    totalWeight,
-                    receiptImage: receiptImage || null
-                };
-                allSales.push(newSale);
-            }
-
-            saveSales(allSales);
-            currentPage = Math.ceil(allSales.filter(s => currentFilter === 'all' || s.type === currentFilter).length / ITEMS_PER_PAGE);
-            closeModal();
-            renderTable();
-        });
-
+            // Prepare the object for Supabase
+        const saleData = {
+            date: displayDate,
+            raw_date: dateVal, // Use snake_case for DB columns
+            partner: partnerVal,
+            contact: contactVal,
+            type: type,
+            materials: saleMaterials, // Supabase handles JSON arrays automatically
+            material_names: materialNames,
+            total_amount: totalAmount,
+            total_weight: totalWeight,
+            receipt_image: receiptImage
+        };
+        
+        if (editingId) {
+            // UPDATE
+            const { error } = await supabase
+                .from('sales')
+                .update(saleData)
+                .eq('id', editingId);
+            
+            if (error) alert("Update failed: " + error.message);
+        } else {
+            // INSERT
+            const { error } = await supabase
+                .from('sales')
+                .insert([saleData]);
+            
+            if (error) alert("Insert failed: " + error.message);
+        }
+        
+        // Refresh the table after saving
+        closeModal();
+        renderTable();
         // Reset 
         function resetModal() {
             saleMaterials = [];
