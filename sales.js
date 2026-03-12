@@ -651,7 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const submitBtn = document.getElementById('submitSaleBtn');
             if (submitBtn) submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
             lucide.createIcons();
-        }
+        });
     }
 
 });
