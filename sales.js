@@ -628,6 +628,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Refresh the table after saving
         closeModal();
         await renderTable();
+        resetModal();
+    });
         // Reset 
         function resetModal() {
             saleMaterials = [];
@@ -652,4 +654,3 @@ document.addEventListener('DOMContentLoaded', () => {
             if (submitBtn) submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
             lucide.createIcons();
     }
-});
