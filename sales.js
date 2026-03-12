@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // STORAGE 
     async function loadSales() {
-    const { data, error } = await supabase
+    const { data, error } = await window._supabase
         .from('sales')
         .select('*')
         .order('created_at', { ascending: false });
@@ -88,8 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td><span style="background:#e0f2fe;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;color:#0369a1;">${sale.id}</span></td>
                 <td style="font-weight:600;">${sale.partner}</td>
                 <td><span style="color:#64748b;font-size:13px;">${materialSummary}</span></td>
-                <td style="text-align:center;">${sale.totalWeight.toFixed(1)} kg</td>
-                <td style="text-align:right;font-weight:700;color:#10b981;">&#8369;${sale.totalAmount.toFixed(2)}</td>
+                <td style="text-align:center;">${sale.total_weight.toFixed(1)} kg</td>
+                <td style="text-align:right;font-weight:700;color:#10b981;">&#8369;${sale.total_amount.toFixed(2)}</td>
                 <td>
                     <div class="action-btns">
                         <button class="icon-btn" data-action="edit" data-id="${sale.id}" type="button" title="Edit">
@@ -626,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Refresh the table after saving
         closeModal();
-        renderTable();
+        await renderTable();
         // Reset 
         function resetModal() {
             saleMaterials = [];
