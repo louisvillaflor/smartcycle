@@ -191,8 +191,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // DELETE MODAL 
-    function showDeleteModal(id) {
-        const allSales = loadSales();
+    async function showDeleteModal(id) {
+        const allSales = await loadSales();
         const sale = allSales.find(s => s.id === id);
         if (!sale) return;
 
@@ -350,8 +350,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
     // OPEN EDIT
-    function openEditModal(id) {
-        const sale = loadSales().find(s => s.id === id);
+    async function openEditModal(id) {
+        const sale = await loadSales().find(s => s.id === id);
+        
         if (!sale) return;
 
         editingId = id;
