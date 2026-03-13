@@ -34,116 +34,114 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //RENDER TABLE 
     async function renderTable() {
-        const allSales = await loadSales(); // Add 'await'
-        let filtered = allSales;
+    const allSales = await loadSales(); 
+    let filtered = allSales;
 
-        if (currentFilter !== 'all') {
-            filtered = allSales.filter(s => s.type === currentFilter);
-        }
-        if (currentSearch) {
-            filtered = filtered.filter(s =>
-                `${s.date} ${s.id} ${s.partner} ${s.materialNames} ${s.contact}`.toLowerCase().includes(currentSearch)
-            );
-        }
+    if (currentFilter !== 'all') {
+        filtered = allSales.filter(s => s.type === currentFilter);
+    }
+    if (currentSearch) {
+        filtered = filtered.filter(s =>
+            `${s.date} ${s.id} ${s.partner} ${s.material_names} ${s.contact}`.toLowerCase().includes(currentSearch)
+        );
+    }
 
-        salesTableBody.innerHTML = '';
+    salesTableBody.innerHTML = '';
 
-        const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-        if (currentPage > totalPages) currentPage = totalPages;
+    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+    if (currentPage > totalPages) currentPage = totalPages;
 
-        const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
-        const pageItems = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+    const pageItems = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE);
 
-        if (pageItems.length === 0) {
-            emptyState.classList.add('visible');
-            renderPagination(0);
-            return;
-        }
+    if (pageItems.length === 0) {
+        emptyState.classList.add('visible');
+        renderPagination(0);
+        return;
+    }
 
-        emptyState.classList.remove('visible');
+    emptyState.classList.remove('visible');
 
-        pageItems.forEach(sale => {
-            const rowId = 'sub-' + sale.id;
+    pageItems.forEach(sale => {
+        const rowId = 'sub-' + sale.id;
 
-            // Material summary
-            let materialSummary = 'N/A';
-            if (sales.materials && sales.materials.length > 0) {
-                if (sales.materials.length === 1) {
-                    materialSummary = sales.materials[0].name;
-                } else {
-                    const unique = [...new Set(sales.materials.map(m => m.name))];
-                    materialSummary = unique.length > 1
-                        ? `${unique.length} types (${sales.materials.length} items)`
-                        : `${sales.materials[0].name} (${sales.materials.length} items)`;
-                }
+        // Material summary - logic corrected to use 'sale'
+        let materialSummary = 'N/A';
+        if (sale.materials && sale.materials.length > 0) {
+            const unique = [...new Set(sale.materials.map(m => m.name))];
+            if (sale.materials.length === 1) {
+                materialSummary = sale.materials[0].name;
+            } else {
+                materialSummary = unique.length > 1
+                    ? `${unique.length} types (${sale.materials.length} items)`
+                    : `${sale.materials[0].name} (${sale.materials.length} items)`;
             }
+        }
 
-            // Main row
-            const trMain = document.createElement('tr');
-            trMain.className = 'main-row';
-            trMain.setAttribute('data-target', rowId);
-            trMain.innerHTML = `
-                <td class="chevron-cell"><i data-lucide="chevron-down" style="width:16px;height:16px;" aria-hidden="true"></i></td>
-                <td>${sales.date}</td>
-                <td><span style="background:#e0f2fe;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;color:#0369a1;">${sale.id}</span></td>
-                <td style="font-weight:600;">${sales.partner}</td>
-                <td><span style="color:#64748b;font-size:13px;">${materialSummary}</span></td>
-                <td style="text-align:center;">${sales.total_weight.toFixed(1)} kg</td>
-                <td style="text-align:right;font-weight:700;color:#10b981;">&#8369;${sales.total_amount.toFixed(2)}</td>
-                <td>
-                    <div class="action-btns">
-                        <button class="icon-btn" data-action="edit" data-id="${sales.id}" type="button" title="Edit">
-                            <i data-lucide="edit-2"></i>
-                        </button>
-                        <button class="icon-btn receipt-btn" data-action="view-receipt" data-id="${sales.id}" type="button" title="View Receipt" ${!sales.receiptImage ? 'disabled' : ''}>
-                            <i data-lucide="image"></i>
-                        </button>
-                        <button class="icon-btn delete" data-action="delete" data-id="${sales.id}" type="button" title="Delete">
-                            <i data-lucide="trash-2"></i>
-                        </button>
-                    </div>
-                </td>
-            `;
+        // Main row - Standardized to use snake_case to match your Supabase columns
+        const trMain = document.createElement('tr');
+        trMain.className = 'main-row';
+        trMain.setAttribute('data-target', rowId);
+        trMain.innerHTML = `
+            <td class="chevron-cell"><i data-lucide="chevron-down" style="width:16px;height:16px;"></i></td>
+            <td>${sale.date}</td>
+            <td><span style="background:#e0f2fe;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;color:#0369a1;">${sale.id}</span></td>
+            <td style="font-weight:600;">${sale.partner}</td>
+            <td><span style="color:#64748b;font-size:13px;">${materialSummary}</span></td>
+            <td style="text-align:center;">${(sale.total_weight || 0).toFixed(1)} kg</td>
+            <td style="text-align:right;font-weight:700;color:#10b981;">&#8369;${(sale.total_amount || 0).toFixed(2)}</td>
+            <td>
+                <div class="action-btns">
+                    <button class="icon-btn" data-action="edit" data-id="${sale.id}" type="button" title="Edit">
+                        <i data-lucide="edit-2"></i>
+                    </button>
+                    <button class="icon-btn receipt-btn" data-action="view-receipt" data-id="${sale.id}" type="button" title="View Receipt" ${!sale.receipt_image ? 'disabled' : ''}>
+                        <i data-lucide="image"></i>
+                    </button>
+                    <button class="icon-btn delete" data-action="delete" data-id="${sale.id}" type="button" title="Delete">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
+            </td>
+        `;
 
-            // Sub row (expanded)
-            const trSub = document.createElement('tr');
-            trSub.id = rowId;
-            trSub.className = 'sub-row-container';
+        // Sub row (expanded)
+        const trSub = document.createElement('tr');
+        trSub.id = rowId;
+        trSub.className = 'sub-row-container';
 
-            const materialRows = (sales.materials || []).length > 0
-                ? (sales.materials || []).map(m => `
-                    <tr>
-                        <td style="width: 40%; padding: 12px 20px;">${m.name}</td>
-                        <td style="width: 15%; text-align:center; padding: 12px 10px;">&#8369;${m.rate}</td>
-                        <td style="width: 20%; text-align:center; padding: 12px 10px;">${m.weight} kg</td>
-                        <td style="width: 25%; text-align:right; padding: 12px 20px;"><strong>&#8369;${(m.rate * m.weight).toFixed(2)}</strong></td>
-                    </tr>
-                `).join('')
-                : '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No materials</td></tr>';
+        const materialRows = (sale.materials || []).map(m => `
+            <tr>
+                <td style="width: 40%; padding: 12px 20px;">${m.name}</td>
+                <td style="width: 15%; text-align:center; padding: 12px 10px;">&#8369;${m.rate}</td>
+                <td style="width: 20%; text-align:center; padding: 12px 10px;">${m.weight} kg</td>
+                <td style="width: 25%; text-align:right; padding: 12px 20px;"><strong>&#8369;${(m.rate * m.weight).toFixed(2)}</strong></td>
+            </tr>
+        `).join('') || '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No materials</td></tr>';
 
-            trSub.innerHTML = `
-                <td colspan="8" style="padding: 0 !important; border: none;">
-                    <div class="expanded-content">
-                        <div class="expanded-inner">
-                            <table class="expanded-table">
-                                <tbody>${materialRows}</tbody>
-                            </table>
-                            <div class="total-summary-line">
-                                <span>Total Amount:</span>
-                                <span class="green-text">&#8369;${sales.totalAmount.toFixed(2)}</span>
-                            </div>
+        trSub.innerHTML = `
+            <td colspan="8" style="padding: 0 !important; border: none;">
+                <div class="expanded-content">
+                    <div class="expanded-inner">
+                        <table class="expanded-table">
+                            <tbody>${materialRows}</tbody>
+                        </table>
+                        <div class="total-summary-line">
+                            <span>Total Amount:</span>
+                            <span class="green-text">&#8369;${(sale.total_amount || 0).toFixed(2)}</span>
                         </div>
                     </div>
-                </td>
-            `;
+                </div>
+            </td>
+        `;
 
-            salesTableBody.appendChild(trMain);
-            salesTableBody.appendChild(trSub);
-        });
+        salesTableBody.appendChild(trMain);
+        salesTableBody.appendChild(trSub);
+    });
 
-        lucide.createIcons();
-        renderPagination(filtered.length);
-    }
+    lucide.createIcons();
+    renderPagination(filtered.length);
+}
 
     //  ROW TOGGLE
     salesTableBody.addEventListener('click', (e) => {
