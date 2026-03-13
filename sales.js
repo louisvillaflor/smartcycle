@@ -67,14 +67,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Material summary
             let materialSummary = 'N/A';
-            if (sale.materials && sale.materials.length > 0) {
-                if (sale.materials.length === 1) {
-                    materialSummary = sale.materials[0].name;
+            if (sales.materials && sales.materials.length > 0) {
+                if (sales.materials.length === 1) {
+                    materialSummary = sales.materials[0].name;
                 } else {
-                    const unique = [...new Set(sale.materials.map(m => m.name))];
+                    const unique = [...new Set(sales.materials.map(m => m.name))];
                     materialSummary = unique.length > 1
-                        ? `${unique.length} types (${sale.materials.length} items)`
-                        : `${sale.materials[0].name} (${sale.materials.length} items)`;
+                        ? `${unique.length} types (${sales.materials.length} items)`
+                        : `${sales.materials[0].name} (${sales.materials.length} items)`;
                 }
             }
 
@@ -84,21 +84,21 @@ document.addEventListener('DOMContentLoaded', () => {
             trMain.setAttribute('data-target', rowId);
             trMain.innerHTML = `
                 <td class="chevron-cell"><i data-lucide="chevron-down" style="width:16px;height:16px;" aria-hidden="true"></i></td>
-                <td>${sale.date}</td>
+                <td>${sales.date}</td>
                 <td><span style="background:#e0f2fe;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;color:#0369a1;">${sale.id}</span></td>
-                <td style="font-weight:600;">${sale.partner}</td>
+                <td style="font-weight:600;">${sales.partner}</td>
                 <td><span style="color:#64748b;font-size:13px;">${materialSummary}</span></td>
-                <td style="text-align:center;">${sale.total_weight.toFixed(1)} kg</td>
-                <td style="text-align:right;font-weight:700;color:#10b981;">&#8369;${sale.total_amount.toFixed(2)}</td>
+                <td style="text-align:center;">${sales.total_weight.toFixed(1)} kg</td>
+                <td style="text-align:right;font-weight:700;color:#10b981;">&#8369;${sales.total_amount.toFixed(2)}</td>
                 <td>
                     <div class="action-btns">
-                        <button class="icon-btn" data-action="edit" data-id="${sale.id}" type="button" title="Edit">
+                        <button class="icon-btn" data-action="edit" data-id="${sales.id}" type="button" title="Edit">
                             <i data-lucide="edit-2"></i>
                         </button>
-                        <button class="icon-btn receipt-btn" data-action="view-receipt" data-id="${sale.id}" type="button" title="View Receipt" ${!sale.receiptImage ? 'disabled' : ''}>
+                        <button class="icon-btn receipt-btn" data-action="view-receipt" data-id="${sales.id}" type="button" title="View Receipt" ${!sales.receiptImage ? 'disabled' : ''}>
                             <i data-lucide="image"></i>
                         </button>
-                        <button class="icon-btn delete" data-action="delete" data-id="${sale.id}" type="button" title="Delete">
+                        <button class="icon-btn delete" data-action="delete" data-id="${sales.id}" type="button" title="Delete">
                             <i data-lucide="trash-2"></i>
                         </button>
                     </div>
@@ -110,8 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
             trSub.id = rowId;
             trSub.className = 'sub-row-container';
 
-            const materialRows = (sale.materials || []).length > 0
-                ? (sale.materials || []).map(m => `
+            const materialRows = (sales.materials || []).length > 0
+                ? (sales.materials || []).map(m => `
                     <tr>
                         <td style="width: 40%; padding: 12px 20px;">${m.name}</td>
                         <td style="width: 15%; text-align:center; padding: 12px 10px;">&#8369;${m.rate}</td>
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </table>
                             <div class="total-summary-line">
                                 <span>Total Amount:</span>
-                                <span class="green-text">&#8369;${sale.totalAmount.toFixed(2)}</span>
+                                <span class="green-text">&#8369;${sales.totalAmount.toFixed(2)}</span>
                             </div>
                         </div>
                     </div>
