@@ -610,7 +610,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (editingId) {
             // UPDATE
-            const { error } = await supabase
+            const { error } = await window._supabase
                 .from('sales')
                 .update(saleData)
                 .eq('id', editingId);
@@ -618,7 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error) alert("Update failed: " + error.message);
         } else {
             // INSERT
-            const { error } = await supabase
+            const { error } = await window._supabase
                 .from('sales')
                 .insert([saleData]);
             
