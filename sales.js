@@ -30,9 +30,14 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // We map the data so that 'sale_items' becomes 'materials' 
     // to keep your existing rendering logic working.
+    // Change this part in your loadSales function
     return data.map(sale => ({
         ...sale,
-        materials: sale.sale_items || [] 
+        materials: (sale.sale_items || []).map(item => ({
+            name: item.item_name, // Map item_name to name
+            rate: item.price,     // Map price to rate
+            weight: item.weight
+        }))
     }));
 }
 
@@ -77,12 +82,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Material summary - logic corrected to use 'sale'
         // 1. FIXED MATERIAL SUMMARY LOGIC
+        // 1. FIXED MATERIAL SUMMARY LOGIC
         let materialSummary = 'N/A';
         if (sale.materials && sale.materials.length > 0) {
-            // We use .name because that is what you push into saleMaterials in wireModal()
-            const unique = [...new Set(sale.materials.map(m => m.name))];
+            // Ensure we use the 'name' property we mapped above
+            const unique = [...new Set(sale.materials.map(m => m.name))]; 
             if (unique.length === 1) {
-                materialSummary = unique[0];
+                materialSummary = unique[0] || 'Unknown';
             } else {
                 materialSummary = `${unique.length} types`;
             }
@@ -116,9 +122,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td style="width: 40%; padding: 12px 20px;">${m.name}</td>
                 <td style="width: 15%; text-align:center; padding: 12px 10px;">&#8369;${m.rate}</td>
                 <td style="width: 20%; text-align:center; padding: 12px 10px;">${m.weight} kg</td>
-                <td style="width: 25%; text-align:right; padding: 12px 20px;"><strong>&#8369;${(m.rate * m.weight).toFixed(2)}</strong></td>
+                <td style="width: 25%; text-align:right; padding: 12px 20px;"><strong>&#8369;${(Number(m.rate) * Number(m.weight)).toFixed(2)}</strong></td>
             </tr>
-        `).join('') || '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No materials</td></tr>';
+        `).join('');
 
         trSub.innerHTML = `
             <td colspan="8" style="padding: 0 !important; border: none;">
