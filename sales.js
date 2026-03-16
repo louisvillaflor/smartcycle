@@ -14,16 +14,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // STORAGE 
     async function loadSales() {
+    // We use '*, sale_items(*)' to fetch the sale and its related items
     const { data, error } = await window._supabase
         .from('sales')
-        .select('*')
+        .select(`
+            *,
+            sale_items (*)
+        `)
         .order('created_at', { ascending: false });
 
     if (error) {
         console.error('Error fetching sales:', error);
         return [];
     }
-    return data;
+    
+    // We map the data so that 'sale_items' becomes 'materials' 
+    // to keep your existing rendering logic working.
+    return data.map(sale => ({
+        ...sale,
+        materials: sale.sale_items || [] 
+    }));
 }
 
     // ELEMENTS 
@@ -112,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const materialRows = (sale.materials || []).map(m => `
             <tr>
-                <td style="width: 40%; padding: 12px 20px;">${m.name}</td>
+                <td style="width: 40%; padding: 12px 20px;">${m.material_name}</td>
                 <td style="width: 15%; text-align:center; padding: 12px 10px;">&#8369;${m.rate}</td>
                 <td style="width: 20%; text-align:center; padding: 12px 10px;">${m.weight} kg</td>
                 <td style="width: 25%; text-align:right; padding: 12px 20px;"><strong>&#8369;${(m.rate * m.weight).toFixed(2)}</strong></td>
@@ -652,6 +662,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (submitBtn) submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
             lucide.createIcons();
     }
- }   // ✅ closes wireModal()
+ }
 
 });    
