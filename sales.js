@@ -77,14 +77,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Material summary - logic corrected to use 'sale'
         let materialSummary = 'N/A';
-        if (sale.materials && sale.materials.length > 0) {
-            const unique = [...new Set(sale.materials.map(m => m.name))];
-            if (sale.materials.length === 1) {
-                materialSummary = sale.materials[0].name;
+        if (sale.material_name && sale.material_name.length > 0) {
+            const unique = [...new Set(sale.material_name.map(m => m.name))];
+            if (sale.material_name.length === 1) {
+                materialSummary = sale.material_name[0].name;
             } else {
                 materialSummary = unique.length > 1
-                    ? `${unique.length} types (${sale.materials.length} items)`
-                    : `${sale.materials[0].name} (${sale.materials.length} items)`;
+                    ? `${unique.length} types (${sale.material_name.length} items)`
+                    : `${sale.material_name[0].name} (${sale.material_name.length} items)`;
             }
         }
 
