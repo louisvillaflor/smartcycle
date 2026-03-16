@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // STORAGE 
     async function loadSales() {
-    // We use '*, sale_items(*)' to fetch the sale and its related items
     const { data, error } = await window._supabase
         .from('sales')
         .select(`
@@ -28,19 +27,24 @@ document.addEventListener('DOMContentLoaded', () => {
         return [];
     }
     
-    // We map the data so that 'sale_items' becomes 'materials' 
-    // to keep your existing rendering logic working.
-    // Change this part in your loadSales function
-    return data.map(sale => ({
-        ...sale,
-        materials: (sale.sale_items || []).map(item => ({
-            name: item.item_name, // Map item_name to name
-            rate: item.price,     // Map price to rate
-            weight: item.weight
-        }))
-    }));
-}
+    return data.map(sale => {
+        // Map items to a consistent structure
+        const mappedItems = (sale.sale_items || []).map(item => ({
+            material: item.item_name || 'Unknown', // Use 'material' to match collections logic
+            rate: parseFloat(item.price) || 0,
+            weight: parseFloat(item.weight) || 0,
+            subtotal: (parseFloat(item.price) || 0) * (parseFloat(item.weight) || 0)
+        }));
 
+        return {
+            ...sale,
+            items: mappedItems, // Use 'items' to match collections.js
+            // Ensure these match your Supabase column names exactly
+            totalWeight: parseFloat(sale.total_weight) || 0,
+            totalAmount: parseFloat(sale.total_amount) || 0
+        };
+    });
+}
     // ELEMENTS 
     const salesTableBody = document.getElementById('salesTableBody');
     const emptyState     = document.getElementById('emptyState');
@@ -77,78 +81,74 @@ document.addEventListener('DOMContentLoaded', () => {
 
     emptyState.classList.remove('visible');
 
-    pageItems.forEach(sale => {
+        pageItems.forEach(sale => {
         const rowId = 'sub-' + sale.id;
-
-        // Material summary - logic corrected to use 'sale'
-        // 1. FIXED MATERIAL SUMMARY LOGIC
-        // 1. FIXED MATERIAL SUMMARY LOGIC
+    
+        // 1. MATERIAL SUMMARY LOGIC
         let materialSummary = 'N/A';
-        if (sale.materials && sale.materials.length > 0) {
-            // Ensure we use the 'name' property we mapped above
-            const unique = [...new Set(sale.materials.map(m => m.name))]; 
-            if (unique.length === 1) {
-                materialSummary = unique[0] || 'Unknown';
-            } else {
-                materialSummary = `${unique.length} types`;
-            }
+        if (sale.items && sale.items.length > 0) {
+            const unique = [...new Set(sale.items.map(m => m.material))]; 
+            materialSummary = unique.length === 1 ? unique[0] : `${unique.length} types`;
         }
-
-        // Main row - Standardized to use snake_case to match your Supabase columns
-        // 2. FIXED MAIN ROW HTML (Updated to show summary correctly)
+    
+        // 2. MAIN ROW
         const trMain = document.createElement('tr');
         trMain.className = 'main-row';
-        trMain.setAttribute('data-target', rowId);
+        trMain.setAttribute('onclick', `toggleDetails('${rowId}', this)`); // Consistency with toggle logic
         trMain.innerHTML = `
-            <td class="chevron-cell"><i data-lucide="chevron-down" style="width:16px;height:16px;"></i></td>
-            <td>${sale.date}</td>
-            <td><span style="background:#e0f2fe;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;color:#0369a1;">${sale.id}</span></td>
-            <td style="font-weight:600;">${sale.partner}</td>
-            <td><span style="color:#64748b;font-size:13px;">${materialSummary}</span></td>
-            <td style="text-align:center;">${(sale.total_weight || 0).toFixed(1)} kg</td>
-            <td style="text-align:right;font-weight:700;color:#10b981;">&#8369;${(sale.total_amount || 0).toFixed(2)}</td>
-            <td>
-                </td>
+            <td class="chevron-cell"><i data-lucide="chevron-down" style="width:18px;"></i></td>
+            <td>${sale.date || 'N/A'}</td>
+            <td><span class="id-badge">${sale.id}</span></td>
+            <td style="font-weight:600;">${sale.partner || 'Unknown'}</td>
+            <td><span style="color:#64748b;">${materialSummary}</span></td>
+            <td style="text-align:center;">${(sale.totalWeight || 0).toFixed(1)} kg</td>
+            <td style="text-align:right; font-weight:700; color:#10b981;">₱${(sale.totalAmount || 0).toFixed(2)}</td>
+            <td></td>
         `;
-
-        // Sub row (expanded)
+    
+        // 3. SUB ROW (Expanded content)
+        const materialRows = (sale.items || []).map(m => `
+            <tr>
+                <td style="text-align:center;">${m.weight.toFixed(1)}</td>
+                <td style="text-align:center;">kg</td>
+                <td style="text-align:left; padding-left:8px;">${m.material}</td>
+                <td style="text-align:center;">₱${m.rate.toFixed(2)}</td>
+                <td style="text-align:center;">₱${m.subtotal.toFixed(2)}</td>
+            </tr>
+        `).join('');
+    
         const trSub = document.createElement('tr');
         trSub.id = rowId;
         trSub.className = 'sub-row-container';
-
-        // 3. FIXED SUB-ROW (Expanded content)
-        const materialRows = (sale.materials || []).map(m => `
-            <tr>
-                <td style="width: 40%; padding: 12px 20px;">${m.name}</td>
-                <td style="width: 15%; text-align:center; padding: 12px 10px;">&#8369;${m.rate}</td>
-                <td style="width: 20%; text-align:center; padding: 12px 10px;">${m.weight} kg</td>
-                <td style="width: 25%; text-align:right; padding: 12px 20px;"><strong>&#8369;${(Number(m.rate) * Number(m.weight)).toFixed(2)}</strong></td>
-            </tr>
-        `).join('');
-
         trSub.innerHTML = `
-            <td colspan="8" style="padding: 0 !important; border: none;">
+            <td colspan="8" style="padding:0 !important; border:none;">
                 <div class="expanded-content">
-                    <div class="expanded-inner">
-                        <table class="expanded-table">
-                            <tbody>${materialRows}</tbody>
-                        </table>
-                        <div class="total-summary-line">
-                            <span>Total Amount:</span>
-                            <span class="green-text">&#8369;${(sale.total_amount || 0).toFixed(2)}</span>
-                        </div>
+                    <table class="expanded-table">
+                        <thead>
+                            <tr>
+                                <th style="text-align:center;">QTY</th>
+                                <th style="text-align:center;">UNIT</th>
+                                <th style="text-align:left; padding-left:8px;">DESCRIPTION</th>
+                                <th style="text-align:center;">PRICE</th>
+                                <th style="text-align:center;">AMOUNT</th>
+                            </tr>
+                        </thead>
+                        <tbody>${materialRows}</tbody>
+                    </table>
+                    <div style="text-align:right; padding: 15px 25px; border-top: 1px solid #f1f5f9;">
+                        <span style="font-size:13px; color:#64748b; margin-right:10px;">Total Amount:</span>
+                        <span style="font-weight:700; color:#10b981;">₱${(sale.totalAmount || 0).toFixed(2)}</span>
                     </div>
                 </div>
             </td>
         `;
-
+    
         salesTableBody.appendChild(trMain);
         salesTableBody.appendChild(trSub);
     });
-
-    lucide.createIcons();
-    renderPagination(filtered.length);
-}
+        lucide.createIcons();
+        renderPagination(filtered.length);
+    }
 
     //  ROW TOGGLE
     salesTableBody.addEventListener('click', (e) => {
