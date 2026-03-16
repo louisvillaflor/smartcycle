@@ -76,19 +76,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const rowId = 'sub-' + sale.id;
 
         // Material summary - logic corrected to use 'sale'
+        // 1. FIXED MATERIAL SUMMARY LOGIC
         let materialSummary = 'N/A';
-        if (sale.material_name && sale.material_name.length > 0) {
-            const unique = [...new Set(sale.material_name.map(m => m.name))];
-            if (sale.material_name.length === 1) {
-                materialSummary = sale.material_name[0].name;
+        if (sale.materials && sale.materials.length > 0) {
+            // We use .name because that is what you push into saleMaterials in wireModal()
+            const unique = [...new Set(sale.materials.map(m => m.name))];
+            if (unique.length === 1) {
+                materialSummary = unique[0];
             } else {
-                materialSummary = unique.length > 1
-                    ? `${unique.length} types (${sale.material_name.length} items)`
-                    : `${sale.material_name[0].name} (${sale.material_name.length} items)`;
+                materialSummary = `${unique.length} types`;
             }
         }
 
         // Main row - Standardized to use snake_case to match your Supabase columns
+        // 2. FIXED MAIN ROW HTML (Updated to show summary correctly)
         const trMain = document.createElement('tr');
         trMain.className = 'main-row';
         trMain.setAttribute('data-target', rowId);
@@ -101,18 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td style="text-align:center;">${(sale.total_weight || 0).toFixed(1)} kg</td>
             <td style="text-align:right;font-weight:700;color:#10b981;">&#8369;${(sale.total_amount || 0).toFixed(2)}</td>
             <td>
-                <div class="action-btns">
-                    <button class="icon-btn" data-action="edit" data-id="${sale.id}" type="button" title="Edit">
-                        <i data-lucide="edit-2"></i>
-                    </button>
-                    <button class="icon-btn receipt-btn" data-action="view-receipt" data-id="${sale.id}" type="button" title="View Receipt" ${!sale.receipt_image ? 'disabled' : ''}>
-                        <i data-lucide="image"></i>
-                    </button>
-                    <button class="icon-btn delete" data-action="delete" data-id="${sale.id}" type="button" title="Delete">
-                        <i data-lucide="trash-2"></i>
-                    </button>
-                </div>
-            </td>
+                </td>
         `;
 
         // Sub row (expanded)
@@ -120,9 +110,10 @@ document.addEventListener('DOMContentLoaded', () => {
         trSub.id = rowId;
         trSub.className = 'sub-row-container';
 
+        // 3. FIXED SUB-ROW (Expanded content)
         const materialRows = (sale.materials || []).map(m => `
             <tr>
-                <td style="width: 40%; padding: 12px 20px;">${m.material_name}</td>
+                <td style="width: 40%; padding: 12px 20px;">${m.name}</td>
                 <td style="width: 15%; text-align:center; padding: 12px 10px;">&#8369;${m.rate}</td>
                 <td style="width: 20%; text-align:center; padding: 12px 10px;">${m.weight} kg</td>
                 <td style="width: 25%; text-align:right; padding: 12px 20px;"><strong>&#8369;${(m.rate * m.weight).toFixed(2)}</strong></td>
