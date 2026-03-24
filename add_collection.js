@@ -321,6 +321,25 @@ window.submitCollection = async function() {
 
             if (headerError) throw headerError;
 
+          // --- ADDED: SYNC TO PROFILES TABLE ---
+            // This ensures the Profile page reflects the latest info
+            const { error: profileError } = await _supabase
+                .from('profiles')
+                .upsert({
+                    name: customer,
+                    address: address,
+                    contact_num: contact,
+                    type: currentCategory
+                }, { 
+                    onConflict: 'name' 
+                });
+
+            if (profileError) {
+                console.warn("Profile synced with issues:", profileError.message);
+                // We don't 'throw' here so the collection still saves even if profile sync blips
+            }
+            // ---------------------------------------
+
             // 2. Insert the Line Items linked to that Header ID
             const itemsToInsert = currentItems.map(item => ({
                 collection_id: headerData.id, // Linking to the UUID created above
