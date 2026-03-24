@@ -1,10 +1,20 @@
-// Add these to the top of profiles.js if not already present
+// --- 1. CONFIGURATION ---
 const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+let currentTab = 'all';
+let contacts = [];
+// Initialize Lucide icons
+lucide.createIcons();
+let nextId = 1;
+
 // 1. FETCH PROFILES FROM DATABASE
 async function fetchProfilesFromSupabase() {
+    const tableBody = document.getElementById('contactsTableBody');
+    // Show a loading state if you want, or just clear it
+    tableBody.innerHTML = '';
+    
     const { data, error } = await _supabase
         .from('profiles')
         .select('*')
@@ -12,13 +22,17 @@ async function fetchProfilesFromSupabase() {
 
     if (error) {
         console.error("Error fetching profiles:", error.message);
+        checkEmptyState();
         return;
     }
 
     // Clear current table and contacts array
-    const tableBody = document.getElementById('contactsTableBody');
-    tableBody.innerHTML = '';
     contacts = data; 
+    
+    if (data.length === 0) {
+        checkEmptyState();
+        return;
+    }
 
     // 2. RENDER EACH PROFILE
     data.forEach(profile => {
@@ -35,20 +49,6 @@ async function fetchProfilesFromSupabase() {
         addContactToTable(contactObj);
     });
 }
-
-// 3. INITIALIZE ON LOAD
-document.addEventListener('DOMContentLoaded', () => {
-    fetchProfilesFromSupabase(); // Call Supabase instead of LocalStorage
-    initializeTabSwitching();
-    initializeSearch();
-});
-
-// Initialize Lucide icons
-lucide.createIcons();
-
-let currentTab = 'all';
-let contacts = [];
-let nextId = 1;
 
 // Get category display name
 function getCategoryDisplayName(category) {
@@ -103,19 +103,17 @@ function addContactToTable(contact) {
         </td>
     `;
 
-    // Delete
-    row.querySelector('.delete-btn').addEventListener('click', function() {
+    // Delete Logic (Update to delete from Supabase)
+    row.querySelector('.delete-btn').addEventListener('click', async function() {
         if (confirm(`Are you sure you want to delete ${contact.name}?`)) {
-            contacts = contacts.filter(c => c.id !== contact.id);
-            localStorage.setItem('smartCycleContacts', JSON.stringify(contacts));
-            row.remove();
-            checkEmptyState();
+            const { error } = await _supabase.from('profiles').delete().eq('id', contact.id);
+            if (!error) {
+                row.remove();
+                checkEmptyState();
+            } else {
+                alert("Error deleting: " + error.message);
+            }
         }
-    });
-
-    // Edit — placeholder
-    row.querySelector('.edit-btn').addEventListener('click', function() {
-        alert(`Edit functionality for ${contact.name} - To be implemented`);
     });
 
     tableBody.appendChild(row);
@@ -150,16 +148,10 @@ function checkEmptyState() {
 // Initialize tab switching
 function initializeTabSwitching() {
     const tabButtons = document.querySelectorAll('.tab-btn');
-
     tabButtons.forEach(button => {
         button.addEventListener('click', function() {
-            tabButtons.forEach(btn => {
-                btn.classList.remove('active');
-                btn.setAttribute('aria-selected', 'false');
-            });
-
+            tabButtons.forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
-            this.setAttribute('aria-selected', 'true');
             currentTab = this.getAttribute('data-tab');
             filterContacts(currentTab);
         });
@@ -168,71 +160,35 @@ function initializeTabSwitching() {
 
 // Filter contacts based on selected tab
 function filterContacts(tab) {
-    const tableBody = document.getElementById('contactsTableBody');
-    const rows = tableBody.querySelectorAll('tr:not(.empty-state-row)');
-
+    const rows = document.querySelectorAll('#contactsTableBody tr:not(.empty-state-row)');
     rows.forEach(row => {
         const category = row.getAttribute('data-category');
-
-        if (tab === 'all') {
-            row.style.display = '';
-        } else if (tab === 'collections') {
-            row.style.display = ['walk-ins', 'school', 'organization'].includes(category) ? '' : 'none';
-        } else if (tab === 'sales') {
-            row.style.display = category === 'junkshop' ? '' : 'none';
-        }
+        if (tab === 'all') row.style.display = '';
+        else if (tab === 'collections') row.style.display = ['walk-ins', 'school', 'organization'].includes(category) ? '' : 'none';
+        else if (tab === 'sales') row.style.display = category === 'junkshop' ? '' : 'none';
     });
-
     checkEmptyState();
 }
 
 // Initialize search functionality
 function initializeSearch() {
     const searchInput = document.getElementById('searchInput');
-
-    searchInput.addEventListener('input', function() {
+    searchInput?.addEventListener('input', function() {
         const searchTerm = this.value.toLowerCase().trim();
-        const tableBody = document.getElementById('contactsTableBody');
-        const rows = tableBody.querySelectorAll('tr:not(.empty-state-row)');
+        const rows = document.querySelectorAll('#contactsTableBody tr:not(.empty-state-row)');
 
         rows.forEach(row => {
             const name = row.querySelector('.customer-cell span')?.textContent.toLowerCase() || '';
-            const id   = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
-            const category = row.getAttribute('data-category');
-
-            const matchesSearch = name.includes(searchTerm) || id.includes(searchTerm);
-            const matchesTab = currentTab === 'all' ||
-                (currentTab === 'collections' && ['walk-ins', 'school', 'organization'].includes(category)) ||
-                (currentTab === 'sales' && category === 'junkshop');
-
-            row.style.display = (matchesSearch && matchesTab) ? '' : 'none';
+            const id = row.getAttribute('data-id').toLowerCase();
+            const matches = name.includes(searchTerm) || id.includes(searchTerm);
+            row.style.display = matches ? '' : 'none';
         });
-
         checkEmptyState();
     });
 }
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const savedContacts = localStorage.getItem('smartCycleContacts');
-
-    if (savedContacts) {
-        try {
-            contacts = JSON.parse(savedContacts);
-
-            if (contacts.length > 0) {
-                const ids = contacts.map(c => parseInt(c.id)).filter(id => !isNaN(id));
-                if (ids.length > 0) nextId = Math.max(...ids) + 1;
-            }
-
-            contacts.forEach(contact => addContactToTable(contact));
-        } catch (e) {
-            console.error('Error parsing saved contacts:', e);
-            contacts = [];
-        }
-    }
-
+// 3. INITIALIZE ON LOAD
+document.addEventListener('DOMContentLoaded', () => {
+    fetchProfilesFromSupabase(); // Call Supabase instead of LocalStorage
     initializeTabSwitching();
     initializeSearch();
-    checkEmptyState();
 });
