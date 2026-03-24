@@ -1,3 +1,48 @@
+// Add these to the top of profiles.js if not already present
+const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
+const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 1. FETCH PROFILES FROM DATABASE
+async function fetchProfilesFromSupabase() {
+    const { data, error } = await _supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching profiles:", error.message);
+        return;
+    }
+
+    // Clear current table and contacts array
+    const tableBody = document.getElementById('contactsTableBody');
+    tableBody.innerHTML = '';
+    contacts = data; 
+
+    // 2. RENDER EACH PROFILE
+    data.forEach(profile => {
+        // Map database fields to your existing UI structure
+        const contactObj = {
+            id: profile.id,
+            name: profile.name,
+            address: profile.address || 'N/A',
+            contactNumber: profile.contact_num || 'N/A',
+            category: (profile.type || 'walk-ins').toLowerCase(),
+            displayCategory: profile.type || 'Walk-ins',
+            avatarColor: getRandomColor()
+        };
+        addContactToTable(contactObj);
+    });
+}
+
+// 3. INITIALIZE ON LOAD
+document.addEventListener('DOMContentLoaded', () => {
+    fetchProfilesFromSupabase(); // Call Supabase instead of LocalStorage
+    initializeTabSwitching();
+    initializeSearch();
+});
+
 // Initialize Lucide icons
 lucide.createIcons();
 
