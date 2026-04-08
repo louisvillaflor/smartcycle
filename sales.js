@@ -9,17 +9,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPage  = 1;
     let currentFilter = 'all';
     let currentSearch = '';
-    let saleMaterials = [];
-    let editingId = null;
-
+    
     // STORAGE 
     async function loadSales() {
     const { data, error } = await window._supabase
         .from('sales')
-        .select(`
-            *,
-            sale_items (*)
-        `)
+        .select(`*`)
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -29,11 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     return data.map(sale => {
         // Map items to a consistent structure
-        const mappedItems = (sale.sale_items || []).map(item => ({
-            material: item.item_name || 'Unknown', // Use 'material' to match collections logic
-            rate: parseFloat(item.price) || 0,
-            weight: parseFloat(item.weight) || 0,
-            subtotal: (parseFloat(item.price) || 0) * (parseFloat(item.weight) || 0)
+        const mappedItems = (sale.materials || []).map(item => ({
+            material: item.name,
+            rate: item.rate,
+            weight: item.weight,
+            subtotal: item.rate * item.weight
         }));
 
         return {
@@ -149,9 +144,10 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
         renderPagination(filtered.length);
     }
-
+    //Connect BOTH FILES
+    window.refreshSalesTable = renderTable;
     //  ROW TOGGLE
-    salesTableBody.addEventListener('click', (e) => {
+    salesTableBody.addEventListener('click', async (e) => {
         if (e.target.closest('.action-btns')) return;
         const mainRow = e.target.closest('.main-row');
         if (!mainRow) return;
@@ -171,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ACTION BUTTONS
-    salesTableBody.addEventListener('click', (e) => {
+    salesTableBody.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-action]');
         if (!btn) return;
         e.stopPropagation();
@@ -180,11 +176,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const id     = btn.getAttribute('data-id');
 
         if (action === 'edit') {
-            openEditModal(id);
+            window.openEditSaleModal(id);
         } else if (action === 'delete') {
-            showDeleteModal(id);
+            window.showDeleteModal(id);
         } else if (action === 'view-receipt') {
-            const sale = loadSales().find(s => s.id === id);
+            const allSales = await loadSales();
+            const sale = allSales.find(s => s.id === id);
             if (sale && sale.receiptImage) {
                 const win = window.open('', '_blank');
                 win.document.write(`<!DOCTYPE html><html><head><title>Receipt - ${sale.partner}</title>
@@ -259,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelBtn.replaceWith(newCancel);
 
        newConfirm.addEventListener('click', async () => {
-    const { error } = await supabase
+    const { error } = window._supabase
         .from('sales')
         .delete()
         .eq('id', id);
@@ -330,335 +327,4 @@ document.addEventListener('DOMContentLoaded', () => {
             renderTable();
         });
     }
-
-    // GENERATE ID 
-    function generateId() {
-        const allSales = loadSales();
-        const maxId = allSales.length > 0
-            ? Math.max(...allSales.map(s => parseInt(s.id.replace(/\D/g,'')) || 0))
-            : 0;
-        return 'S' + String(maxId + 1).padStart(3, '0');
-    }
-
-    // LOAD MODAL 
-    fetch('sales_form.html')
-        .then(res => res.text())
-        .then(html => {
-            document.getElementById('sale-modal-container').innerHTML = html;
-            lucide.createIcons();
-            wireModal();
-            renderTable();
-        })
-        .catch(() => {
-            console.error('Could not load sales form');
-            renderTable();
-        });
-
-    // OPEN EDIT
-    async function openEditModal(id) {
-        const sale = await loadSales().find(s => s.id === id);
-        
-        if (!sale) return;
-
-        editingId = id;
-        saleMaterials = [...(sale.materials || [])];
-
-        const modal = document.getElementById('saleModal');
-        if (!modal) return;
-
-        // Set fields
-        document.getElementById('partnerName').value = sale.partner || '';
-        document.getElementById('saleContact').value = sale.contact || '';
-
-        // Convert display date (MM-DD-YY or similar) back to YYYY-MM-DD
-        if (sale.rawDate) {
-            document.getElementById('saleDate').value = sale.rawDate;
-        }
-
-        // Set type tab
-        modal.querySelectorAll('.m-tab').forEach(t => {
-            const match = t.getAttribute('data-type') === sale.type;
-            t.classList.toggle('active', match);
-            t.setAttribute('aria-selected', match ? 'true' : 'false');
-        });
-
-        // Update submit button text
-        const submitBtn = document.getElementById('submitSaleBtn');
-        if (submitBtn) submitBtn.innerHTML = '<i data-lucide="check"></i> Update';
-
-        renderMaterialsTable();
-        modal.classList.add('show');
-        document.body.style.overflow = 'hidden';
-        lucide.createIcons();
-    }
-
-    // RENDER MATERIALS TABLE 
-    function renderMaterialsTable() {
-        const materialsBody  = document.getElementById('materialsBody');
-        const formTotalLine  = document.getElementById('saleFormTotalLine');
-        const materialsTotalEl = document.getElementById('saleFormTotal');
-        if (!materialsBody) return;
-
-        materialsBody.innerHTML = '';
-
-        if (saleMaterials.length === 0) {
-            materialsBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px;">No materials added yet</td></tr>';
-            if (formTotalLine) formTotalLine.style.display = 'none';
-            return;
-        }
-
-        let total = 0;
-        saleMaterials.forEach((m, idx) => {
-            const subtotal = m.rate * m.weight;
-            total += subtotal;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${m.name}</td>
-                <td>${m.weight} kg</td>
-                <td><strong>&#8369;${subtotal.toFixed(2)}</strong></td>
-                <td>
-                    <button class="remove-item-btn" data-idx="${idx}" type="button">
-                        <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
-                    </button>
-                </td>
-            `;
-            materialsBody.appendChild(tr);
-        });
-
-        if (formTotalLine) formTotalLine.style.display = 'flex';
-        if (materialsTotalEl) materialsTotalEl.innerHTML = `&#8369;${total.toFixed(2)}`;
-        lucide.createIcons();
-    }
-
-    // WIRE MODAL
-    function wireModal() {
-        const saleModal        = document.getElementById('saleModal');
-        const openSaleModalBtn = document.getElementById('openSaleModalBtn');
-        const cancelSaleBtn    = document.getElementById('cancelSaleBtn');
-        const submitSaleBtn    = document.getElementById('submitSaleBtn');
-        const addMaterialBtn   = document.getElementById('addMaterialBtn');
-        const materialsBody    = document.getElementById('materialsBody');
-        const attachReceiptBtn = document.getElementById('attachReceiptBtn');
-        const receiptInput     = document.getElementById('receiptInput');
-        const receiptPreview   = document.getElementById('receiptPreview');
-        const receiptPreviewImg = document.getElementById('receiptPreviewImg');
-        const removeReceiptBtn = document.getElementById('removeReceiptBtn');
-        const receiptFilenameLabel = document.getElementById('receiptFilenameLabel');
-
-        if (!saleModal) return;
-
-        // Open
-        openSaleModalBtn?.addEventListener('click', () => {
-            editingId = null;
-            saleMaterials = [];
-            resetModal();
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('saleDate').value = today;
-            saleModal.classList.add('show');
-            document.body.style.overflow = 'hidden';
-            lucide.createIcons();
-        });
-
-        // Close 
-        function closeModal() {
-            saleModal.classList.remove('show');
-            document.body.style.overflow = '';
-            editingId = null;
-            saleMaterials = [];
-            resetModal();
-        }
-
-        cancelSaleBtn?.addEventListener('click', closeModal);
-        saleModal.addEventListener('click', (e) => { if (e.target === saleModal) closeModal(); });
-
-        // Tabs 
-        saleModal.querySelectorAll('.m-tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                saleModal.querySelectorAll('.m-tab').forEach(t => {
-                    t.classList.remove('active');
-                    t.setAttribute('aria-selected', 'false');
-                });
-                tab.classList.add('active');
-                tab.setAttribute('aria-selected', 'true');
-            });
-        });
-
-        // Add Material
-        addMaterialBtn?.addEventListener('click', () => {
-            const sel      = document.getElementById('materialSelect');
-            const weightEl = document.getElementById('materialWeight');
-            const name     = sel.value;
-            const rate     = Number(sel.selectedOptions[0]?.dataset.rate || 0);
-            const weight   = parseFloat(weightEl.value) || 0;
-            const matErr   = document.getElementById('materialsError');
-
-            if (!name || weight <= 0) {
-                if (matErr) matErr.textContent = 'Please enter a valid weight.';
-                return;
-            }
-            if (matErr) matErr.textContent = '';
-
-            saleMaterials.push({ name, rate, weight });
-            weightEl.value = '';
-            weightEl.focus();
-            renderMaterialsTable();
-        });
-
-        // Enter key on weight input
-        document.getElementById('materialWeight')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') { e.preventDefault(); addMaterialBtn?.click(); }
-        });
-
-        // Remove Material
-        materialsBody?.addEventListener('click', (e) => {
-            const delBtn = e.target.closest('.remove-item-btn');
-            if (!delBtn) return;
-            const idx = Number(delBtn.dataset.idx);
-            if (!isNaN(idx)) {
-                saleMaterials.splice(idx, 1);
-                renderMaterialsTable();
-            }
-        });
-
-        //  Receipt Attach 
-        attachReceiptBtn?.addEventListener('click', () => receiptInput?.click());
-
-        receiptInput?.addEventListener('change', () => {
-            const file = receiptInput.files[0];
-            if (!file) return;
-            if (receiptFilenameLabel) receiptFilenameLabel.textContent = file.name;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                if (receiptPreviewImg) receiptPreviewImg.src = e.target.result;
-                receiptPreview?.classList.add('visible');
-                lucide.createIcons();
-            };
-            reader.readAsDataURL(file);
-        });
-
-        removeReceiptBtn?.addEventListener('click', () => {
-            if (receiptInput) receiptInput.value = '';
-            if (receiptPreviewImg) receiptPreviewImg.src = '';
-            receiptPreview?.classList.remove('visible');
-            if (receiptFilenameLabel) receiptFilenameLabel.textContent = 'Attach Receipt';
-        });
-
-        //  Validate contact
-        function validateContact(value) {
-            if (!value) return true;
-            return /^09\d{9}$/.test(value.replace(/[-\s]/g, ''));
-        }
-
-        document.getElementById('saleContact')?.addEventListener('input', (e) => {
-            const raw = e.target.value.replace(/[^\d]/g, '').slice(0, 11);
-            let fmt = raw;
-            if (raw.length > 4 && raw.length <= 7) fmt = `${raw.slice(0,4)}-${raw.slice(4)}`;
-            else if (raw.length > 7) fmt = `${raw.slice(0,4)}-${raw.slice(4,7)}-${raw.slice(7,11)}`;
-            e.target.value = fmt;
-        });
-
-        //  Submit/ Update 
-        submitSaleBtn?.addEventListener('click', async () => {
-            const partnerVal = document.getElementById('partnerName')?.value.trim();
-            const dateVal    = document.getElementById('saleDate')?.value;
-            const contactVal = document.getElementById('saleContact')?.value.trim();
-
-            const partnerErr = document.getElementById('partnerNameError');
-            const dateErr    = document.getElementById('saleDateError');
-            const contactErr = document.getElementById('saleContactError');
-            const matErr     = document.getElementById('materialsError');
-
-            [partnerErr, dateErr, contactErr, matErr].forEach(el => { if (el) el.textContent = ''; });
-
-            let hasError = false;
-            if (!partnerVal) { if (partnerErr) partnerErr.textContent = 'Partner name is required.'; hasError = true; }
-            if (!dateVal)    { if (dateErr)    dateErr.textContent = 'Date is required.'; hasError = true; }
-            if (contactVal && !validateContact(contactVal)) { if (contactErr) contactErr.textContent = 'Use format: 09XX-XXX-XXXX'; hasError = true; }
-            if (saleMaterials.length === 0) { if (matErr) matErr.textContent = 'Please add at least one material.'; hasError = true; }
-            if (hasError) return;
-
-            const activeTab = saleModal.querySelector('.m-tab.active');
-            const type      = activeTab?.getAttribute('data-type') || 'organization';
-
-            // Format date
-            const dateObj = new Date(dateVal);
-            const month   = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const day     = String(dateObj.getDate()).padStart(2, '0');
-            const year    = String(dateObj.getFullYear()).slice(-2);
-            const displayDate = `${month}-${day}-${year}`;
-
-            let totalAmount = 0;
-            let totalWeight = 0;
-            saleMaterials.forEach(m => { totalAmount += m.rate * m.weight; totalWeight += m.weight; });
-
-            const materialNames = [...new Set(saleMaterials.map(m => m.name))].join(', ');
-
-            // Receipt image
-            let receiptImage = null;
-            if (receiptPreviewImg && receiptPreviewImg.src && receiptPreviewImg.src !== window.location.href) {
-                receiptImage = receiptPreviewImg.src;
-            }
-
-            // Prepare the object for Supabase
-        const saleData = {
-            date: displayDate,
-            raw_date: dateVal, // Use snake_case for DB columns
-            partner: partnerVal,
-            contact: contactVal,
-            type: type,
-            materials: saleMaterials, // Supabase handles JSON arrays automatically
-            material_names: materialNames,
-            total_amount: totalAmount,
-            total_weight: totalWeight,
-            receipt_image: receiptImage
-        };
-        
-        if (editingId) {
-            // UPDATE
-            const { error } = await window._supabase
-                .from('sales')
-                .update(saleData)
-                .eq('id', editingId);
-            
-            if (error) alert("Update failed: " + error.message);
-        } else {
-            // INSERT
-            const { error } = await window._supabase
-                .from('sales')
-                .insert([saleData]);
-            
-            if (error) alert("Insert failed: " + error.message);
-        }
-        
-        // Refresh the table after saving
-        closeModal();
-        await renderTable();
-        resetModal();
-    });
-        // Reset 
-        function resetModal() {
-            saleMaterials = [];
-            renderMaterialsTable();
-            ['partnerName','saleDate','saleContact'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
-            if (receiptInput) receiptInput.value = '';
-            if (receiptPreviewImg) receiptPreviewImg.src = '';
-            receiptPreview?.classList.remove('visible');
-            if (receiptFilenameLabel) receiptFilenameLabel.textContent = 'Attach Receipt';
-            saleModal.querySelectorAll('.m-tab').forEach((t, i) => {
-                t.classList.toggle('active', i === 0);
-                t.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
-            });
-            ['partnerNameError','saleDateError','saleContactError','materialsError'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = '';
-            });
-            const submitBtn = document.getElementById('submitSaleBtn');
-            if (submitBtn) submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
-            lucide.createIcons();
-    }
- }
-
 });    
