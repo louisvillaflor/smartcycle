@@ -18,7 +18,7 @@ function initSalesForm() {
 
 //OPEN SALE MODAL GLOBAL
 window.openEditSaleModal = async function(id) {
-    const { data } = await supabaseClient
+    const { data } = await window._supabase
         .from('sales')
         .select('*')
         .eq('id', id)
@@ -132,7 +132,7 @@ async function handleSubmit() {
     let saleId = editingId;
 
     if (editingId) {
-        await supabaseClient
+        await window._supabase
             .from('sales')
             .update({
                 partner,
@@ -143,13 +143,13 @@ async function handleSubmit() {
             .eq('id', editingId);
 
         // 🔥 delete old items before re-inserting
-        await supabaseClient
+        await window._supabase
             .from('sale_items')
             .delete()
             .eq('sale_id', editingId);
 
     } else {
-        const { data, error } = await supabaseClient
+        const { data, error } = await window._supabase
             .from('sales')
             .insert([{
                 partner,
@@ -177,7 +177,7 @@ async function handleSubmit() {
     }));
 
     if (itemsPayload.length > 0) {
-        await supabaseClient.from('sale_items').insert(itemsPayload);
+        await window._supabase.from('sale_items').insert(itemsPayload);
     }
 
     closeModal();
