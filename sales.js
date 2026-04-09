@@ -25,15 +25,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return [];
     }
     
-    return data.map(sale => {
-        // Map items to a consistent structure
-        const mappedItems = (sale.sale_items || []).map(item => ({
+   return data.map(sale => {
+    const mappedItems = (sale.sale_items || []).map(item => {
+        const itemAmount = parseFloat(item.amount) || 0;
+        const itemWeight = parseFloat(item.weight) || 0;
+        
+        return {
             material: item.material_name,
-            weight: item.weight,
-            rate: item.amount / item.weight,
-            subtotal: item.amount
-        }));
-
+            weight: itemWeight,
+            // Calculate rate safely to avoid division by zero
+            rate: itemWeight > 0 ? (itemAmount / itemWeight) : 0,
+            subtotal: itemAmount
+        };
+    });
 
         return {
             ...sale,
