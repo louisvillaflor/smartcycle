@@ -93,16 +93,19 @@ document.addEventListener('DOMContentLoaded', () => {
         // 2. MAIN ROW
         const trMain = document.createElement('tr');
         trMain.className = 'main-row';
-        trMain.setAttribute('onclick', `toggleDetails('${rowId}', this)`); // Consistency with toggle logic
+        trMain.setAttribute('data-target', rowId); 
         trMain.innerHTML = `
-            <td class="chevron-cell"><i data-lucide="chevron-down" style="width:18px;"></i></td>
-            <td>${sale.date || 'N/A'}</td>
-            <td><span class="id-badge">${sale.id}</span></td>
+            <td class="chevron-cell"><i data-lucide="chevron-down"></i></td>
+            <td>${sale.raw_date || 'N/A'}</td> <td><span class="id-badge">${sale.id}</span></td>
             <td style="font-weight:600;">${sale.partner || 'Unknown'}</td>
             <td><span style="color:#64748b;">${materialSummary}</span></td>
-            <td style="text-align:center;">${(sale.totalWeight || 0).toFixed(1)} kg</td>
-            <td style="text-align:right; font-weight:700; color:#10b981;">₱${(sale.totalAmount || 0).toFixed(2)}</td>
-            <td></td>
+            <td style="text-align:center;">${(sale.total_weight || 0).toFixed(1)} kg</td>
+            <td style="text-align:right; font-weight:700; color:#10b981;">₱${(sale.total_amount || 0).toFixed(2)}</td>
+            <td>
+                <div class="action-btns">
+                    <button data-action="edit" data-id="${sale.id}">Edit</button>
+                </div>
+            </td>
         `;
     
         // 3. SUB ROW (Expanded content)
