@@ -40,9 +40,14 @@ window.openEditSaleModal = async function(id) {
 
 //OPEN CLOSE MODAL
 function openModal() {
-    saleModal.classList.add('show');
-    document.body.style.overflow = 'hidden';
-    lucide.createIcons();
+    const modal = document.getElementById('saleModal'); // Ensure you get the element
+    if (modal) {
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        if (window.lucide) lucide.createIcons();
+    } else {
+        console.error("Modal element 'saleModal' not found in DOM.");
+    }
 }
 
 function closeModal() {
