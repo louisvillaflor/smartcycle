@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (currentSearch) {
         filtered = filtered.filter(s =>
-            `${s.date} ${s.id} ${s.partner} ${s.contact}`.toLowerCase().includes(currentSearch)
+            `${s.raw_date} ${s.id} ${s.partner} ${s.contact}`.toLowerCase().includes(currentSearch)
         );
     }
 
