@@ -44,9 +44,9 @@ window.openEditSaleModal = async function(id) {
 
 //OPEN CLOSE MODAL
 function openModal() {
-    const modal = document.getElementById('saleModal');
-    modal.classList.add('show');
+    saleModal.classList.add('show');
     document.body.style.overflow = 'hidden';
+    lucide.createIcons();
 }
 
 function closeModal() {
