@@ -99,8 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${sale.raw_date || 'N/A'}</td> <td><span class="id-badge">${sale.id}</span></td>
             <td style="font-weight:600;">${sale.partner || 'Unknown'}</td>
             <td><span style="color:#64748b;">${materialSummary}</span></td>
-            <td style="text-align:center;">${(sale.total_weight || 0).toFixed(1)} kg</td>
-            <td style="text-align:right; font-weight:700; color:#10b981;">₱${(sale.total_amount || 0).toFixed(2)}</td>
+            // Update these two lines in your trMain.innerHTML
+            <td style="text-align:center;">${(Number(sale.totalWeight) || 0).toFixed(1)} kg</td>
+            <td style="text-align:right; font-weight:700; color:#10b981;">₱${(Number(sale.totalAmount) || 0).toFixed(2)}</td>
             <td>
                 <div class="action-btns">
                     <button data-action="edit" data-id="${sale.id}">Edit</button>
@@ -109,15 +110,22 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     
         // 3. SUB ROW (Expanded content)
-        const materialRows = (sale.items || []).map(m => `
-            <tr>
-                <td style="text-align:center;">${m.weight.toFixed(1)}</td>
-                <td style="text-align:center;">kg</td>
-                <td style="text-align:left; padding-left:8px;">${m.material}</td>
-                <td style="text-align:center;">₱${m.rate.toFixed(2)}</td>
-                <td style="text-align:center;">₱${m.subtotal.toFixed(2)}</td>
-            </tr>
-        `).join('');
+        const materialRows = (sale.items || []).map(m => {
+            // Safety check: Ensure values are numbers before calling .toFixed()
+            const weight = Number(m.weight) || 0;
+            const rate = Number(m.rate) || 0;
+            const subtotal = Number(m.subtotal) || 0;
+        
+            return `
+                <tr>
+                    <td style="text-align:center;">${weight.toFixed(1)}</td>
+                    <td style="text-align:center;">kg</td>
+                    <td style="text-align:left; padding-left:8px;">${m.material || 'Unknown'}</td>
+                    <td style="text-align:center;">₱${rate.toFixed(2)}</td>
+                    <td style="text-align:center;">₱${subtotal.toFixed(2)}</td>
+                </tr>
+            `;
+        }).join('');
     
         const trSub = document.createElement('tr');
         trSub.id = rowId;
