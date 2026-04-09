@@ -1,7 +1,3 @@
-
-const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 let saleMaterials = [];
 let editingId = null;
 
