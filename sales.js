@@ -99,7 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${sale.raw_date || 'N/A'}</td> <td><span class="id-badge">${sale.id}</span></td>
             <td style="font-weight:600;">${sale.partner || 'Unknown'}</td>
             <td><span style="color:#64748b;">${materialSummary}</span></td>
-            // Update these two lines in your trMain.innerHTML
             <td style="text-align:center;">${(Number(sale.totalWeight) || 0).toFixed(1)} kg</td>
             <td style="text-align:right; font-weight:700; color:#10b981;">₱${(Number(sale.totalAmount) || 0).toFixed(2)}</td>
             <td>
