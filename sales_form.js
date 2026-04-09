@@ -91,11 +91,11 @@ function renderMaterialsTable() {
 }
 
 
-//ADD MATERIAL
+// ADD MATERIAL
 function wireFormEvents() {
     const addBtn = document.getElementById('addMaterialBtn');
     const submitBtn = document.getElementById('submitSaleBtn');
-  
+
     addBtn?.addEventListener('click', () => {
         const sel = document.getElementById('materialSelect');
         const weight = parseFloat(document.getElementById('materialWeight').value);
@@ -110,47 +110,78 @@ function wireFormEvents() {
 
         renderMaterialsTable();
     });
-    //SUBMIT INSERT UPDATE
-  submitBtn?.addEventListener('click', handleSubmit);
-    async function handleSubmit() {
-      const partner = document.getElementById('partnerName').value;
-      const date    = document.getElementById('saleDate').value;
-  
-      let totalAmount = 0;
-      let totalWeight = 0;
-  
-      saleMaterials.forEach(m => {
-          totalAmount += m.rate * m.weight;
-          totalWeight += m.weight;
-      });
-  
-      const payload = {
-          partner,
-          raw_date: date,
-          materials: saleMaterials,
-          total_amount: totalAmount,
-          total_weight: totalWeight
-      };
-  
-      if (editingId) {
-          await supabaseClient.from('sales').update(payload).eq('id', editingId);
-      } else {
-          await supabaseClient.from('sales').insert([payload]);
-      }
-  
-      closeModal();
-  
-      // 🔥 IMPORTANT: refresh table from sales.js
-      if (window.refreshSalesTable) {
-          window.refreshSalesTable();
-      }
-  };
-  document.getElementById('materialsBody')?.addEventListener('click', (e) => {
-      const btn = e.target.closest('.remove-item-btn');
-      if (!btn) return;
-  
-      const idx = Number(btn.dataset.idx);
-      saleMaterials.splice(idx, 1);
-      renderMaterialsTable();
-  });
+
+    submitBtn?.addEventListener('click', handleSubmit);
+}
+
+// SUBMIT
+async function handleSubmit() {
+    const partner = document.getElementById('partnerName').value;
+    const date    = document.getElementById('saleDate').value;
+
+    let totalAmount = 0;
+    let totalWeight = 0;
+
+    saleMaterials.forEach(m => {
+        totalAmount += m.rate * m.weight;
+        totalWeight += m.weight;
+    });
+
+    // ✅ INSERT / UPDATE SALES
+    let saleId = editingId;
+
+    if (editingId) {
+        await supabaseClient
+            .from('sales')
+            .update({
+                partner,
+                raw_date: date,
+                total_amount: totalAmount,
+                total_weight: totalWeight
+            })
+            .eq('id', editingId);
+
+        // 🔥 delete old items before re-inserting
+        await supabaseClient
+            .from('sale_items')
+            .delete()
+            .eq('sale_id', editingId);
+
+    } else {
+        const { data, error } = await supabaseClient
+            .from('sales')
+            .insert([{
+                partner,
+                raw_date: date,
+                total_amount: totalAmount,
+                total_weight: totalWeight
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            alert(error.message);
+            return;
+        }
+
+        saleId = data.id;
+    }
+
+    // ✅ INSERT SALE ITEMS
+    const itemsPayload = saleMaterials.map(m => ({
+        sale_id: saleId,
+        material_name: m.name,
+        weight: m.weight,
+        amount: m.rate * m.weight
+    }));
+
+    if (itemsPayload.length > 0) {
+        await supabaseClient.from('sale_items').insert(itemsPayload);
+    }
+
+    closeModal();
+
+    if (window.refreshSalesTable) {
+        window.refreshSalesTable();
+    }
 }
