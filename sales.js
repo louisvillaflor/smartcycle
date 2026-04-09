@@ -14,7 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadSales() {
     const { data, error } = await window._supabase
         .from('sales')
-        .select(`*`)
+        .select(`
+                *,
+                sale_items (*)
+            `)
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -24,12 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     return data.map(sale => {
         // Map items to a consistent structure
-        const mappedItems = (sale.materials || []).map(item => ({
-            material: item.name,
-            rate: item.rate,
+        const mappedItems = (sale.sale_items || []).map(item => ({
+            material: item.material_name,
             weight: item.weight,
-            subtotal: item.rate * item.weight
+            rate: item.amount / item.weight,
+            subtotal: item.amount
         }));
+
 
         return {
             ...sale,
@@ -56,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (currentSearch) {
         filtered = filtered.filter(s =>
-            `${s.date} ${s.id} ${s.partner} ${s.material_names} ${s.contact}`.toLowerCase().includes(currentSearch)
+            `${s.date} ${s.id} ${s.partner} ${s.contact}`.toLowerCase().includes(currentSearch)
         );
     }
 
