@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentFilter = 'all';
     let currentSearch = '';
     let isRendering = false;
+    let renderTimeout = null;
 
     // STORAGE 
     async function fetchSales() {
@@ -363,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     requestRender();
 
-    let renderTimeout = null;
 
     function requestRender() {
         clearTimeout(renderTimeout);
