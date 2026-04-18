@@ -169,8 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
    
     }
-    //Connect BOTH FILES
-    window.refreshSalesTable = renderTable;
+
     //  ROW TOGGLE
     salesTableBody.addEventListener('click', async (e) => {
         if (e.target.closest('.action-btns')) return;
