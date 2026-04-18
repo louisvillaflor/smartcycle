@@ -27,24 +27,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     return data.map(sale => {
+        // Look closely at the console for a 'sale_items' property in those objects
         const mappedItems = (sale.sale_items || []).map(item => {
-            const weight = Number(item.weight) || 0;
-            const amount = Number(item.amount) || 0;
-    
+            // Fallback to common naming conventions if material_name is empty
             return {
-                name: item.material_name,
-                weight,
-                rate: weight > 0 ? amount / weight : 0,
-                subtotal: amount,
-                unit: "kg"
+                name: item.material_name || item.name || item.material || 'N/A',
+                weight: Number(item.weight) || 0,
+                // Use 'price' if 'amount' is the column name in your DB
+                rate: Number(item.price) || (item.weight > 0 ? item.amount / item.weight : 0),
+                subtotal: Number(item.amount) || (item.price * item.weight) || 0,
+                unit: item.unit || "kg"
             };
         });
     
         return {
             ...sale,
             items: mappedItems,
+            // These fields already exist in your log, so we ensure they are assigned
+            raw_date: sale.raw_date || sale.date || 'N/A', 
             totalWeight: Number(sale.total_weight) || 0,
-            totalAmount: Number(sale.total_amount) || 0
+            totalAmount: Number(sale.total_amount) || 0,
+            partner: sale.partner || 'Unknown'
         };
     });
 }
