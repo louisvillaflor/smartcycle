@@ -1,3 +1,11 @@
+const state = {
+    sales: [],
+    filtered: [],
+    loading: false,
+    renderToken: 0
+};
+
+
 const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -12,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRendering = false;
 
     // STORAGE 
-    async function loadSales() {
+    async function fetchSales() {
         const { data, error } = await window._supabase
             .from('sales')
             .select(`
@@ -22,35 +30,27 @@ document.addEventListener('DOMContentLoaded', () => {
             .order('created_at', { ascending: false });
     
         if (error) {
-            console.error('Error fetching sales:', error);
+            console.error("FETCH ERROR:", error.message);
             return [];
         }
     
         return data.map(sale => {
-            // Map the nested sale_items
-            const mappedItems = (sale.sale_items || []).map(item => {
-                // Note: Check if your sale_items table uses 'material_name' or just 'name'
-                // I'm adding fallbacks just in case
-                return {
-                    name: item.material_name || item.description || 'Unknown Material',
-                    weight: Number(item.weight) || 0,
-                    // If price isn't a column, we calculate rate from amount / weight
-                    rate: Number(item.price) || (item.weight > 0 ? (item.amount / item.weight) : 0),
-                    subtotal: Number(item.amount) || 0,
-                    unit: item.unit || "kg"
-                };
-            });
+            const items = Array.isArray(sale.sale_items) ? sale.sale_items : [];
     
             return {
                 ...sale,
-                items: mappedItems,
-                // Match the property names used in your renderTable() function
-                totalWeight: Number(sale.total_weight) || 0, 
-                totalAmount: Number(sale.total_amount) || 0,
-                partner: sale.partner || 'Unknown'
+                items: items.map(i => ({
+                    name: i.material_name,
+                    weight: Number(i.weight) || 0,
+                    rate: Number(i.weight) ? (Number(i.amount) / Number(i.weight)) : 0,
+                    subtotal: Number(i.amount) || 0
+                })),
+                total_weight: Number(sale.total_weight) || 0,
+                total_amount: Number(sale.total_amount) || 0
             };
         });
     }
+
     // ELEMENTS 
     const salesTableBody = document.getElementById('salesTableBody');
     const emptyState     = document.getElementById('emptyState');
@@ -59,119 +59,126 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //RENDER TABLE 
     async function renderTable() {
-         if (isRendering) return;
-            isRendering = true;
-        
-            try {
-                 const allSales = await loadSales(); 
-                    let filtered = allSales;
-                
-                    if (currentFilter !== 'all') {
-                        filtered = allSales.filter(s => s.type === currentFilter);
-                    }
-                    if (currentSearch) {
-                        filtered = filtered.filter(s =>
-                            `${s.raw_date} ${s.id} ${s.partner} ${s.contact}`.toLowerCase().includes(currentSearch)
-                        );
-                    }
-                
-                    salesTableBody.innerHTML = '';
-                
-                    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-                    if (currentPage > totalPages) currentPage = totalPages;
-                
-                    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
-                    const pageItems = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE);
-                
-                    if (pageItems.length === 0) {
-                        emptyState.classList.add('visible');
-                        renderPagination(0);
-                        return;
-                    }
-                
-                    emptyState.classList.remove('visible');
-                
-                        pageItems.forEach(sale => {
-                        const rowId = 'sub-' + sale.id;
-                    
-                        // 1. MATERIAL SUMMARY LOGIC
-                        let materialSummary = 'N/A';
-                        if (sale.items && sale.items.length > 0) {
-                            const unique = [...new Set(sale.items.map(m => m.name))];
-                            materialSummary = unique.length === 1 ? unique[0] : `${unique.length} types`;
-                        }
-                    
-                        // 2. MAIN ROW
-                        const trMain = document.createElement('tr');
-                        trMain.className = 'main-row';
-                        trMain.setAttribute('data-target', rowId); 
-                        trMain.innerHTML = `
-                            <td class="chevron-cell"><i data-lucide="chevron-down"></i></td>
-                            <td>${sale.raw_date || 'N/A'}</td> <td><span class="id-badge">${sale.id}</span></td>
-                            <td style="font-weight:600;">${sale.partner || 'Unknown'}</td>
-                            <td><span style="color:#64748b;">${materialSummary}</span></td>
-                            <td style="text-align:center;">${(Number(sale.totalWeight) || 0).toFixed(1)} kg</td>
-                            <td style="text-align:right; font-weight:700; color:#10b981;">₱${(Number(sale.totalAmount) || 0).toFixed(2)}</td>
-                            <td>
-                                <div class="action-btns">
-                                    <button data-action="edit" data-id="${sale.id}">Edit</button>
-                                </div>
-                            </td>
-                        `;
-                    
-                        // 3. SUB ROW (Expanded content)
-                        const materialRows = (sale.items || []).map(m => {
-                            const weight = Number(m.weight) || 0;
-                            const rate = Number(m.rate) || 0;
-                            const subtotal = Number(m.subtotal) || 0;
-                        
-                            return `
-                                <tr>
-                                    <td style="text-align:center;">${weight}</td>
-                                    <td style="text-align:center;">${m.unit || 'kg'}</td>
-                                    <td style="text-align:left; padding-left:8px;">${m.name}</td>
-                                    <td style="text-align:center;">₱${rate.toFixed(2)}</td>
-                                    <td style="text-align:center;">₱${subtotal.toFixed(2)}</td>
-                                </tr>
-                            `;
-                        }).join('');
-                    
-                        const trSub = document.createElement('tr');
-                        trSub.id = rowId;
-                        trSub.className = 'sub-row-container';
-                        trSub.innerHTML = `
-                            <td colspan="8" style="padding:0 !important; border:none;">
-                                <div class="expanded-content">
-                                    <table class="expanded-table">
-                                        <thead>
-                                            <tr>
-                                                <th style="text-align:center;">QTY</th>
-                                                <th style="text-align:center;">UNIT</th>
-                                                <th style="text-align:left; padding-left:8px;">DESCRIPTION</th>
-                                                <th style="text-align:center;">PRICE</th>
-                                                <th style="text-align:center;">AMOUNT</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>${materialRows}</tbody>
-                                    </table>
-                                    <div style="text-align:right; padding: 15px 25px; border-top: 1px solid #f1f5f9;">
-                                        <span style="font-size:13px; color:#64748b; margin-right:10px;">Total Amount:</span>
-                                        <span style="font-weight:700; color:#10b981;">₱${(sale.totalAmount || 0).toFixed(2)}</span>
-                                    </div>
-                                </div>
-                            </td>
-                        `;
-                    
-                        salesTableBody.appendChild(trMain);
-                        salesTableBody.appendChild(trSub);
-                    });
-                        lucide.createIcons();
-                        renderPagination(filtered.length);
-            } finally {
-                isRendering = false;
+        const token = ++state.renderToken;
+        state.loading = true;
+    
+        try {
+            // 1. FETCH ONLY ONCE PER RENDER CALL
+            const allSales = await fetchSales();
+    
+            // 2. IGNORE OUTDATED RENDERS
+            if (token !== state.renderToken) return;
+    
+            state.sales = allSales;
+    
+            // 3. FILTER
+            let filtered = allSales;
+    
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(s => s.type === currentFilter);
             }
-   
+    
+            if (currentSearch) {
+                const q = currentSearch.toLowerCase();
+                filtered = filtered.filter(s =>
+                    `${s.id} ${s.partner} ${s.raw_date}`.toLowerCase().includes(q)
+                );
+            }
+    
+            state.filtered = filtered;
+    
+            // 4. PAGINATION
+            const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+            if (currentPage > totalPages) currentPage = totalPages;
+    
+            const start = (currentPage - 1) * ITEMS_PER_PAGE;
+            const pageItems = filtered.slice(start, start + ITEMS_PER_PAGE);
+    
+            // 5. CLEAR TABLE ONCE
+            salesTableBody.innerHTML = '';
+    
+            if (pageItems.length === 0) {
+                emptyState?.classList.add('visible');
+                renderPagination(0);
+                return;
+            }
+    
+            emptyState?.classList.remove('visible');
+    
+            // 6. BUILD ROWS
+            const fragment = document.createDocumentFragment();
+    
+            pageItems.forEach(sale => {
+                const rowId = 'sub-' + sale.id;
+    
+                const materialSummary =
+                    sale.items.length === 0
+                        ? 'N/A'
+                        : [...new Set(sale.items.map(i => i.name))].length === 1
+                            ? sale.items[0].name
+                            : `${new Set(sale.items.map(i => i.name)).size} types`;
+    
+                const trMain = document.createElement('tr');
+                trMain.className = 'main-row';
+                trMain.setAttribute('data-target', rowId);
+    
+                trMain.innerHTML = `
+                    <td class="chevron-cell"><i data-lucide="chevron-down"></i></td>
+                    <td>${sale.raw_date || 'N/A'}</td>
+                    <td><span class="id-badge">${sale.id}</span></td>
+                    <td>${sale.partner || 'Unknown'}</td>
+                    <td>${materialSummary}</td>
+                    <td style="text-align:center;">${sale.total_weight.toFixed(1)} kg</td>
+                    <td style="text-align:right; font-weight:700;">₱${sale.total_amount.toFixed(2)}</td>
+                    <td><button data-action="edit" data-id="${sale.id}">Edit</button></td>
+                `;
+    
+                const itemsHTML = sale.items.map(m => `
+                    <tr>
+                        <td>${m.weight.toFixed(1)}</td>
+                        <td>kg</td>
+                        <td>${m.name}</td>
+                        <td>₱${m.rate.toFixed(2)}</td>
+                        <td>₱${m.subtotal.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+    
+                const trSub = document.createElement('tr');
+                trSub.id = rowId;
+                trSub.className = 'sub-row-container';
+                trSub.innerHTML = `
+                    <td colspan="8" style="padding:0">
+                        <div class="expanded-content">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>QTY</th>
+                                        <th>UNIT</th>
+                                        <th>DESCRIPTION</th>
+                                        <th>PRICE</th>
+                                        <th>AMOUNT</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${itemsHTML}</tbody>
+                            </table>
+                        </div>
+                    </td>
+                `;
+    
+                fragment.appendChild(trMain);
+                fragment.appendChild(trSub);
+            });
+    
+            salesTableBody.appendChild(fragment);
+    
+            lucide.createIcons();
+            renderPagination(filtered.length);
+    
+        } finally {
+            state.loading = false;
+        }
     }
+
 
     //  ROW TOGGLE
     salesTableBody.addEventListener('click', async (e) => {
@@ -290,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!error) {
         modal.style.display = 'none';
-        renderTable();
+        requestRender();
     } else {
         alert("Delete failed: " + error.message);
     }
@@ -310,14 +317,14 @@ document.addEventListener('DOMContentLoaded', () => {
         prevBtn.className = 'page-btn';
         prevBtn.innerHTML = '<i data-lucide="chevron-left"></i>';
         prevBtn.disabled = currentPage === 1;
-        prevBtn.addEventListener('click', () => { currentPage--; renderTable(); });
+        prevBtn.addEventListener('click', () => { currentPage--; requestRender(); });
         paginationEl.appendChild(prevBtn);
 
         for (let i = 1; i <= totalPages; i++) {
             const btn = document.createElement('button');
             btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
             btn.textContent = i;
-            btn.addEventListener('click', () => { currentPage = i; renderTable(); });
+            btn.addEventListener('click', () => { currentPage = i; requestRender(); });
             paginationEl.appendChild(btn);
         }
 
@@ -325,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
         nextBtn.className = 'page-btn';
         nextBtn.innerHTML = '<i data-lucide="chevron-right"></i>';
         nextBtn.disabled = currentPage === totalPages;
-        nextBtn.addEventListener('click', () => { currentPage++; renderTable(); });
+        nextBtn.addEventListener('click', () => { currentPage++; requestRender(); });
         paginationEl.appendChild(nextBtn);
 
         lucide.createIcons();
@@ -342,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.setAttribute('aria-selected', 'true');
             currentFilter = tab.getAttribute('data-filter') || 'all';
             currentPage = 1;
-            renderTable();
+            requestRender();
         });
     });
 
@@ -351,8 +358,19 @@ document.addEventListener('DOMContentLoaded', () => {
         searchInput.addEventListener('input', (e) => {
             currentSearch = e.target.value.toLowerCase().trim();
             currentPage = 1;
-            renderTable();
+            requestRender();
         });
     }
-    renderTable();
+    requestRender();
+
+    let renderTimeout = null;
+
+    function requestRender() {
+        clearTimeout(renderTimeout);
+    
+        renderTimeout = setTimeout(() => {
+            renderTable();
+        }, 50); // debounce prevents flicker
+    }
+
 });    
