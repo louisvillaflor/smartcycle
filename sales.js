@@ -13,44 +13,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // STORAGE 
     async function loadSales() {
-    const { data, error } = await window._supabase
-        .from('sales')
-        .select(`
+        const { data, error } = await window._supabase
+            .from('sales')
+            .select(`
                 *,
                 sale_items (*)
             `)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error('Error fetching sales:', error);
-        return [];
-    }
+            .order('created_at', { ascending: false });
     
-    return data.map(sale => {
-        // Look closely at the console for a 'sale_items' property in those objects
-        const mappedItems = (sale.sale_items || []).map(item => {
-            // Fallback to common naming conventions if material_name is empty
+        if (error) {
+            console.error('Error fetching sales:', error);
+            return [];
+        }
+    
+        return data.map(sale => {
+            // Map the nested sale_items
+            const mappedItems = (sale.sale_items || []).map(item => {
+                // Note: Check if your sale_items table uses 'material_name' or just 'name'
+                // I'm adding fallbacks just in case
+                return {
+                    name: item.material_name || item.description || 'Unknown Material',
+                    weight: Number(item.weight) || 0,
+                    // If price isn't a column, we calculate rate from amount / weight
+                    rate: Number(item.price) || (item.weight > 0 ? (item.amount / item.weight) : 0),
+                    subtotal: Number(item.amount) || 0,
+                    unit: item.unit || "kg"
+                };
+            });
+    
             return {
-                name: item.material_name || item.name || item.material || 'N/A',
-                weight: Number(item.weight) || 0,
-                // Use 'price' if 'amount' is the column name in your DB
-                rate: Number(item.price) || (item.weight > 0 ? item.amount / item.weight : 0),
-                subtotal: Number(item.amount) || (item.price * item.weight) || 0,
-                unit: item.unit || "kg"
+                ...sale,
+                items: mappedItems,
+                // Match the property names used in your renderTable() function
+                totalWeight: Number(sale.total_weight) || 0, 
+                totalAmount: Number(sale.total_amount) || 0,
+                partner: sale.partner || 'Unknown'
             };
         });
-    
-        return {
-            ...sale,
-            items: mappedItems,
-            // These fields already exist in your log, so we ensure they are assigned
-            raw_date: sale.raw_date || sale.date || 'N/A', 
-            totalWeight: Number(sale.total_weight) || 0,
-            totalAmount: Number(sale.total_amount) || 0,
-            partner: sale.partner || 'Unknown'
-        };
-    });
-}
+    }
     // ELEMENTS 
     const salesTableBody = document.getElementById('salesTableBody');
     const emptyState     = document.getElementById('emptyState');
