@@ -9,7 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPage  = 1;
     let currentFilter = 'all';
     let currentSearch = '';
-    
+    let isRendering = false;
+
     // STORAGE 
     async function loadSales() {
     const { data, error } = await window._supabase
@@ -55,110 +56,118 @@ document.addEventListener('DOMContentLoaded', () => {
 
     //RENDER TABLE 
     async function renderTable() {
-    const allSales = await loadSales(); 
-    let filtered = allSales;
-
-    if (currentFilter !== 'all') {
-        filtered = allSales.filter(s => s.type === currentFilter);
-    }
-    if (currentSearch) {
-        filtered = filtered.filter(s =>
-            `${s.raw_date} ${s.id} ${s.partner} ${s.contact}`.toLowerCase().includes(currentSearch)
-        );
-    }
-
-    salesTableBody.innerHTML = '';
-
-    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-    if (currentPage > totalPages) currentPage = totalPages;
-
-    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
-    const pageItems = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE);
-
-    if (pageItems.length === 0) {
-        emptyState.classList.add('visible');
-        renderPagination(0);
-        return;
-    }
-
-    emptyState.classList.remove('visible');
-
-        pageItems.forEach(sale => {
-        const rowId = 'sub-' + sale.id;
-    
-        // 1. MATERIAL SUMMARY LOGIC
-        let materialSummary = 'N/A';
-        if (sale.items && sale.items.length > 0) {
-            const unique = [...new Set(sale.items.map(m => m.name))];
-            materialSummary = unique.length === 1 ? unique[0] : `${unique.length} types`;
-        }
-    
-        // 2. MAIN ROW
-        const trMain = document.createElement('tr');
-        trMain.className = 'main-row';
-        trMain.setAttribute('data-target', rowId); 
-        trMain.innerHTML = `
-            <td class="chevron-cell"><i data-lucide="chevron-down"></i></td>
-            <td>${sale.raw_date || 'N/A'}</td> <td><span class="id-badge">${sale.id}</span></td>
-            <td style="font-weight:600;">${sale.partner || 'Unknown'}</td>
-            <td><span style="color:#64748b;">${materialSummary}</span></td>
-            <td style="text-align:center;">${(Number(sale.totalWeight) || 0).toFixed(1)} kg</td>
-            <td style="text-align:right; font-weight:700; color:#10b981;">₱${(Number(sale.totalAmount) || 0).toFixed(2)}</td>
-            <td>
-                <div class="action-btns">
-                    <button data-action="edit" data-id="${sale.id}">Edit</button>
-                </div>
-            </td>
-        `;
-    
-        // 3. SUB ROW (Expanded content)
-        const materialRows = (sale.items || []).map(m => {
-            const weight = Number(m.weight) || 0;
-            const rate = Number(m.rate) || 0;
-            const subtotal = Number(m.subtotal) || 0;
+         if (isRendering) return;
+            isRendering = true;
         
-            return `
-                <tr>
-                    <td style="text-align:center;">${weight}</td>
-                    <td style="text-align:center;">${m.unit || 'kg'}</td>
-                    <td style="text-align:left; padding-left:8px;">${m.name}</td>
-                    <td style="text-align:center;">₱${rate.toFixed(2)}</td>
-                    <td style="text-align:center;">₱${subtotal.toFixed(2)}</td>
-                </tr>
-            `;
-        }).join('');
-    
-        const trSub = document.createElement('tr');
-        trSub.id = rowId;
-        trSub.className = 'sub-row-container';
-        trSub.innerHTML = `
-            <td colspan="8" style="padding:0 !important; border:none;">
-                <div class="expanded-content">
-                    <table class="expanded-table">
-                        <thead>
-                            <tr>
-                                <th style="text-align:center;">QTY</th>
-                                <th style="text-align:center;">UNIT</th>
-                                <th style="text-align:left; padding-left:8px;">DESCRIPTION</th>
-                                <th style="text-align:center;">PRICE</th>
-                                <th style="text-align:center;">AMOUNT</th>
-                            </tr>
-                        </thead>
-                        <tbody>${materialRows}</tbody>
-                    </table>
-                    <div style="text-align:right; padding: 15px 25px; border-top: 1px solid #f1f5f9;">
-                        <span style="font-size:13px; color:#64748b; margin-right:10px;">Total Amount:</span>
-                        <span style="font-weight:700; color:#10b981;">₱${(sale.totalAmount || 0).toFixed(2)}</span>
-                    </div>
-                </div>
-            </td>
-        `;
-    
-        salesTableBody.appendChild(trMain);
-        salesTableBody.appendChild(trSub);
-    });
-        lucide.createIcons();
-        renderPagination(filtered.length);
+            try {
+                 const allSales = await loadSales(); 
+                    let filtered = allSales;
+                
+                    if (currentFilter !== 'all') {
+                        filtered = allSales.filter(s => s.type === currentFilter);
+                    }
+                    if (currentSearch) {
+                        filtered = filtered.filter(s =>
+                            `${s.raw_date} ${s.id} ${s.partner} ${s.contact}`.toLowerCase().includes(currentSearch)
+                        );
+                    }
+                
+                    salesTableBody.innerHTML = '';
+                
+                    const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+                    if (currentPage > totalPages) currentPage = totalPages;
+                
+                    const startIdx = (currentPage - 1) * ITEMS_PER_PAGE;
+                    const pageItems = filtered.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+                
+                    if (pageItems.length === 0) {
+                        emptyState.classList.add('visible');
+                        renderPagination(0);
+                        return;
+                    }
+                
+                    emptyState.classList.remove('visible');
+                
+                        pageItems.forEach(sale => {
+                        const rowId = 'sub-' + sale.id;
+                    
+                        // 1. MATERIAL SUMMARY LOGIC
+                        let materialSummary = 'N/A';
+                        if (sale.items && sale.items.length > 0) {
+                            const unique = [...new Set(sale.items.map(m => m.name))];
+                            materialSummary = unique.length === 1 ? unique[0] : `${unique.length} types`;
+                        }
+                    
+                        // 2. MAIN ROW
+                        const trMain = document.createElement('tr');
+                        trMain.className = 'main-row';
+                        trMain.setAttribute('data-target', rowId); 
+                        trMain.innerHTML = `
+                            <td class="chevron-cell"><i data-lucide="chevron-down"></i></td>
+                            <td>${sale.raw_date || 'N/A'}</td> <td><span class="id-badge">${sale.id}</span></td>
+                            <td style="font-weight:600;">${sale.partner || 'Unknown'}</td>
+                            <td><span style="color:#64748b;">${materialSummary}</span></td>
+                            <td style="text-align:center;">${(Number(sale.totalWeight) || 0).toFixed(1)} kg</td>
+                            <td style="text-align:right; font-weight:700; color:#10b981;">₱${(Number(sale.totalAmount) || 0).toFixed(2)}</td>
+                            <td>
+                                <div class="action-btns">
+                                    <button data-action="edit" data-id="${sale.id}">Edit</button>
+                                </div>
+                            </td>
+                        `;
+                    
+                        // 3. SUB ROW (Expanded content)
+                        const materialRows = (sale.items || []).map(m => {
+                            const weight = Number(m.weight) || 0;
+                            const rate = Number(m.rate) || 0;
+                            const subtotal = Number(m.subtotal) || 0;
+                        
+                            return `
+                                <tr>
+                                    <td style="text-align:center;">${weight}</td>
+                                    <td style="text-align:center;">${m.unit || 'kg'}</td>
+                                    <td style="text-align:left; padding-left:8px;">${m.name}</td>
+                                    <td style="text-align:center;">₱${rate.toFixed(2)}</td>
+                                    <td style="text-align:center;">₱${subtotal.toFixed(2)}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    
+                        const trSub = document.createElement('tr');
+                        trSub.id = rowId;
+                        trSub.className = 'sub-row-container';
+                        trSub.innerHTML = `
+                            <td colspan="8" style="padding:0 !important; border:none;">
+                                <div class="expanded-content">
+                                    <table class="expanded-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="text-align:center;">QTY</th>
+                                                <th style="text-align:center;">UNIT</th>
+                                                <th style="text-align:left; padding-left:8px;">DESCRIPTION</th>
+                                                <th style="text-align:center;">PRICE</th>
+                                                <th style="text-align:center;">AMOUNT</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>${materialRows}</tbody>
+                                    </table>
+                                    <div style="text-align:right; padding: 15px 25px; border-top: 1px solid #f1f5f9;">
+                                        <span style="font-size:13px; color:#64748b; margin-right:10px;">Total Amount:</span>
+                                        <span style="font-weight:700; color:#10b981;">₱${(sale.totalAmount || 0).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </td>
+                        `;
+                    
+                        salesTableBody.appendChild(trMain);
+                        salesTableBody.appendChild(trSub);
+                    });
+                        lucide.createIcons();
+                        renderPagination(filtered.length);
+            } finally {
+                isRendering = false;
+            }
+   
     }
     //Connect BOTH FILES
     window.refreshSalesTable = renderTable;
