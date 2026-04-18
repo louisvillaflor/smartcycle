@@ -230,7 +230,6 @@ function wireModal() {
             partner: partnerVal,
             contact: contactVal,
             type: type,
-            materials: saleMaterials, // Supabase handles JSON arrays automatically
             total_amount: totalAmount,
             total_weight: totalWeight,
             receipt_image: receiptImage
