@@ -1,5 +1,5 @@
 let saleMaterials = [];
-    let editingId = null;
+let editingId = null;
 let currentPage = 1;
 const ITEMS_PER_PAGE = 10;
 let currentFilter = 'all';
