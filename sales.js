@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelBtn.replaceWith(newCancel);
 
        newConfirm.addEventListener('click', async () => {
-    const { error } = window._supabase
+    const { error } = await window._supabase
         .from('sales')
         .delete()
         .eq('id', id);
