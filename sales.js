@@ -25,26 +25,25 @@ document.addEventListener('DOMContentLoaded', () => {
         return [];
     }
     
-   return data.map(sale => {
-    const mappedItems = (sale.sale_items || []).map(item => {
-        const itemAmount = parseFloat(item.amount) || 0;
-        const itemWeight = parseFloat(item.weight) || 0;
-        
-        return {
-            material: item.material_name,
-            weight: itemWeight,
-            // Calculate rate safely to avoid division by zero
-            rate: itemWeight > 0 ? (itemAmount / itemWeight) : 0,
-            subtotal: itemAmount
-        };
-    });
-
+    return data.map(sale => {
+        const mappedItems = (sale.sale_items || []).map(item => {
+            const weight = Number(item.weight) || 0;
+            const amount = Number(item.amount) || 0;
+    
+            return {
+                name: item.material_name,
+                weight,
+                rate: weight > 0 ? amount / weight : 0,
+                subtotal: amount,
+                unit: "kg"
+            };
+        });
+    
         return {
             ...sale,
-            items: mappedItems, // Use 'items' to match collections.js
-            // Ensure these match your Supabase column names exactly
-            totalWeight: parseFloat(sale.total_weight) || 0,
-            totalAmount: parseFloat(sale.total_amount) || 0
+            items: mappedItems,
+            totalWeight: Number(sale.total_weight) || 0,
+            totalAmount: Number(sale.total_amount) || 0
         };
     });
 }
@@ -90,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 1. MATERIAL SUMMARY LOGIC
         let materialSummary = 'N/A';
         if (sale.items && sale.items.length > 0) {
-            const unique = [...new Set(sale.items.map(m => m.material))]; 
+            const unique = [...new Set(sale.items.map(m => m.name))];
             materialSummary = unique.length === 1 ? unique[0] : `${unique.length} types`;
         }
     
@@ -114,16 +113,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
         // 3. SUB ROW (Expanded content)
         const materialRows = (sale.items || []).map(m => {
-            // Safety check: Ensure values are numbers before calling .toFixed()
             const weight = Number(m.weight) || 0;
             const rate = Number(m.rate) || 0;
             const subtotal = Number(m.subtotal) || 0;
         
             return `
                 <tr>
-                    <td style="text-align:center;">${weight.toFixed(1)}</td>
-                    <td style="text-align:center;">kg</td>
-                    <td style="text-align:left; padding-left:8px;">${m.material || 'Unknown'}</td>
+                    <td style="text-align:center;">${weight}</td>
+                    <td style="text-align:center;">${m.unit || 'kg'}</td>
+                    <td style="text-align:left; padding-left:8px;">${m.name}</td>
                     <td style="text-align:center;">₱${rate.toFixed(2)}</td>
                     <td style="text-align:center;">₱${subtotal.toFixed(2)}</td>
                 </tr>
