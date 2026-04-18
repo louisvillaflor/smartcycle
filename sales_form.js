@@ -402,6 +402,12 @@ async function loadSales() {
     }));
 }
 
+function renderPagination(totalCount) {
+    const paginationEl = document.getElementById('pagination');
+    if (!paginationEl) return;
+
+    paginationEl.innerHTML = '';
+}
 
 
 async function renderTable() {
