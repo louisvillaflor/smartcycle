@@ -377,6 +377,30 @@ function wireModal() {
     }
 
 
+async function loadSales() {
+    const { data, error } = await window._supabase
+        .from('sales')
+        .select(`
+            *,
+            sale_items (*)
+        `)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching sales:", error);
+        return [];
+    }
+
+    return data.map(sale => ({
+        ...sale,
+        items: (sale.sale_items || []).map(item => ({
+            name: item.material_name,
+            weight: Number(item.weight) || 0,
+            rate: Number(item.rate) || 0,
+            subtotal: Number(item.amount) || 0
+        }))
+    }));
+}
 
 
 
