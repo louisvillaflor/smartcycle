@@ -215,8 +215,6 @@ function wireModal() {
             let totalWeight = 0;
             saleMaterials.forEach(m => { totalAmount += m.rate * m.weight; totalWeight += m.weight; });
 
-            const materialNames = [...new Set(saleMaterials.map(m => m.name))].join(', ');
-
             // Receipt image
             let receiptImage = null;
             if (receiptPreviewImg && receiptPreviewImg.src && receiptPreviewImg.src !== window.location.href) {
@@ -235,7 +233,7 @@ function wireModal() {
             receipt_image: receiptImage
         };
         
-        if (editingId) {
+        /* if (editingId) {
             // UPDATE
             const { error } = await window._supabase
                 .from('sales')
@@ -250,8 +248,90 @@ function wireModal() {
                 .insert([saleData]);
             
             if (error) alert("Insert failed: " + error.message);
-        }
+        } */
+
+        if (editingId) {
+            // =========================
+            // UPDATE FLOW
+            // =========================
         
+            // 1. Update main sale
+            const { error: updateError } = await window._supabase
+                .from('sales')
+                .update(saleData)
+                .eq('id', editingId);
+        
+            if (updateError) {
+                alert("Update failed: " + updateError.message);
+                return;
+            }
+        
+            // 2. Delete old sale_items
+            const { error: deleteItemsError } = await window._supabase
+                .from('sale_items')
+                .delete()
+                .eq('sale_id', editingId);
+        
+            if (deleteItemsError) {
+                alert("Failed to clear old items: " + deleteItemsError.message);
+                return;
+            }
+        
+            // 3. Insert new sale_items
+            const itemsToInsert = saleMaterials.map(m => ({
+                sale_id: editingId,
+                material_name: m.name,
+                weight: m.weight,
+                rate: m.rate,
+                amount: m.rate * m.weight
+            }));
+        
+            const { error: insertItemsError } = await window._supabase
+                .from('sale_items')
+                .insert(itemsToInsert);
+        
+            if (insertItemsError) {
+                alert("Failed to insert items: " + insertItemsError.message);
+                return;
+            }
+        
+        } else {
+            // =========================
+            // INSERT FLOW
+            // =========================
+        
+            // 1. Insert sale FIRST
+            const { data: insertedSale, error: insertError } = await window._supabase
+                .from('sales')
+                .insert([saleData])
+                .select()
+                .single();
+        
+            if (insertError) {
+                alert("Insert failed: " + insertError.message);
+                return;
+            }
+        
+            // 2. Insert sale_items using returned sale ID
+            const itemsToInsert = saleMaterials.map(m => ({
+                sale_id: insertedSale.id,
+                material_name: m.name,
+                weight: m.weight,
+                rate: m.rate,
+                amount: m.rate * m.weight
+            }));
+        
+            const { error: itemsError } = await window._supabase
+                .from('sale_items')
+                .insert(itemsToInsert);
+        
+            if (itemsError) {
+                alert("Items insert failed: " + itemsError.message);
+                return;
+            }
+        }
+
+            
         // Refresh the table after saving
         closeModal();
         await renderTable();
