@@ -1,4 +1,8 @@
-const pricelistdb = window.supabaseClient;
+const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
+
+const pricelistdb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 
 document.addEventListener('DOMContentLoaded', () => {
 
