@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reports</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="navbar.css">
+    <link rel="stylesheet" href="reports.css">
+</head>
+<body>
+    <div id="navbar-container"></div>
+
+    <main class="main-content">
+
+        <header class="page-header">
+            <h1 class="greeting">Reports</h1>
+
+            <!-- Mobile-only export dropdown -->
+            <div class="export-mobile-wrap">
+                <button class="btn-export-dropdown" id="exportDropdownBtn" type="button" aria-expanded="false" aria-haspopup="menu">
+                    <i data-lucide="download" aria-hidden="true"></i>
+                    <i data-lucide="chevron-down" class="chevron-icon" aria-hidden="true"></i>
+                </button>
+                <div class="export-dropdown" id="exportDropdown" aria-hidden="true" role="menu">
+                    <button class="export-dropdown-item" type="button" data-format="PDF" role="menuitem">
+                        <i data-lucide="file-text" aria-hidden="true"></i>
+                        PDF
+                    </button>
+                    <button class="export-dropdown-item" type="button" data-format="CSV" role="menuitem">
+                        <i data-lucide="file-spreadsheet" aria-hidden="true"></i>
+                        CSV
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Controls bar — desktop only, outside the card -->
+        <div class="controls-bar" role="toolbar" aria-label="Report filters and export">
+
+            <div class="controls-left">
+                <!-- Date Range Filter -->
+                <div class="date-filter">
+                    <button id="dateBtn" class="btn-filter" type="button" aria-expanded="false" aria-haspopup="dialog">
+                        <i data-lucide="calendar" aria-hidden="true"></i>
+                        <span class="btn-label">Search Date Range</span>
+                    </button>
+                    <div id="datePopover" class="popover date-popover" aria-hidden="true" role="dialog" aria-label="Date range filter">
+                        <div class="date-popover-inner">
+                            <ul class="quick-dates" aria-label="Quick date ranges">
+                                <li><button type="button" data-range="yesterday">Yesterday</button></li>
+                                <li><button type="button" data-range="last-week">Last week</button></li>
+                                <li><button type="button" data-range="last-month">Last month</button></li>
+                                <li><button type="button" data-range="last-quarter">Last quarter</button></li>
+                            </ul>
+                            <div class="calendar-panel">
+                                <div class="calendar-nav">
+                                    <button type="button" id="calPrev" aria-label="Previous month">
+                                        <i data-lucide="chevron-left" aria-hidden="true"></i>
+                                    </button>
+                                    <span id="calMonthLabel" class="cal-month-label"></span>
+                                    <button type="button" id="calNext" aria-label="Next month">
+                                        <i data-lucide="chevron-right" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <table class="calendar-grid" role="grid" aria-label="Calendar">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col" abbr="Monday">Mo</th>
+                                            <th scope="col" abbr="Tuesday">Tu</th>
+                                            <th scope="col" abbr="Wednesday">We</th>
+                                            <th scope="col" abbr="Thursday">Th</th>
+                                            <th scope="col" abbr="Friday">Fr</th>
+                                            <th scope="col" abbr="Saturday">Sa</th>
+                                            <th scope="col" abbr="Sunday">Su</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="calBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Filter -->
+                <div class="category-filter">
+                    <button id="categoryBtn" class="btn-filter" type="button" aria-expanded="false" aria-haspopup="dialog">
+                        <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                        <span class="btn-label">Report Category</span>
+                    </button>
+                    <div id="categoryPopover" class="popover category-popover" aria-hidden="true" role="dialog" aria-label="Category filter">
+                        <div class="popover-content">
+                            <label class="checkbox-item">
+                                <input type="checkbox" value="collections" aria-label="Filter by Collections">
+                                <span>Collections</span>
+                            </label>
+                            <label class="checkbox-item">
+                                <input type="checkbox" value="sales" aria-label="Filter by Sales">
+                                <span>Sales</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Desktop export -->
+            <div class="export export-desktop" role="group" aria-label="Export options">
+                <span id="export-label">Export as:</span>
+                <button class="btn-export" type="button" data-format="PDF" aria-describedby="export-label">PDF</button>
+                <button class="btn-export" type="button" data-format="CSV" aria-describedby="export-label">CSV</button>
+            </div>
+
+        </div>
+
+        <!-- Table -->
+        <section aria-labelledby="reports-table-title">
+            <h2 id="reports-table-title" class="visually-hidden">Materials Report Table</h2>
+            <div class="card">
+
+                <!-- Mobile-only toolbar inside card -->
+                <div class="mobile-card-toolbar">
+                    <!-- Date Range Filter (mobile) -->
+                    <div class="date-filter">
+                        <button id="dateBtnMobile" class="mobile-filter-btn" type="button" aria-expanded="false" aria-haspopup="dialog">
+                            <i data-lucide="calendar" aria-hidden="true"></i>
+                            <span>Date Range</span>
+                            <i data-lucide="chevron-down" class="mobile-chevron" aria-hidden="true"></i>
+                        </button>
+                        <div id="datePopoverMobile" class="popover date-popover" aria-hidden="true" role="dialog" aria-label="Date range filter">
+                            <div class="date-popover-inner">
+                                <ul class="quick-dates" aria-label="Quick date ranges">
+                                    <li><button type="button" data-range="yesterday">Yesterday</button></li>
+                                    <li><button type="button" data-range="last-week">Last week</button></li>
+                                    <li><button type="button" data-range="last-month">Last month</button></li>
+                                    <li><button type="button" data-range="last-quarter">Last quarter</button></li>
+                                </ul>
+                                <div class="calendar-panel">
+                                    <div class="calendar-nav">
+                                        <button type="button" id="calPrevMobile" aria-label="Previous month">
+                                            <i data-lucide="chevron-left" aria-hidden="true"></i>
+                                        </button>
+                                        <span id="calMonthLabelMobile" class="cal-month-label"></span>
+                                        <button type="button" id="calNextMobile" aria-label="Next month">
+                                            <i data-lucide="chevron-right" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                    <table class="calendar-grid" role="grid" aria-label="Calendar">
+                                        <thead>
+                                            <tr>
+                                                <th scope="col" abbr="Monday">Mo</th>
+                                                <th scope="col" abbr="Tuesday">Tu</th>
+                                                <th scope="col" abbr="Wednesday">We</th>
+                                                <th scope="col" abbr="Thursday">Th</th>
+                                                <th scope="col" abbr="Friday">Fr</th>
+                                                <th scope="col" abbr="Saturday">Sa</th>
+                                                <th scope="col" abbr="Sunday">Su</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="calBodyMobile"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Category Filter (mobile) -->
+                    <div class="category-filter">
+                        <button id="categoryBtnMobile" class="mobile-filter-btn" type="button" aria-expanded="false" aria-haspopup="dialog">
+                            <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                            <span>Category</span>
+                            <i data-lucide="chevron-down" class="mobile-chevron" aria-hidden="true"></i>
+                        </button>
+                        <div id="categoryPopoverMobile" class="popover category-popover" aria-hidden="true" role="dialog" aria-label="Category filter">
+                            <div class="popover-content">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="collections" aria-label="Filter by Collections">
+                                    <span>Collections</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" value="sales" aria-label="Filter by Sales">
+                                    <span>Sales</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table class="reports-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">MATERIALS</th>
+                                <th scope="col">WEEK 1</th>
+                                <th scope="col">WEEK 2</th>
+                                <th scope="col">WEEK 3</th>
+                                <th scope="col">WEEK 4</th>
+                                <th scope="col">TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportsTableBody">
+                            <!-- Populated from database -->
+                        </tbody>
+                    </table>
+
+                    <div class="empty-state" id="emptyState">
+                        <i data-lucide="inbox" aria-hidden="true"></i>
+                        <p>No report data available for the selected range.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="navbar.js"></script>
+    <script src="junkshop_export.js"></script>
+    <script src="reports.js"></script>
+</body>
+</html>
