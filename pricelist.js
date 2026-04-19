@@ -1,3 +1,7 @@
+const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 document.addEventListener('DOMContentLoaded', () => {
 
     let editRow = null;
@@ -89,14 +93,14 @@ document.addEventListener('DOMContentLoaded', () => {
     priceInput?.addEventListener('input', () => clearFieldError(priceInput));
 
     // SAVE
-    saveBtn?.addEventListener('click', () => {
+    saveBtn?.addEventListener('click', async () => {
         const material = materialNameInput.value.trim();
         const unit     = unitSelect.value;
         const price    = priceInput.value.trim();
-
+    
         clearAllFieldErrors();
         let hasError = false;
-
+    
         if (!material) {
             showFieldError(materialNameInput, 'Material name is required.');
             hasError = true;
@@ -105,55 +109,66 @@ document.addEventListener('DOMContentLoaded', () => {
             showFieldError(priceInput, 'Price is required.');
             hasError = true;
         } else if (parseFloat(price) < 0) {
-            showFieldError(priceInput, 'Price must be a positive number.');
+            showFieldError(priceInput, 'Price must be positive.');
             hasError = true;
         }
+    
         if (hasError) return;
-
-        const formattedPrice = parseFloat(price).toFixed(2);
-
-        if (editRow) {
-            editRow.cells[0].textContent = material;
-            editRow.cells[1].textContent = unit;
-            editRow.cells[2].textContent = '₱' + formattedPrice;
-            editRow.querySelector('.edit-btn').setAttribute('aria-label', 'Edit ' + material);
-            editRow.querySelector('.delete-btn').setAttribute('aria-label', 'Delete ' + material);
-        } else {
-            renderRow(material, unit, formattedPrice);
+    
+        // INSERT to Supabase
+        const { data, error } = await supabase
+            .from('price_list') // your table name
+            .insert([
+                {
+                    material_name: material,
+                    unit: unit,
+                    price: parseFloat(price),
+                    status: 'Active'
+                }
+            ])
+            .select(); // return inserted row
+    
+        if (error) {
+            alert('Insert failed: ' + error.message);
+            console.error(error);
+            return;
         }
-
-        saveToLocalStorage();
+    
+        // Add instantly to UI
+        renderRow(data[0]);
+    
         closeModal();
         checkEmptyState();
     });
 
     // RENDER ROW
-    function renderRow(material, unit, price) {
+    function renderRow(item) {
         const tableBody = document.getElementById('priceTableBody');
-        const row       = document.createElement('tr');
-
+        const row = document.createElement('tr');
+    
+        row.dataset.id = item.id;
+    
         row.innerHTML = `
-            <td>${material}</td>
-            <td>${unit}</td>
-            <td>₱${price}</td>
-            <td><span class="status active">Active</span></td>
+            <td>${item.material_name}</td>
+            <td>${item.unit}</td>
+            <td>₱${parseFloat(item.price).toFixed(2)}</td>
+            <td><span class="status active">${item.status || 'Active'}</span></td>
             <td>
                 <div class="action-buttons">
-                    <button class="action-btn edit-btn" type="button" aria-label="Edit ${material}">
-                        <i data-lucide="edit-2" aria-hidden="true"></i>
+                    <button class="action-btn edit-btn" type="button">
+                        <i data-lucide="edit-2"></i>
                     </button>
-                    <button class="action-btn delete-btn" type="button" aria-label="Delete ${material}">
-                        <i data-lucide="trash-2" aria-hidden="true"></i>
+                    <button class="action-btn delete-btn" type="button">
+                        <i data-lucide="trash-2"></i>
                     </button>
                 </div>
             </td>
         `;
-
+    
         row.querySelector('.edit-btn').addEventListener('click', () => editItem(row));
         row.querySelector('.delete-btn').addEventListener('click', () => deleteItem(row));
-
+    
         tableBody.appendChild(row);
-        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     // EDIT
@@ -216,10 +231,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // DELETE
     function deleteItem(row) {
+        const id = row.dataset.id;
         const name = row.cells[0].textContent;
-        showDeleteConfirm(name, () => {
+    
+        showDeleteConfirm(name, async () => {
+    
+            const { error } = await supabase
+                .from('price_list')
+                .delete()
+                .eq('id', id);
+    
+            if (error) {
+                alert('Delete failed: ' + error.message);
+                return;
+            }
+    
             row.remove();
-            saveToLocalStorage();
             checkEmptyState();
         });
     }
@@ -254,16 +281,24 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('smartCyclePrices', JSON.stringify(rows));
     }
 
-    function loadFromLocalStorage() {
-        const saved = localStorage.getItem('smartCyclePrices');
-        if (saved) {
-            try {
-                const rows = JSON.parse(saved);
-                rows.forEach(item => renderRow(item.material, item.unit, item.price));
-            } catch (e) {
-                console.error('Error loading price list:', e);
-            }
+    async function loadPriceList() {
+        const { data, error } = await supabase
+            .from('price_list') // <-- your table name
+            .select('*')
+            .order('id', { ascending: true });
+    
+        if (error) {
+            console.error('Error loading data:', error);
+            return;
         }
+    
+        const tableBody = document.getElementById('priceTableBody');
+        tableBody.innerHTML = '';
+    
+        data.forEach(item => {
+            renderRow(item);
+        });
+    
         checkEmptyState();
     }
 
@@ -291,6 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    loadFromLocalStorage();
+    loadPriceList();
     if (typeof lucide !== 'undefined') lucide.createIcons();
 });
