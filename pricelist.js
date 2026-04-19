@@ -1,5 +1,3 @@
-const supabase = window.supabaseClient;
-
 document.addEventListener('DOMContentLoaded', () => {
 
     let editRow = null;
