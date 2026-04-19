@@ -1,4 +1,4 @@
-const supabase = window.supabaseClient;
+const pricelistdb = window.supabaseClient;
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (hasError) return;
     
         // INSERT to Supabase
-        const { data, error } = await supabase
+        const { data, error } = await pricelistdb
             .from('price_list') // your table name
             .insert([
                 {
@@ -234,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
         showDeleteConfirm(name, async () => {
     
-            const { error } = await supabase
+            const { error } = await pricelistdb
                 .from('price_list')
                 .delete()
                 .eq('id', id);
@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadPriceList() {
-        const { data, error } = await supabase
+        const { data, error } = await pricelistdb
             .from('price_list') // <-- your table name
             .select('*')
             .order('id', { ascending: true });
