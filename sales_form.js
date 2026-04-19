@@ -76,6 +76,7 @@ function wireModal() {
             editingId = null;
             saleMaterials = [];
             resetModal();
+            await loadMaterialsToDropdown();
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('saleDate').value = today;
             saleModal.classList.add('show');
@@ -364,7 +365,34 @@ function wireModal() {
  }
 
 
-
+    async function loadMaterialsToDropdown() {
+        const { data, error } = await window._supabase
+            .from('price_list')
+            .select('*')
+            .eq('status', 'Active')
+            .order('material_name', { ascending: true });
+    
+        if (error) {
+            console.error("Error loading materials:", error);
+            return;
+        }
+    
+        const select = document.getElementById('materialSelect');
+        if (!select) return;
+    
+        select.innerHTML = '<option value="">Select material</option>';
+    
+        data.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.material_name;
+            option.textContent = `${item.material_name} (₱${parseFloat(item.price).toFixed(2)}/${item.unit})`;
+    
+            // 🔥 IMPORTANT: store price from DB
+            option.dataset.rate = item.price;
+    
+            select.appendChild(option);
+        });
+    }
 
 
     // GENERATE ID 
