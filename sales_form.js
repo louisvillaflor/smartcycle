@@ -72,7 +72,7 @@ function wireModal() {
         if (!saleModal) return;
 
         // Open
-        openSaleModalBtn?.addEventListener('click', () => {
+        openSaleModalBtn?.addEventListener('click', async () => {
             editingId = null;
             saleMaterials = [];
             resetModal();
