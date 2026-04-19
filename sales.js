@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 items: items.map(i => ({
                     name: i.material_name,
                     weight: Number(i.weight) || 0,
-                    rate: Number(i.weight) ? (Number(i.amount) / Number(i.weight)) : 0,
+                    rate: Number(i.rate) || 0,
                     subtotal: Number(i.amount) || 0
                 })),
                 total_weight: Number(sale.total_weight) || 0,
