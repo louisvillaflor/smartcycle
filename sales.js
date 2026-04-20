@@ -136,11 +136,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
                 const itemsHTML = sale.items.map(m => `
                     <tr>
-                         <td style="text-align:center;">${weight.toFixed(1)}</td>
+                         <td style="text-align:center;">${m.weight.toFixed(1)}</td>
                         <td style="text-align:center;">kg</td>
                         <td style="text-align:left; padding-left:8px;">${m.name || 'Unknown'}</td>
-                        <td style="text-align:center;">₱${rate.toFixed(2)}</td>
-                        <td style="text-align:center;">₱${subtotal.toFixed(2)}</td>
+                        <td style="text-align:center;">₱${m.rate.toFixed(2)}</td>
+                        <td style="text-align:center;">₱${m.subtotal.toFixed(2)}</td>
                     </tr>
                 `).join('');
     
