@@ -42,6 +42,8 @@ window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         });
     }
 
+window.renderTable = renderTable;
+
 document.addEventListener('DOMContentLoaded', () => {
 
     // STATE 
