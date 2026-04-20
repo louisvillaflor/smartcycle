@@ -234,23 +234,6 @@ function wireModal() {
             receipt_image: receiptImage
         };
         
-        /* if (editingId) {
-            // UPDATE
-            const { error } = await window._supabase
-                .from('sales')
-                .update(saleData)
-                .eq('id', editingId);
-            
-            if (error) alert("Update failed: " + error.message);
-        } else {
-            // INSERT
-            const { error } = await window._supabase
-                .from('sales')
-                .insert([saleData]);
-            
-            if (error) alert("Insert failed: " + error.message);
-        } */
-
         if (editingId) {
             // =========================
             // UPDATE FLOW
@@ -397,43 +380,15 @@ function wireModal() {
 
     // GENERATE ID 
     function generateId() {
-        const allSales = loadSales();
+        const allSales = await fetchSales();
+        const sale = allSales.find(s => s.id === id);
+        
         const maxId = allSales.length > 0
             ? Math.max(...allSales.map(s => parseInt(s.id.replace(/\D/g,'')) || 0))
             : 0;
         return 'S' + String(maxId + 1).padStart(3, '0');
     }
 
-
-async function loadSales() {
-    const { data, error } = await window._supabase
-        .from('sales')
-        .select(`
-            *,
-            sale_items (
-                material_name,
-                weight,
-                rate,
-                amount
-            )
-        `)
-        .order('created_at', { ascending: false });
-
-    if (error) {
-        console.error("Error fetching sales:", error);
-        return [];
-    }
-
-    return data.map(sale => ({
-        ...sale,
-        items: (sale.sale_items || []).map(item => ({
-            name: item.material_name,
-            weight: Number(item.weight) || 0,
-            rate: Number(item.rate) || 0,
-            subtotal: Number(item.amount) || (item.rate * item.weight)
-        }))
-    }));
-}
 
 function renderPagination(totalCount) {
     const paginationEl = document.getElementById('pagination');
@@ -467,7 +422,8 @@ function renderPagination(totalCount) {
 
 // OPEN EDIT
     async function openEditModal(id) {
-        const sale = await loadSales().find(s => s.id === id);
+        const allSales = await fetchSales();
+        const sale = allSales.find(s => s.id === id);
         
         if (!sale) return;
 
@@ -482,8 +438,8 @@ function renderPagination(totalCount) {
         document.getElementById('saleContact').value = sale.contact || '';
 
         // Convert display date (MM-DD-YY or similar) back to YYYY-MM-DD
-        if (sale.rawDate) {
-            document.getElementById('saleDate').value = sale.rawDate;
+        if (sale.raw_date) {
+            document.getElementById('saleDate').value = sale.raw_date;
         }
 
         // Set type tab
