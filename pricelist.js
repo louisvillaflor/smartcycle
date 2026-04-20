@@ -117,27 +117,57 @@ document.addEventListener('DOMContentLoaded', () => {
     
         if (hasError) return;
     
-        // INSERT to Supabase
-        const { data, error } = await pricelistdb
-            .from('price_list') // your table name
-            .insert([
-                {
+        let result;
+    
+        if (editRow) {
+            // =========================
+            // ✏️ UPDATE EXISTING ITEM
+            // =========================
+            const id = editRow.dataset.id;
+    
+            const { data, error } = await pricelistdb
+                .from('price_list')
+                .update({
                     material_name: material,
                     unit: unit,
-                    price: parseFloat(price),
-                    status: 'Active'
-                }
-            ])
-            .select(); // return inserted row
+                    price: parseFloat(price)
+                })
+                .eq('id', id)
+                .select();
     
-        if (error) {
-            alert('Insert failed: ' + error.message);
-            console.error(error);
-            return;
+            if (error) {
+                alert('Update failed: ' + error.message);
+                return;
+            }
+    
+            // 🔥 Update UI row
+            editRow.cells[0].textContent = material;
+            editRow.cells[1].textContent = unit;
+            editRow.cells[2].textContent = `₱${parseFloat(price).toFixed(2)}`;
+    
+        } else {
+            // =========================
+            // ➕ INSERT NEW ITEM
+            // =========================
+            const { data, error } = await pricelistdb
+                .from('price_list')
+                .insert([
+                    {
+                        material_name: material,
+                        unit: unit,
+                        price: parseFloat(price),
+                        status: 'Active'
+                    }
+                ])
+                .select();
+    
+            if (error) {
+                alert('Insert failed: ' + error.message);
+                return;
+            }
+    
+            renderRow(data[0]);
         }
-    
-        // Add instantly to UI
-        renderRow(data[0]);
     
         closeModal();
         checkEmptyState();
