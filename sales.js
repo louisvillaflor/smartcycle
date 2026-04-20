@@ -42,8 +42,6 @@ window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         });
     }
 
-window.renderTable = renderTable;
-
 document.addEventListener('DOMContentLoaded', () => {
 
     // STATE 
@@ -186,6 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    window.renderTable = renderTable;
 
     //  ROW TOGGLE
     salesTableBody.addEventListener('click', async (e) => {
