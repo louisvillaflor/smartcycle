@@ -1,8 +1,6 @@
 let saleMaterials = [];
 let editingId = null;
-let currentPage = 1;
 const ITEMS_PER_PAGE = 10;
-let currentFilter = 'all';
 let currentSearch = '';
 const salesTableBody = document.getElementById('salesTableBody');
 const emptyState = document.getElementById('emptyState');
@@ -318,7 +316,7 @@ function wireModal() {
             
         // Refresh the table after saving
         closeModal();
-        await renderTable();
+        await window.renderTable();
         resetModal();
     });
         // Reset 
@@ -381,7 +379,6 @@ function wireModal() {
     // GENERATE ID 
     function generateId() {
         const allSales = await fetchSales();
-        const sale = allSales.find(s => s.id === id);
         
         const maxId = allSales.length > 0
             ? Math.max(...allSales.map(s => parseInt(s.id.replace(/\D/g,'')) || 0))
@@ -408,11 +405,11 @@ function renderPagination(totalCount) {
             document.getElementById('sale-modal-container').innerHTML = html;
             lucide.createIcons();
             wireModal();
-            renderTable();
+            window.renderTable()
         })
         .catch(() => {
             console.error('Could not load sales form');
-            renderTable();
+            window.renderTable()
         });
 
 
