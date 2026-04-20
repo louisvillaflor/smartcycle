@@ -10,16 +10,6 @@ const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-document.addEventListener('DOMContentLoaded', () => {
-
-    // STATE 
-    const ITEMS_PER_PAGE = 10;
-    let currentPage  = 1;
-    let currentFilter = 'all';
-    let currentSearch = '';
-    let isRendering = false;
-    let renderTimeout = null;
-
     // STORAGE 
     async function fetchSales() {
         const { data, error } = await window._supabase
@@ -51,6 +41,16 @@ document.addEventListener('DOMContentLoaded', () => {
             };
         });
     }
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    // STATE 
+    const ITEMS_PER_PAGE = 10;
+    let currentPage  = 1;
+    let currentFilter = 'all';
+    let currentSearch = '';
+    let isRendering = false;
+    let renderTimeout = null;
 
     // ELEMENTS 
     const salesTableBody = document.getElementById('salesTableBody');
@@ -215,11 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const id     = btn.getAttribute('data-id');
 
         if (action === 'edit') {
-            window.openEditSaleModal(id);
+            window.openEditModal(id);
         } else if (action === 'delete') {
             window.showDeleteModal(id);
         } else if (action === 'view-receipt') {
-            const allSales = await loadSales();
+            const allSales = await fetchSales();
             const sale = allSales.find(s => s.id === id);
             if (sale && sale.receiptImage) {
                 const win = window.open('', '_blank');
@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // DELETE MODAL 
     async function showDeleteModal(id) {
-        const allSales = await loadSales();
+        const allSales = await fetchSales();
         const sale = allSales.find(s => s.id === id);
         if (!sale) return;
 
