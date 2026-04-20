@@ -377,7 +377,7 @@ function wireModal() {
 
 
     // GENERATE ID 
-    function generateId() {
+    async function generateId() {
         const allSales = await fetchSales();
         
         const maxId = allSales.length > 0
