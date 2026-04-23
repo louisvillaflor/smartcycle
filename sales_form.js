@@ -2,6 +2,7 @@ let saleMaterials = [];
 let editingId = null;
 const ITEMS_PER_PAGE = 10;
 let currentSearch = '';
+let isModalWired = false;
 const salesTableBody = document.getElementById('salesTableBody');
 const emptyState = document.getElementById('emptyState');
 
@@ -54,6 +55,9 @@ const emptyState = document.getElementById('emptyState');
 
     // WIRE MODAL
 function wireModal() {
+        if (isModalWired) return; // 🛑 PREVENT MULTIPLE BINDINGS
+        isModalWired = true;
+    
         const saleModal        = document.getElementById('saleModal');
         const openSaleModalBtn = document.getElementById('openSaleModalBtn');
         const cancelSaleBtn    = document.getElementById('cancelSaleBtn');
@@ -66,6 +70,7 @@ function wireModal() {
         const receiptPreviewImg = document.getElementById('receiptPreviewImg');
         const removeReceiptBtn = document.getElementById('removeReceiptBtn');
         const receiptFilenameLabel = document.getElementById('receiptFilenameLabel');
+        let isSubmitting = false;
 
         if (!saleModal) return;
 
@@ -182,6 +187,9 @@ function wireModal() {
 
         //  Submit/ Update 
         submitSaleBtn?.addEventListener('click', async () => {
+            if (isSubmitting) return; // 🛑 BLOCK DUPLICATE CLICKS
+            isSubmitting = true;
+            
             const partnerVal = document.getElementById('partnerName')?.value.trim();
             const dateVal    = document.getElementById('saleDate')?.value;
             const contactVal = document.getElementById('saleContact')?.value.trim();
@@ -315,9 +323,13 @@ function wireModal() {
 
             
         // Refresh the table after saving
-        closeModal();
-        await window.renderTable();
-        resetModal();
+        try {
+            closeModal();
+            await window.renderTable();
+            resetModal();
+        } finally {
+            isSubmitting = false; // 🔓 ALWAYS RELEASE LOCK
+        }
     });
         // Reset 
         function resetModal() {
