@@ -330,6 +330,7 @@ function wireModal() {
         } finally {
             isSubmitting = false; // 🔓 ALWAYS RELEASE LOCK
         }
+            console.log("SUBMIT CLICKED");
     });
         // Reset 
         function resetModal() {
