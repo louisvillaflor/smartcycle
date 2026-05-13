@@ -337,6 +337,12 @@ body {
   border-color: #fca5a5;
 }
 
+.icon-btn.receipt-btn {
+    background: #f0f7ff;
+    border-color: #bfdbfe;
+    color: #3b82f6;
+}
+
 /* Empty state — rendered via innerHTML injection in renderTable(), not via class toggle */
 .empty-state {
   display: flex;
@@ -476,5 +482,20 @@ body {
 
   .btn-primary {
     padding: 10px;
+  }
+
+  .icon-btn {
+    width: 28px;
+    height: 28px;
+    padding: 5px;
+  }
+
+  .icon-btn i {
+    width: 13px;
+    height: 13px;
+  }
+
+  .action-btns {
+    gap: 4px;
   }
 }
