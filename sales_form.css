@@ -414,11 +414,15 @@
 /* Inline Validation */
 .field-error {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   color: #d25353;
-  margin-top: 2px;
-  min-height: 10px;
-  font-weight: 500;
+  overflow: hidden;
+  transition: max-height 0.2s ease, opacity 0.2s ease;
+}
+
+.field-error.show {
+  max-height: 40px;
+  opacity: 1;
 }
 
 .input-error {
