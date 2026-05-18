@@ -143,9 +143,8 @@ function initializeAdminSection() {
     adminProfileBtn.addEventListener('click', (e) => {
         // If the three-dots area was clicked, do nothing here
         if (e.target.closest('#admin-more-btn')) return;
-
-        // TODO: Pa-Delete if not necessary or uncomment kung need
-        // window.location.href = 'profile.html';
+        
+        window.location.href = 'user.html';
     });
 
     // Close dropdown when clicking outside
