@@ -94,7 +94,7 @@ function addContactToTable(contact) {
         <td>
             <div class="action-buttons">
                 <button class="action-btn edit-btn" title="Edit">
-                    <i data-lucide="pencil"></i>
+                    <i data-lucide="edit-2"></i>
                 </button>
                 <button class="action-btn delete-btn" title="Delete">
                     <i data-lucide="trash-2"></i>
