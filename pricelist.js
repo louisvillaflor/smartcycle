@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
             overlay.innerHTML = `
                 <div class="delete-confirm-box">
                     <div class="delete-confirm-icon">
-                        <i data-lucide="trash-2"></i>
+                        <i data-lucide="trash-2" style="color:#ef4444"></i>
                     </div>
                     <h2 class="delete-confirm-title">Delete Item</h2>
                     <p class="delete-confirm-msg" id="deleteConfirmMsg"></p>
