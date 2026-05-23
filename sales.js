@@ -41,13 +41,14 @@ window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         });
     }
 
-document.addEventListener('DOMContentLoaded', () => {
+// ... (Keep state and client initiation code at the top as is)
+
+document.addEventListener('DOMContentLoaded', async () => {
     // STATE 
     const ITEMS_PER_PAGE = 10;
-    let currentPage  = 1;
+    let currentPage   = 1;
     let currentFilter = 'all';
     let currentSearch = '';
-    let isRendering = false;
     let renderTimeout = null;
 
     // ELEMENTS 
@@ -56,148 +57,143 @@ document.addEventListener('DOMContentLoaded', () => {
     const paginationEl   = document.getElementById('pagination');
     const searchInput    = document.getElementById('salesSearch');
 
-    //RENDER TABLE 
-    async function renderTable() {
-        const token = ++state.renderToken;
+    // ⚡ NEW: Centralized function to load data ONLY when needed
+    async function loadDataAndRender() {
         state.loading = true;
-    
-        try {
-            // 1. FETCH ONLY ONCE PER RENDER CALL
-            const allSales = await fetchSales();
-    
-            // 2. IGNORE OUTDATED RENDERS
-            if (token !== state.renderToken) return;
-    
-            state.sales = allSales;
-    
-            // 3. FILTER
-            let filtered = allSales;
-    
-            if (currentFilter !== 'all') {
-                filtered = allSales.filter(s => s.type === currentFilter);
-            }
-    
-            if (currentSearch) {
-                const q = currentSearch.toLowerCase();
-                filtered = filtered.filter(s =>
-                    `${s.id} ${s.partner} ${s.raw_date}`.toLowerCase().includes(q)
-                );
-            }
-    
-            state.filtered = filtered;
-    
-            // 4. PAGINATION
-            const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-            if (currentPage > totalPages) currentPage = totalPages;
-    
-            const start = (currentPage - 1) * ITEMS_PER_PAGE;
-            const pageItems = filtered.slice(start, start + ITEMS_PER_PAGE);
-    
-            // 5. CLEAR TABLE ONCE
-            salesTableBody.innerHTML = '';
-    
-            if (pageItems.length === 0) {
-                emptyState?.classList.add('visible');
-                renderPagination(0);
-                return;
-            }
-    
-            emptyState?.classList.remove('visible');
-    
-            // 6. BUILD ROWS
-            const fragment = document.createDocumentFragment();
-    
-            pageItems.forEach(sale => {
-                const rowId = 'sub-' + sale.id;
-    
-                const materialSummary =
-                    sale.items.length === 0
-                        ? 'N/A'
-                        : [...new Set(sale.items.map(i => i.name))].length === 1
-                            ? sale.items[0].name
-                            : `${new Set(sale.items.map(i => i.name)).size} types`;
-    
-                const trMain = document.createElement('tr');
-                trMain.className = 'main-row';
-                trMain.setAttribute('data-target', rowId);
-    
-                trMain.innerHTML = `
-                    <td class="chevron-cell"><i data-lucide="chevron-down"></i></td>
-                    <td>${sale.raw_date || 'N/A'}</td>
-                    <td><span class="id-badge">${sale.id}</span></td>
-                    <td>${sale.partner || 'Unknown'}</td>
-                    <td>${materialSummary}</td>
-                    <td style="text-align:center;">${sale.total_weight.toFixed(1)} kg</td>
-                    <td style="text-align:right; font-weight:700;">₱${sale.total_amount.toFixed(2)}</td>
-                    <td>
-                        <div class="action-btns">
-                            <button class="icon-btn receipt-btn" data-action="view-receipt" data-id="${sale.id}" title="View Receipt">
-                                <i data-lucide="image"></i>
-                            </button>
-                            <button class="icon-btn" data-action="edit" data-id="${sale.id}" title="Edit">
-                                <i data-lucide="edit-2"></i>
-                            </button>
-                            <button class="icon-btn delete" data-action="delete" data-id="${sale.id}" title="Delete">
-                                <i data-lucide="trash-2"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-    
-                const itemsHTML = sale.items.map(m => `
-                    <tr>
-                         <td style="text-align:center;">${m.weight.toFixed(1)}</td>
-                        <td style="text-align:center;">kg</td>
-                        <td style="text-align:left; padding-left:8px;">${m.name || 'Unknown'}</td>
-                        <td style="text-align:center;">₱${m.rate.toFixed(2)}</td>
-                        <td style="text-align:center;">₱${m.subtotal.toFixed(2)}</td>
-                    </tr>
-                `).join('');
-    
-                const trSub = document.createElement('tr');
-                trSub.id = rowId;
-                trSub.className = 'sub-row-container';
-                trSub.innerHTML = `
-                    <td colspan="8" style="padding:0 !important; border:none;">
-                        <div class="expanded-content">
-                            <table class="expanded-table">
-                                <thead>
-                                    <tr>
-                                        <th style="text-align:center;">QTY</th>
-                                        <th style="text-align:center;">UNIT</th>
-                                        <th style="text-align:left; padding-left:8px;">DESCRIPTION</th>
-                                        <th style="text-align:center;">PRICE</th>
-                                        <th style="text-align:center;">AMOUNT</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${itemsHTML}</tbody>
-                            </table>
-                            <div style="text-align:right; padding: 15px 25px; border-top: 1px solid #f1f5f9;">
-                                <span style="font-size:13px; color:#64748b; margin-right:10px;">Total Amount:</span>
-                                <span style="font-weight:700; color:#10b981;">₱${(Number(sale.total_amount) || 0).toFixed(2)}</span>
-                            </div>
-                        </div>
-                    </td>
-                `;
-    
-                fragment.appendChild(trMain);
-                fragment.appendChild(trSub);
-            });
-    
-            salesTableBody.appendChild(fragment);
-    
-            lucide.createIcons();
-            renderPagination(filtered.length);
-    
-        } finally {
-            state.loading = false;
-        }
+        // Only hit the network here
+        state.sales = await fetchSales(); 
+        state.loading = false;
+        renderTable();
     }
 
-    window.renderTable = renderTable;
+    // RENDER TABLE (Now lightning-fast & synchronous)
+    function renderTable() {
+        const token = ++state.renderToken;
+    
+        // 1. FILTER LOCAL MEMORY (No API requests!)
+        let filtered = state.sales;
+    
+        if (currentFilter !== 'all') {
+            filtered = state.sales.filter(s => s.type === currentFilter);
+        }
+    
+        if (currentSearch) {
+            const q = currentSearch.toLowerCase();
+            filtered = filtered.filter(s =>
+                `${s.id} ${s.partner} ${s.raw_date}`.toLowerCase().includes(q)
+            );
+        }
+    
+        state.filtered = filtered;
+    
+        // 2. PAGINATION
+        const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+        if (currentPage > totalPages) currentPage = totalPages;
+    
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        const pageItems = filtered.slice(start, start + ITEMS_PER_PAGE);
+    
+        // 3. CLEAR TABLE
+        salesTableBody.innerHTML = '';
+    
+        if (pageItems.length === 0) {
+            emptyState?.classList.add('visible');
+            renderPagination(0);
+            return;
+        }
+    
+        emptyState?.classList.remove('visible');
+    
+        // 4. BUILD ROWS
+        const fragment = document.createDocumentFragment();
+    
+        pageItems.forEach(sale => {
+            const rowId = 'sub-' + sale.id;
+    
+            const materialSummary =
+                sale.items.length === 0
+                    ? 'N/A'
+                    : [...new Set(sale.items.map(i => i.name))].length === 1
+                        ? sale.items[0].name
+                        : `${new Set(sale.items.map(i => i.name)).size} types`;
+    
+            const trMain = document.createElement('tr');
+            trMain.className = 'main-row';
+            trMain.setAttribute('data-target', rowId);
+    
+            trMain.innerHTML = `
+                <td class="chevron-cell"><i data-lucide="chevron-down"></i></td>
+                <td>${sale.raw_date || 'N/A'}</td>
+                <td><span class="id-badge">${sale.id}</span></td>
+                <td>${sale.partner || 'Unknown'}</td>
+                <td>${materialSummary}</td>
+                <td style="text-align:center;">${sale.total_weight.toFixed(1)} kg</td>
+                <td style="text-align:right; font-weight:700;">₱${sale.total_amount.toFixed(2)}</td>
+                <td>
+                    <div class="action-btns">
+                        <button class="icon-btn receipt-btn" data-action="view-receipt" data-id="${sale.id}" title="View Receipt">
+                            <i data-lucide="image"></i>
+                        </button>
+                        <button class="icon-btn" data-action="edit" data-id="${sale.id}" title="Edit">
+                            <i data-lucide="edit-2"></i>
+                        </button>
+                        <button class="icon-btn delete" data-action="delete" data-id="${sale.id}" title="Delete">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+    
+            const itemsHTML = sale.items.map(m => `
+                <tr>
+                     <td style="text-align:center;">${m.weight.toFixed(1)}</td>
+                    <td style="text-align:center;">kg</td>
+                    <td style="text-align:left; padding-left:8px;">${m.name || 'Unknown'}</td>
+                    <td style="text-align:center;">₱${m.rate.toFixed(2)}</td>
+                    <td style="text-align:center;">₱${m.subtotal.toFixed(2)}</td>
+                </tr>
+            `).join('');
+    
+            const trSub = document.createElement('tr');
+            trSub.id = rowId;
+            trSub.className = 'sub-row-container';
+            trSub.innerHTML = `
+                <td colspan="8" style="padding:0 !important; border:none;">
+                    <div class="expanded-content">
+                        <table class="expanded-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:center;">QTY</th>
+                                    <th style="text-align:center;">UNIT</th>
+                                    <th style="text-align:left; padding-left:8px;">DESCRIPTION</th>
+                                    <th style="text-align:center;">PRICE</th>
+                                    <th style="text-align:center;">AMOUNT</th>
+                                </tr>
+                            </thead>
+                            <tbody>${itemsHTML}</tbody>
+                        </table>
+                        <div style="text-align:right; padding: 15px 25px; border-top: 1px solid #f1f5f9;">
+                            <span style="font-size:13px; color:#64748b; margin-right:10px;">Total Amount:</span>
+                            <span style="font-weight:700; color:#10b981;">₱${(Number(sale.total_amount) || 0).toFixed(2)}</span>
+                        </div>
+                    </div>
+                </td>
+            `;
+    
+            fragment.appendChild(trMain);
+            fragment.appendChild(trSub);
+        });
+    
+        salesTableBody.appendChild(fragment);
+        lucide.createIcons();
+        renderPagination(filtered.length);
+    }
 
-    //  ROW TOGGLE
-    salesTableBody.addEventListener('click', async (e) => {
+    // Expose this so sales_form.js can trigger a clean database refresh
+    window.renderTable = loadDataAndRender;
+
+    // ROW TOGGLE
+    salesTableBody.addEventListener('click', (e) => {
         if (e.target.closest('.action-btns')) return;
         const mainRow = e.target.closest('.main-row');
         if (!mainRow) return;
@@ -216,8 +212,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // ACTION BUTTONS
-    salesTableBody.addEventListener('click', async (e) => {
+    // ACTION BUTTONS (Optimized: Searches local memory state instead of making API calls)
+    salesTableBody.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-action]');
         if (!btn) return;
         e.stopPropagation();
@@ -230,22 +226,22 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (action === 'delete') {
             window.showDeleteModal(id);
         } else if (action === 'view-receipt') {
-            const allSales = await fetchSales();
-            const sale = allSales.find(s => String(s.id) === String(id));
-            if (sale && sale.receiptImage) {
+            // ⚡ FIX: Use state.sales array directly instead of re-fetching
+            const sale = state.sales.find(s => String(s.id) === String(id));
+            if (sale && sale.receipt_image) {
                 const win = window.open('', '_blank');
                 win.document.write(`<!DOCTYPE html><html><head><title>Receipt - ${sale.partner}</title>
                     <style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#1a1a1a;}
                     img{max-width:100%;max-height:100vh;object-fit:contain;border-radius:8px;}</style></head>
-                    <body><img src="${sale.receiptImage}" alt="Receipt for ${sale.partner}"></body></html>`);
+                    <body><img src="${sale.receipt_image}" alt="Receipt for ${sale.partner}"></body></html>`);
             }
         }
     });
 
-    // DELETE MODAL 
-    window.showDeleteModal = async function(id) {
-        const allSales = await fetchSales();
-        const sale = allSales.find(s => String(s.id) === String(id));
+    // DELETE MODAL (Optimized: Uses local memory state)
+    window.showDeleteModal = function(id) {
+        // ⚡ FIX: Find locally
+        const sale = state.sales.find(s => String(s.id) === String(id));
         if (!sale) return;
 
         if (!document.getElementById('saleDeleteModal')) {
@@ -281,14 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
                 </div>
-                <style>
-                    @keyframes saleDeleteIn {
-                        from { opacity:0; transform:scale(0.93) translateY(16px); }
-                        to   { opacity:1; transform:scale(1) translateY(0); }
-                    }
-                </style>
             `);
-            lucide.createIcons();
         }
 
         const modal      = document.getElementById('saleDeleteModal');
@@ -305,24 +294,24 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmBtn.replaceWith(newConfirm);
         cancelBtn.replaceWith(newCancel);
 
-       newConfirm.addEventListener('click', async () => {
-    const { error } = await window._supabase
-        .from('sales')
-        .delete()
-        .eq('id', id);
+        newConfirm.addEventListener('click', async () => {
+            const { error } = await window._supabase
+                .from('sales')
+                .delete()
+                .eq('id', id);
 
-    if (!error) {
-        modal.style.display = 'none';
-        requestRender();
-    } else {
-        alert("Delete failed: " + error.message);
-    }
-});
+            if (!error) {
+                modal.style.display = 'none';
+                loadDataAndRender(); // Re-fetch data from database because schema structural footprint changed
+            } else {
+                alert("Delete failed: " + error.message);
+            }
+        });
         newCancel.addEventListener('click', () => { modal.style.display = 'none'; });
         modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
     }
 
-    //PAGINATION 
+    // PAGINATION
     function renderPagination(totalCount) {
         const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
         paginationEl.innerHTML = '';
@@ -377,15 +366,14 @@ document.addEventListener('DOMContentLoaded', () => {
             requestRender();
         });
     }
-    requestRender();
 
+    // Initial Database Load
+    await loadDataAndRender();
 
     function requestRender() {
         clearTimeout(renderTimeout);
-    
         renderTimeout = setTimeout(() => {
             renderTable();
-        }, 50); // debounce prevents flicker
+        }, 50); // Debounce safely switches UI tabs/searches seamlessly
     }
-
-});    
+});
