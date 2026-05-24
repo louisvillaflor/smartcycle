@@ -9,17 +9,16 @@ let contacts = [];
 lucide.createIcons();
 let nextId = 1;
 
-// 1. FETCH PROFILES FROM DATABASE
 // 1. FETCH PROFILES AND ENRICH WITH TRANSACTION DATA
 async function fetchProfilesFromSupabase() {
     const tableBody = document.getElementById('contactsTableBody');
     tableBody.innerHTML = '';
     
-    // Step A: Fetch your core profiles, collections, and sales records concurrently
+    // Step A: Fetch your core profiles, collections, and sales records concurrently (Including sales address!)
     const [profilesRes, collectionsRes, salesRes] = await Promise.all([
         _supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         _supabase.from('collections').select('customer_name, contact_number, address'),
-        _supabase.from('sales').select('partner, contact')
+        _supabase.from('sales').select('partner, contact, address') // Added 'address' here
     ]);
 
     if (profilesRes.error) {
@@ -48,20 +47,25 @@ async function fetchProfilesFromSupabase() {
         let derivedAddress = profile.address;
         let derivedContact = profile.contact_num;
 
+        // Find matches across both operational tables
+        const collectionMatch = collectionsData.find(c => c.customer_name === profile.name);
+        const salesMatch = salesData.find(s => s.partner === profile.name);
+
+        // --- INDEPENDENT CONTACT BACKFILL ---
         if (!derivedContact || derivedContact === 'N/A') {
-            // Check if this contact matches a record in collections
-            const collectionMatch = collectionsData.find(c => c.customer_name === profile.name);
-            if (collectionMatch) {
+            if (collectionMatch && collectionMatch.contact_number) {
                 derivedContact = collectionMatch.contact_number;
-                if (!derivedAddress || derivedAddress === 'N/A') {
-                    derivedAddress = collectionMatch.address;
-                }
-            } else {
-                // Check if this contact matches a record in sales
-                const salesMatch = salesData.find(s => s.partner === profile.name);
-                if (salesMatch) {
-                    derivedContact = salesMatch.contact;
-                }
+            } else if (salesMatch && salesMatch.contact) {
+                derivedContact = salesMatch.contact;
+            }
+        }
+
+        // --- INDEPENDENT ADDRESS BACKFILL ---
+        if (!derivedAddress || derivedAddress === 'N/A') {
+            if (collectionMatch && collectionMatch.address) {
+                derivedAddress = collectionMatch.address;
+            } else if (salesMatch && salesMatch.address) {
+                derivedAddress = salesMatch.address;
             }
         }
 
