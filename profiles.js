@@ -14,11 +14,11 @@ async function fetchProfilesFromSupabase() {
     const tableBody = document.getElementById('contactsTableBody');
     tableBody.innerHTML = '';
     
-    // Step A: Fetch core profiles, collections, and sales records concurrently
+    // Step A: Fetch core profiles and transaction tables with their respective foreign keys
     const [profilesRes, collectionsRes, salesRes] = await Promise.all([
         _supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-        _supabase.from('collections').select('customer_name, contact_number, address, type'), 
-        _supabase.from('sales').select('partner, contact, address, type') 
+        _supabase.from('collections').select('customer_name, contact_number, address, type, customer_id'), 
+        _supabase.from('sales').select('partner, contact, address, type, partner_id') 
     ]);
 
     if (profilesRes.error) {
@@ -31,11 +31,11 @@ async function fetchProfilesFromSupabase() {
     const collectionsData = collectionsRes.data || [];
     const salesData = salesRes.data || [];
 
-    // Keep track of names we've processed so we don't duplicate them
+    // Tracks names/IDs we've processed so we avoid UI duplicates
     const processedNames = new Set();
     const combinedContacts = [];
 
-    // Step B: Process explicitly registered profiles first
+    // Step B: Process explicitly registered records inside the profiles table
     profilesData.forEach(profile => {
         const nameKey = (profile.name || '').trim().toLowerCase();
         if (!nameKey) return;
@@ -71,7 +71,7 @@ async function fetchProfilesFromSupabase() {
 
         combinedContacts.push({
             id: profile.id,
-            isTemporary: false, // Flag to differentiate DB profiles from auto-generated ones
+            isTemporary: false, 
             name: profile.name,
             address: derivedAddress || 'N/A',
             contactNumber: derivedContact || 'N/A',
@@ -81,18 +81,20 @@ async function fetchProfilesFromSupabase() {
         });
     });
 
-    // Step C: Discover and append missing partners found ONLY in the Sales table
+    // Step C: Fallback discovery for partners found inside Sales but not registered yet
     salesData.forEach(sale => {
         const nameKey = (sale.partner || '').trim().toLowerCase();
-        if (!nameKey || processedNames.has(nameKey)) return; // Skip if empty or already added
+        if (!nameKey || processedNames.has(nameKey)) return; 
 
         processedNames.add(nameKey);
-
         const rawCategory = (sale.type || 'junkshop').toLowerCase().trim();
 
+        // Use partner_id from sales if it exists; otherwise fall back to a clean label string
+        const finalId = sale.partner_id ? sale.partner_id : 'No ID';
+
         combinedContacts.push({
-            id: 'TXT-S', // Temporary ID indicator for Sales transaction origin
-            isTemporary: true,
+            id: finalId, 
+            isTemporary: !sale.partner_id, // If it has a partner_id, treat it safely
             name: sale.partner,
             address: sale.address || 'N/A',
             contactNumber: sale.contact || 'N/A',
@@ -102,18 +104,20 @@ async function fetchProfilesFromSupabase() {
         });
     });
 
-    // Step D: Discover and append missing customers found ONLY in the Collections table
+    // Step D: Fallback discovery for customers found inside Collections but not registered yet
     collectionsData.forEach(collection => {
         const nameKey = (collection.customer_name || '').trim().toLowerCase();
         if (!nameKey || processedNames.has(nameKey)) return; 
 
         processedNames.add(nameKey);
-
         const rawCategory = (collection.type || 'walk-ins').toLowerCase().trim();
 
+        // Use customer_id from collections if it exists; otherwise fall back to a clean label string
+        const finalId = collection.customer_id ? collection.customer_id : 'No ID';
+
         combinedContacts.push({
-            id: 'TXT-C', // Temporary ID indicator for Collection transaction origin
-            isTemporary: true,
+            id: finalId, 
+            isTemporary: !collection.customer_id,
             name: collection.customer_name,
             address: collection.address || 'N/A',
             contactNumber: collection.contact_number || 'N/A',
@@ -123,7 +127,6 @@ async function fetchProfilesFromSupabase() {
         });
     });
 
-    // Save globally to our contacts tracker
     contacts = combinedContacts;
 
     if (contacts.length === 0) {
@@ -131,7 +134,6 @@ async function fetchProfilesFromSupabase() {
         return;
     }
 
-    // Step E: Render all structured entries directly onto the table
     contacts.forEach(contact => {
         addContactToTable(contact);
     });
@@ -166,9 +168,10 @@ function addContactToTable(contact) {
     row.setAttribute('data-category', contact.category);
     row.setAttribute('data-id', String(contact.id));
 
-    // Disable action buttons or handle them carefully for dynamic transaction items
-    const deleteButtonHtml = contact.isTemporary 
-        ? `<button class="action-btn delete-btn" title="Cannot delete transaction record" disabled style="opacity: 0.4; cursor: not-allowed;">
+    const isActionDisabled = contact.isTemporary || contact.id === 'No ID';
+
+    const deleteButtonHtml = isActionDisabled 
+        ? `<button class="action-btn delete-btn" title="Cannot delete direct transactional entries" disabled style="opacity: 0.4; cursor: not-allowed;">
                 <i data-lucide="trash-2"></i>
            </button>`
         : `<button class="action-btn delete-btn" title="Delete Profile">
@@ -190,7 +193,7 @@ function addContactToTable(contact) {
         <td>${contact.contactNumber}</td>
         <td>
             <div class="action-buttons">
-                <button class="action-btn edit-btn" title="Edit" ${contact.isTemporary ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : ''}>
+                <button class="action-btn edit-btn" title="Edit" ${isActionDisabled ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : ''}>
                     <i data-lucide="edit-2"></i>
                 </button>
                 ${deleteButtonHtml}
@@ -198,8 +201,7 @@ function addContactToTable(contact) {
         </td>
     `;
 
-    // Only hook up live database deletion if the item actually has a profile database record
-    if (!contact.isTemporary) {
+    if (!isActionDisabled) {
         row.querySelector('.delete-btn').addEventListener('click', async function() {
             if (confirm(`Are you sure you want to delete ${contact.name}?`)) {
                 const { error } = await _supabase.from('profiles').delete().eq('id', contact.id);
