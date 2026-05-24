@@ -88,6 +88,24 @@ function loadModalHTML() {
                 });
             }
 
+            // Intercept form submission or bind update buttons dynamically
+            const form = document.querySelector('#modalContainer form') || document.getElementById('collectionForm');
+            if (form) {
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await saveCollection();
+                });
+            } else {
+                // Fallback direct binding on update action buttons if form wrappers aren't present
+                const submitBtn = document.querySelector('.btn-submit-green') || document.querySelector('.btn-update');
+                if (submitBtn) {
+                    submitBtn.addEventListener('click', async (e) => {
+                        e.preventDefault();
+                        await saveCollection();
+                    });
+                }
+            }
+
             if (typeof setupFieldListeners === 'function') setupFieldListeners();
             refreshIcons();
         })
@@ -263,7 +281,7 @@ function setupSearch() {
     });
 }
 
-// 5. DATA MODIFICATION MATCHES (EDIT / DELETE)
+// 5. DATA MODIFICATION MATCHES (EDIT / SAVE / DELETE)
 window.editEntry = function(index) {
     editingIndex = index;
     const data = getFilteredCollections()[index]; // Source data accurately from filtered collections context
@@ -292,6 +310,118 @@ window.editEntry = function(index) {
     if (typeof updatePreview === 'function') updatePreview();
     setTimeout(refreshIcons, 100);
 };
+
+// NEW SUBMISSION HANDLER THAT UPDATES BOTH THE COLLECTION ENTRY AND THE ITEMS ARRAY
+async function saveCollection() {
+    const customer = document.getElementById('inCustomer').value;
+    const address = document.getElementById('inAddress').value;
+    const contact = document.getElementById('inContact').value;
+    const date = document.getElementById('inDate').value;
+
+    if (!customer || !date) {
+        alert("Customer name and Date are required fields.");
+        return;
+    }
+
+    const collectionData = {
+        customer_name: customer,
+        address: address,
+        contact_number: contact,
+        date_collected: date,
+        type: currentCategory
+    };
+
+    try {
+        if (editingIndex > -1) {
+            // --- EDIT MODE ---
+            const originalCollection = getFilteredCollections()[editingIndex];
+            const collectionId = originalCollection.id;
+
+            // 1. Update Collection Parent Details
+            const { error: updateCollectionError } = await _supabase
+                .from('collections')
+                .update(collectionData)
+                .eq('id', collectionId);
+
+            if (updateCollectionError) throw updateCollectionError;
+
+            // 2. Clear old items associated with this specific collection id
+            const { error: deleteItemsError } = await _supabase
+                .from('collection_items')
+                .delete()
+                .eq('collection_id', collectionId);
+
+            if (deleteItemsError) throw deleteItemsError;
+
+            // 3. Map and Insert updated array back into sub-table
+            if (currentItems.length > 0) {
+                const itemsToInsert = currentItems.map(item => ({
+                    collection_id: collectionId,
+                    material_name: item.material,
+                    rate: item.rate,
+                    weight: item.weight,
+                    subtotal: item.subtotal
+                }));
+
+                const { error: insertItemsError } = await _supabase
+                    .from('collection_items')
+                    .insert(itemsToInsert);
+
+                if (insertItemsError) throw insertItemsError;
+            }
+
+            alert("Collection updated successfully!");
+        } else {
+            // --- INSERT MODE ---
+            const { data: newCollection, error: insertCollectionError } = await _supabase
+                .from('collections')
+                .insert([collectionData])
+                .select();
+
+            if (insertCollectionError) throw insertCollectionError;
+
+            if (currentItems.length > 0 && newCollection && newCollection.length > 0) {
+                const collectionId = newCollection[0].id;
+                const itemsToInsert = currentItems.map(item => ({
+                    collection_id: collectionId,
+                    material_name: item.material,
+                    rate: item.rate,
+                    weight: item.weight,
+                    subtotal: item.subtotal
+                }));
+
+                const { error: insertItemsError } = await _supabase
+                    .from('collection_items')
+                    .insert(itemsToInsert);
+
+                if (insertItemsError) throw insertItemsError;
+            }
+
+            alert("Collection saved successfully!");
+        }
+
+        // Close modal, reset layout tracking variables and sync view state
+        closeModal();
+        await fetchAllCollections();
+
+    } catch (err) {
+        console.error("Database mutation error:", err);
+        alert("Failed to save collection updates: " + err.message);
+    }
+}
+
+// Clean UI closure functionality resets tracking values safely
+function closeModal() {
+    const modal = document.getElementById('addCollectionModal');
+    if (modal) modal.classList.remove('show');
+    document.body.style.overflow = '';
+    
+    // Clear dynamic global forms parameters back to original entry states
+    editingIndex = -1;
+    currentItems = [];
+    const submitBtn = document.querySelector('.btn-submit-green');
+    if (submitBtn) submitBtn.innerHTML = '<i data-lucide="plus"></i> Submit';
+}
 
 window.deleteEntry = function(index) {
     const filteredList = getFilteredCollections();
