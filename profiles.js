@@ -100,7 +100,8 @@ function getCategoryDisplayName(category) {
         'walk-ins': 'Walk-ins',
         'school': 'School',
         'junkshop': 'Junkshop',
-        'organization': 'Organization'
+        'organization': 'Organization',
+        'barangay': 'Barangay' // Added mapping for Barangay
     };
     return categoryMap[category] || category;
 }
@@ -209,10 +210,9 @@ function filterContacts(tab) {
         if (tab === 'all') {
             row.style.display = '';
         } else if (tab === 'collections') {
-            // Include 'partner' if your collection items are flagged as partners
-            row.style.display = ['walk-ins', 'school', 'organization', 'partner'].includes(category) ? '' : 'none';
+            // Added 'barangay' alongside your other group profile categories
+            row.style.display = ['walk-ins', 'school', 'organization', 'partner', 'barangay'].includes(category) ? '' : 'none';
         } else if (tab === 'sales') {
-            // Include 'customer' if your sales items are flagged as customers
             row.style.display = ['junkshop', 'customer'].includes(category) ? '' : 'none';
         }
     });
