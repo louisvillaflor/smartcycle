@@ -1,5 +1,5 @@
 // GLOBAL ASSIGNMENTS & MODAL INTERACTIONS
-window.openAddModal = () => {
+window.openAddModal = async () => {
     const modal = document.getElementById('addCollectionModal');
     if (!modal) return;
 
@@ -9,10 +9,50 @@ window.openAddModal = () => {
     editingIndex = -1;
     resetForm();
 
+    // Dynamically fetch and fill up material prices matching your Price List dashboard
+    await loadActivePrices();
+
     document.getElementById('inDate').value = new Date().toISOString().split('T')[0];
     updatePreview();
     setTimeout(refreshIcons, 100);
 };
+
+// NEW ENGINE: Fetch real-time active rates from price_list table
+async function loadActivePrices() {
+    const selMaterial = document.getElementById('selMaterial');
+    if (!selMaterial) return;
+
+    try {
+        const { data: prices, error } = await _supabase
+            .from('price_list')
+            .select('material_name, price')
+            .eq('status', 'Active'); // Filters only your green "Active" status markers
+
+        if (error) throw error;
+
+        if (prices && prices.length > 0) {
+            selMaterial.innerHTML = prices.map((item, idx) => {
+                // Formatting back to whole integer values to match your custom view style safely
+                const rate = Math.round(item.price); 
+                return `<option value="${item.material_name}" data-rate="${rate}" ${idx === 0 ? 'selected' : ''}>
+                    ${item.material_name} - ₱${rate}/kg
+                </option>`;
+            }).join('');
+        } else {
+            selMaterial.innerHTML = '<option value="" disabled>No active materials found</option>';
+        }
+    } catch (err) {
+        console.error("Error fetching live price rates from database:", err.message);
+        // Resilient fallback defaults matching your exact view config state in case connection drops
+        selMaterial.innerHTML = `
+            <option value="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
+            <option value="Bakal" data-rate="15">Bakal - ₱15/kg</option>
+            <option value="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
+            <option value="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
+            <option value="Yero" data-rate="8">Yero - ₱8/kg</option>
+        `;
+    }
+}
 
 window.closeAddModal = () => {
     const modal = document.getElementById('addCollectionModal');
