@@ -12,7 +12,6 @@ let nextId = 1;
 // 1. FETCH PROFILES FROM DATABASE
 async function fetchProfilesFromSupabase() {
     const tableBody = document.getElementById('contactsTableBody');
-    // Show a loading state if you want, or just clear it
     tableBody.innerHTML = '';
     
     const { data, error } = await _supabase
@@ -26,7 +25,7 @@ async function fetchProfilesFromSupabase() {
         return;
     }
 
-    // Clear current table and contacts array
+    // Clear current contacts array and assign freshly retrieved data
     contacts = data; 
     
     if (data.length === 0) {
@@ -36,14 +35,18 @@ async function fetchProfilesFromSupabase() {
 
     // 2. RENDER EACH PROFILE
     data.forEach(profile => {
-        // Map database fields to your existing UI structure
+        // Map exact database fields explicitly matching your diagram's schema
         const contactObj = {
             id: profile.id,
-            name: profile.name,
+            name: profile.name || 'Unknown',
             address: profile.address || 'N/A',
-            contactNumber: profile.contact_num || 'N/A',
-            category: (profile.type || 'walk-ins').toLowerCase(),
-            displayCategory: profile.type || 'Walk-ins',
+            
+            // Explicitly maps to the exact column name 'contact_num' from your schema
+            contactNumber: profile.contact_num || 'N/A', 
+            
+            // Safe fallbacks for categories
+            category: (profile.category || 'walk-ins').toLowerCase(),
+            displayCategory: profile.category || 'Walk-ins',
             avatarColor: getRandomColor()
         };
         addContactToTable(contactObj);
