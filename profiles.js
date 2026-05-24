@@ -17,12 +17,11 @@ function generateTransactionId(prefix) {
     return `${prefix}-${randomDigits}`;
 }
 
-// 1. FETCH PROFILES AND ENRICH WITH TRANSACTION DATA
 async function fetchProfilesFromSupabase() {
     const tableBody = document.getElementById('contactsTableBody');
     tableBody.innerHTML = '';
     
-    // Step A: Fetch core profiles and transaction tables with their auto-incremented receipt IDs
+    // Step A: Fetch core profiles and transaction tables
     const [profilesRes, collectionsRes, salesRes] = await Promise.all([
         _supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         _supabase.from('collections').select('id, customer_name, contact_number, address, type, customer_id'), 
@@ -39,7 +38,6 @@ async function fetchProfilesFromSupabase() {
     const collectionsData = collectionsRes.data || [];
     const salesData = salesRes.data || [];
 
-    // Tracks names we've processed so we avoid UI duplicates
     const processedNames = new Set();
     const combinedContacts = [];
 
@@ -77,8 +75,21 @@ async function fetchProfilesFromSupabase() {
 
         const rawCategory = (derivedCategory || 'walk-ins').toLowerCase().trim();
 
+        // --- FIXED: Dynamically assign the visual ID format based on category/origin ---
+        let visualId = profile.id; // Default fallback to original ID
+        
+        // Check if it belongs to Sales categories or matches a sales record
+        if (['junkshop', 'customer'].includes(rawCategory) || salesMatch) {
+            visualId = generateTransactionId('S');
+        } 
+        // Otherwise, if it belongs to Collections categories or matches a collection record
+        else if (['walk-ins', 'school', 'organization', 'barangay'].includes(rawCategory) || collectionMatch) {
+            visualId = generateTransactionId('C');
+        }
+
         combinedContacts.push({
-            id: profile.id, // Keep master profile ID for registered accounts
+            id: visualId, // Use the generated string ID
+            dbId: profile.id, // Save the original database ID separately for deletion tracking
             isTemporary: false, 
             name: profile.name,
             address: derivedAddress || 'N/A',
@@ -89,19 +100,18 @@ async function fetchProfilesFromSupabase() {
         });
     });
 
-// Step C: Fallback discovery for partners found inside Sales but not in Profiles table
+    // Step C: Fallback discovery for partners found inside Sales but not in Profiles table
     salesData.forEach(sale => {
         const nameKey = (sale.partner || '').trim().toLowerCase();
         if (!nameKey || processedNames.has(nameKey)) return; 
 
         processedNames.add(nameKey);
         const rawCategory = (sale.type || 'junkshop').toLowerCase().trim();
-
-        // REPLACED: Use Sales specific custom random prefix ID format
         const finalId = generateTransactionId('S');
 
         combinedContacts.push({
             id: finalId, 
+            dbId: null,
             isTemporary: true,
             name: sale.partner,
             address: sale.address || 'N/A',
@@ -112,19 +122,18 @@ async function fetchProfilesFromSupabase() {
         });
     });
 
-// Step D: Fallback discovery for customers found inside Collections but not in Profiles table
+    // Step D: Fallback discovery for customers found inside Collections but not in Profiles table
     collectionsData.forEach(collection => {
         const nameKey = (collection.customer_name || '').trim().toLowerCase();
         if (!nameKey || processedNames.has(nameKey)) return; 
 
         processedNames.add(nameKey);
         const rawCategory = (collection.type || 'walk-ins').toLowerCase().trim();
-
-        // REPLACED: Use Collections specific custom random prefix ID format
         const finalId = generateTransactionId('C');
 
         combinedContacts.push({
             id: finalId, 
+            dbId: null,
             isTemporary: true,
             name: collection.customer_name,
             address: collection.address || 'N/A',
@@ -210,7 +219,8 @@ function addContactToTable(contact) {
     if (!contact.isTemporary) {
         row.querySelector('.delete-btn').addEventListener('click', async function() {
             if (confirm(`Are you sure you want to delete ${contact.name}?`)) {
-                const { error } = await _supabase.from('profiles').delete().eq('id', contact.id);
+                // Change contact.id to contact.dbId in the delete query:
+                const { error } = await _supabase.from('profiles').delete().eq('id', contact.dbId);
                 if (!error) {
                     row.remove();
                     checkEmptyState();
