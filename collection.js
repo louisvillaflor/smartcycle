@@ -457,18 +457,34 @@ window.deleteEntry = function(index) {
     const confirmBtn = document.getElementById('deleteConfirmBtn');
     const cancelBtn = document.getElementById('deleteCancelBtn');
     
+    // Locate this block in your code and replace confirmBtn.onclick with this:
     confirmBtn.onclick = async () => {
         try {
-            const { error } = await _supabase.from('collections').delete().eq('id', collection.id);
-            if (error) throw error;
-
-            // Remove item from central tracking array
+            // 1. Delete associated child items first to satisfy the foreign key constraint
+            const { error: itemsDeleteError } = await _supabase
+                .from('collection_items')
+                .delete()
+                .eq('collection_id', collection.id);
+    
+            if (itemsDeleteError) throw itemsDeleteError;
+    
+            // 2. Now it's perfectly safe to delete the parent collection record
+            const { error: collectionDeleteError } = await _supabase
+                .from('collections')
+                .delete()
+                .eq('id', collection.id);
+                
+            if (collectionDeleteError) throw collectionDeleteError;
+    
+            // 3. Update local state array & UI tracking view
             window.collections = window.collections.filter(c => c.id !== collection.id);
             renderTable();
+            
             modal.style.display = 'none';
             alert("Collection deleted successfully.");
         } catch (err) {
-            alert("Error deleting: " + err.message);
+            console.error("Deletion lifecycle failure:", err);
+            alert("Error deleting record: " + err.message);
         }
     };
 
