@@ -14,11 +14,11 @@ async function fetchProfilesFromSupabase() {
     const tableBody = document.getElementById('contactsTableBody');
     tableBody.innerHTML = '';
     
-    // Step A: Fetch your core profiles, collections, and sales records concurrently (Including sales address!)
+    // Step A: Fetch your core profiles, collections, and sales records concurrently
     const [profilesRes, collectionsRes, salesRes] = await Promise.all([
         _supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-        _supabase.from('collections').select('customer_name, contact_number, address'),
-        _supabase.from('sales').select('partner, contact, address') // Added 'address' here
+        _supabase.from('collections').select('customer_name, contact_number, address, type'), // Added type
+        _supabase.from('sales').select('partner, contact, address, type') // Added type
     ]);
 
     if (profilesRes.error) {
@@ -40,16 +40,14 @@ async function fetchProfilesFromSupabase() {
 
     // Step B: Render each profile, with backfilled lookups
     profilesData.forEach(profile => {
-        // Clean up the raw category string for uniform evaluation
-        const rawCategory = (profile.category || '').toLowerCase().trim();
+        // Find matches across both operational tables
+        const collectionMatch = collectionsData.find(c => c.customer_name === profile.name);
+        const salesMatch = salesData.find(s => s.partner === profile.name);
 
         // Step C: Fallback lookup logic if profile table fields are empty/NULL
         let derivedAddress = profile.address;
         let derivedContact = profile.contact_num;
-
-        // Find matches across both operational tables
-        const collectionMatch = collectionsData.find(c => c.customer_name === profile.name);
-        const salesMatch = salesData.find(s => s.partner === profile.name);
+        let derivedCategory = profile.category; // Track category dynamically
 
         // --- INDEPENDENT CONTACT BACKFILL ---
         if (!derivedContact || derivedContact === 'N/A') {
@@ -69,16 +67,26 @@ async function fetchProfilesFromSupabase() {
             }
         }
 
+        // --- INDEPENDENT CATEGORY BACKFILL ---
+        if (!derivedCategory || derivedCategory.trim() === '' || derivedCategory === 'N/A') {
+            if (collectionMatch && collectionMatch.type) {
+                derivedCategory = collectionMatch.type;
+            } else if (salesMatch && salesMatch.type) {
+                derivedCategory = salesMatch.type;
+            }
+        }
+
+        // Clean up the finalized category string for uniform evaluation
+        const rawCategory = (derivedCategory || 'walk-ins').toLowerCase().trim();
+
         // Map the finalized properties safely to your table row structure
         const contactObj = {
             id: profile.id,
             name: profile.name || 'Unknown',
             address: derivedAddress || 'N/A',
             contactNumber: derivedContact || 'N/A',
-            
-            // Ensures category matching strings align perfectly with your tab filter lists
-            category: rawCategory || 'walk-ins',
-            displayCategory: profile.category || 'Walk-ins',
+            category: rawCategory,
+            displayCategory: getCategoryDisplayName(rawCategory), // Use helper function for proper formatting
             avatarColor: getRandomColor()
         };
         
