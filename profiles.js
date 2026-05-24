@@ -10,45 +10,74 @@ lucide.createIcons();
 let nextId = 1;
 
 // 1. FETCH PROFILES FROM DATABASE
+// 1. FETCH PROFILES AND ENRICH WITH TRANSACTION DATA
 async function fetchProfilesFromSupabase() {
     const tableBody = document.getElementById('contactsTableBody');
     tableBody.innerHTML = '';
     
-    const { data, error } = await _supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+    // Step A: Fetch your core profiles, collections, and sales records concurrently
+    const [profilesRes, collectionsRes, salesRes] = await Promise.all([
+        _supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        _supabase.from('collections').select('customer_name, contact_number, address'),
+        _supabase.from('sales').select('partner, contact')
+    ]);
 
-    if (error) {
-        console.error("Error fetching profiles:", error.message);
+    if (profilesRes.error) {
+        console.error("Error fetching profiles:", profilesRes.error.message);
         checkEmptyState();
         return;
     }
 
-    // Clear current contacts array and assign freshly retrieved data
-    contacts = data; 
+    const profilesData = profilesRes.data || [];
+    const collectionsData = collectionsRes.data || [];
+    const salesData = salesRes.data || [];
+
+    contacts = profilesData; 
     
-    if (data.length === 0) {
+    if (profilesData.length === 0) {
         checkEmptyState();
         return;
     }
 
-    // 2. RENDER EACH PROFILE
-    data.forEach(profile => {
-        // Map exact database fields explicitly matching your diagram's schema
+    // Step B: Render each profile, with backfilled lookups
+    profilesData.forEach(profile => {
+        // Clean up the raw category string for uniform evaluation
+        const rawCategory = (profile.category || '').toLowerCase().trim();
+
+        // Step C: Fallback lookup logic if profile table fields are empty/NULL
+        let derivedAddress = profile.address;
+        let derivedContact = profile.contact_num;
+
+        if (!derivedContact || derivedContact === 'N/A') {
+            // Check if this contact matches a record in collections
+            const collectionMatch = collectionsData.find(c => c.customer_name === profile.name);
+            if (collectionMatch) {
+                derivedContact = collectionMatch.contact_number;
+                if (!derivedAddress || derivedAddress === 'N/A') {
+                    derivedAddress = collectionMatch.address;
+                }
+            } else {
+                // Check if this contact matches a record in sales
+                const salesMatch = salesData.find(s => s.partner === profile.name);
+                if (salesMatch) {
+                    derivedContact = salesMatch.contact;
+                }
+            }
+        }
+
+        // Map the finalized properties safely to your table row structure
         const contactObj = {
             id: profile.id,
             name: profile.name || 'Unknown',
-            address: profile.address || 'N/A',
+            address: derivedAddress || 'N/A',
+            contactNumber: derivedContact || 'N/A',
             
-            // Explicitly maps to the exact column name 'contact_num' from your schema
-            contactNumber: profile.contact_num || 'N/A', 
-            
-            // Safe fallbacks for categories
-            category: (profile.category || 'walk-ins').toLowerCase(),
+            // Ensures category matching strings align perfectly with your tab filter lists
+            category: rawCategory || 'walk-ins',
             displayCategory: profile.category || 'Walk-ins',
             avatarColor: getRandomColor()
         };
+        
         addContactToTable(contactObj);
     });
 }
@@ -161,14 +190,19 @@ function initializeTabSwitching() {
     });
 }
 
-// Filter contacts based on selected tab
 function filterContacts(tab) {
     const rows = document.querySelectorAll('#contactsTableBody tr:not(.empty-state-row)');
     rows.forEach(row => {
         const category = row.getAttribute('data-category');
-        if (tab === 'all') row.style.display = '';
-        else if (tab === 'collections') row.style.display = ['walk-ins', 'school', 'organization'].includes(category) ? '' : 'none';
-        else if (tab === 'sales') row.style.display = category === 'junkshop' ? '' : 'none';
+        if (tab === 'all') {
+            row.style.display = '';
+        } else if (tab === 'collections') {
+            // Include 'partner' if your collection items are flagged as partners
+            row.style.display = ['walk-ins', 'school', 'organization', 'partner'].includes(category) ? '' : 'none';
+        } else if (tab === 'sales') {
+            // Include 'customer' if your sales items are flagged as customers
+            row.style.display = ['junkshop', 'customer'].includes(category) ? '' : 'none';
+        }
     });
     checkEmptyState();
 }
