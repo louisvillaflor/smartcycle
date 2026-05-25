@@ -136,15 +136,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </td>
             `;
 
-            const itemsHTML = sale.items.map(m => `
-                <tr>
-                    <td style="text-align:center;">${m.weight.toFixed(1)}</td>
-                    <td style="text-align:center;">kg</td>
-                    <td style="text-align:left; padding-left:8px;">${m.name || 'Unknown'}</td>
-                    <td style="text-align:center;">₱${m.rate.toFixed(2)}</td>
-                    <td style="text-align:center;">₱${m.subtotal.toFixed(2)}</td>
-                </tr>
-            `).join('');
+            // 🔹 FIX: Safely fallback if there are no sub-items inside the sale row
+            let itemsHTML = '';
+            if (sale.items.length === 0) {
+                itemsHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align:center; color:#94a3b8; padding:20px; font-style:italic;">
+                            No specific material item rows attached to this record.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                itemsHTML = sale.items.map(m => `
+                    <tr>
+                        <td style="text-align:center;">${m.weight.toFixed(1)}</td>
+                        <td style="text-align:center;">kg</td>
+                        <td style="text-align:left; padding-left:8px;">${m.name || 'Unknown'}</td>
+                        <td style="text-align:center;">₱${m.rate.toFixed(2)}</td>
+                        <td style="text-align:center;">₱${m.subtotal.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+            }
 
             const trSub = document.createElement('tr');
             trSub.id = rowId;
@@ -231,12 +243,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // CENTRALIZED MODAL DELETION CONTROLLER (No memory re-allocation leaks)
+    // CENTRALIZED MODAL DELETION CONTROLLER
     window.showDeleteModal = function(id) {
         const sale = state.sales.find(s => String(s.id) === String(id));
         if (!sale) return;
 
-        // Create Modal only once if it doesn't already exist on page container layout
         if (!document.getElementById('saleDeleteModal')) {
             document.body.insertAdjacentHTML('beforeend', `
                 <div id="saleDeleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;justify-content:center;align-items:center;backdrop-filter:blur(4px);">
@@ -254,7 +265,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
             `);
             
-            // Set static dismiss listeners on first instantiation
             const modal = document.getElementById('saleDeleteModal');
             document.getElementById('saleDeleteCancel').addEventListener('click', () => modal.style.display = 'none');
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
@@ -264,8 +274,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('saleDeleteText').textContent = `Are you sure you want to delete the sale for "${sale.partner}"? This action cannot be undone.`;
         
         const confirmBtn = document.getElementById('saleDeleteConfirm');
-        
-        // Safely rebind clear targeted item context without duplicating raw nodes
         const cleanConfirmBtn = confirmBtn.cloneNode(true);
         confirmBtn.replaceWith(cleanConfirmBtn);
 
