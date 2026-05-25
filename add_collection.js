@@ -38,11 +38,12 @@ async function loadActivePrices() {
 
         if (error) throw error;
 
+        // CHANGE THIS SECTION INSIDE loadActivePrices()
         if (prices && prices.length > 0) {
             selMaterial.innerHTML = prices.map((item, idx) => {
-                // Formatting back to whole integer values to match your custom view style safely
                 const rate = Math.round(item.price); 
-                return `<option value="${item.material_name}" data-rate="${rate}" ${idx === 0 ? 'selected' : ''}>
+                // CHANGED: value is now item.id instead of item.material_name
+                return `<option value="${item.id}" data-name="${item.material_name}" data-rate="${rate}" ${idx === 0 ? 'selected' : ''}>
                     ${item.material_name} - ₱${rate}/kg
                 </option>`;
             }).join('');
@@ -188,8 +189,12 @@ window.addItem = function() {
     if (!sel || !weightInput) return;
 
     const weight = Number(weightInput.value);
-    const rate = Number(sel.selectedOptions[0]?.dataset.rate || 0);
-    const material = sel.value;
+    const selectedOption = sel.selectedOptions[0];
+    const rate = Number(selectedOption?.dataset.rate || 0);
+    
+    // CHANGED: Extract the numeric ID from the value, and the name from data-name
+    const materialId = Number(sel.value); 
+    const material = selectedOption?.dataset.name || '';
 
     if (!weight || weight <= 0 || weight > 10000) {
         showError('inWeight', weight > 10000 ? 'Invalid weight. Enter a value between 1 and 10,000.' : 'Please enter a valid weight');
@@ -201,7 +206,15 @@ window.addItem = function() {
     const itemsErr = document.getElementById('itemsError');
     if (itemsErr) itemsErr.textContent = '';
 
-    currentItems.push({ material, rate, weight, subtotal: rate * weight });
+    // CHANGED: Push materialId along with the standard properties
+    currentItems.push({ 
+        materialId, 
+        material, 
+        rate, 
+        weight, 
+        subtotal: rate * weight 
+    });
+    
     weightInput.value = '';
     weightInput.focus();
 
@@ -331,29 +344,29 @@ window.submitCollection = async function() {
             if (headerUpdateError) throw headerUpdateError;
 
             // 2. Clear out older sub-row item references linked with this transaction
-            const { error: itemsClearError } = await _supabase
-                .from('collection_items')
-                .delete()
-                .eq('collection_id', targetId);
-
-            if (itemsClearError) throw itemsClearError;
-
-            // 3. Re-serialize array values inside collection_items subtable
-            const itemsToInsert = currentItems.map(item => ({
-                collection_id: targetId,
-                material_name: item.material,
-                rate: item.rate,
-                weight: item.weight,
-                subtotal: item.subtotal
-            }));
-
-            const { error: itemsInsertError } = await _supabase
-                .from('collection_items')
-                .insert(itemsToInsert);
-
-            if (itemsInsertError) throw itemsInsertError;
-
-            alert("Collection entry updated successfully!");
+                const { error: itemsClearError } = await _supabase
+                    .from('collection_items')
+                    .delete()
+                    .eq('collection_id', targetId);
+            
+                if (itemsClearError) throw itemsClearError;
+            
+                // 3. CHANGED: Re-serialize array values using material_id instead of material_name
+                const itemsToInsert = currentItems.map(item => ({
+                    collection_id: targetId,
+                    material_id: item.materialId, // CHANGED FIELD NAME AND SOURCE VALUE
+                    rate: item.rate,
+                    weight: item.weight,
+                    subtotal: item.subtotal
+                }));
+            
+                const { error: itemsInsertError } = await _supabase
+                    .from('collection_items')
+                    .insert(itemsToInsert);
+            
+                if (itemsInsertError) throw itemsInsertError;
+            
+                alert("Collection entry updated successfully!");
 
         } else {
             // --- INSERT MODE ---
@@ -432,10 +445,10 @@ window.submitCollection = async function() {
             
             if (headerError) throw headerError;
             
-            // Insert items
+            // CHANGED: Insert items using material_id mapping
             const itemsToInsert = currentItems.map(item => ({
                 collection_id: headerData.id,
-                material_name: item.material,
+                material_id: item.materialId, // CHANGED FIELD NAME AND SOURCE VALUE
                 rate: item.rate,
                 weight: item.weight,
                 subtotal: item.subtotal
