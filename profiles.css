@@ -132,6 +132,11 @@ body {
     pointer-events: none;
 }
 
+table {
+    table-layout: fixed;
+    width: 100%;
+}
+
 /* Table */
 .table-container {
     background: transparent;
