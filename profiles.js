@@ -10,7 +10,6 @@ let currentPage = 1;
 // Initialize Lucide icons
 lucide.createIcons();
 
-
 async function fetchProfilesFromSupabase() {
     const tableBody = document.getElementById('contactsTableBody');
     tableBody.innerHTML = '';
@@ -34,20 +33,46 @@ async function fetchProfilesFromSupabase() {
     profiles.forEach(profile => {
         // Safe fallback normalization for categories
         const rawCategory = profile.category ? String(profile.category).trim() : 'N/A';
+        const normalizedCategory = rawCategory.toLowerCase();
+        
+        // Corrected dynamic ID generation based on your exact business mapping
+        const formattedId = formatProfileId(profile.display_id, normalizedCategory);
         
         addContactToTable({
-            id: profile.display_id || 'N/A', // ✅ USE DISPLAY ID
-            dbId: profile.id,                // ✅ REAL UUID
+            id: formattedId,                                      // ✅ Formatted short ID (e.g., C-7654321 or S-2200953)
+            dbId: profile.id,                                     // ✅ REAL UUID
             name: profile.display_name || profile.name || 'Unknown Name',
             address: profile.address || 'N/A',
             contactNumber: profile.contact_num || 'N/A',
-            category: rawCategory.toLowerCase(),
-            displayCategory: getCategoryDisplayName(rawCategory), // Handled by updated helper
+            category: normalizedCategory,
+            displayCategory: getCategoryDisplayName(rawCategory), 
             avatarColor: getRandomColor(),
             isTemporary: false
         });
     });
     applyPagination();
+}
+
+// Helper function with the corrected business rules mapping
+function formatProfileId(displayId, normalizedCategory) {
+    if (!displayId || displayId === 'N/A') return 'N/A';
+
+    let prefix = 'C'; // Default fallback to Customer (Collections tab)
+    
+    // Explicitly define who gets the "S" prefix based on your architecture
+    const salesPartners = ['junkshop', 'organization'];
+    
+    if (salesPartners.includes(normalizedCategory)) {
+        prefix = 'S';
+    }
+
+    // Extract only the numeric digits from the existing long ID string
+    const numericPart = displayId.replace(/\D/g, '');
+
+    // Grab the last 7 digits (or pad with 0s if it's somehow shorter)
+    const sevenDigits = numericPart.slice(-7).padStart(7, '0');
+
+    return `${prefix}-${sevenDigits}`;
 }
 
 // Get category display name safely regardless of DB casing
