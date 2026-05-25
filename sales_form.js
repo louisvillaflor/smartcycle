@@ -125,22 +125,26 @@ function wireModal() {
     });
 
     // Add Material to list
+    // Add Material to list
     addMaterialBtn?.addEventListener('click', () => {
         const sel = document.getElementById('materialSelect');
         const weightEl = document.getElementById('materialWeight');
         if (!sel || !weightEl) return;
-
-        const name = sel.value;
-        const rate = Number(sel.selectedOptions[0]?.dataset.rate || 0);
+    
+        const materialId = parseInt(sel.value); // This is now your database integer ID
+        const selectedOption = sel.selectedOptions[0];
+        const name = selectedOption?.dataset.name || ''; // Pull string name from dataset
+        const rate = Number(selectedOption?.dataset.rate || 0);
         const weight = parseFloat(weightEl.value) || 0;
-
-        if (!name || weight <= 0 || weight > 10000) {
-            if (matErr) matErr.textContent = !name ? 'Please select a material.' : 'Invalid weight. Enter a value between 1 and 10,000.';
+    
+        if (!materialId || weight <= 0 || weight > 10000) {
+            if (matErr) matErr.textContent = !materialId ? 'Please select a material.' : 'Invalid weight. Enter a value between 1 and 10,000.';
             return;
         }
         if (matErr) matErr.textContent = '';
-
-        saleMaterials.push({ name, rate, weight });
+    
+        // Track the materialId integer along with your UI layout keys
+        saleMaterials.push({ materialId, name, rate, weight });
         weightEl.value = '';
         weightEl.focus();
         renderMaterialsTable();
@@ -273,7 +277,7 @@ function wireModal() {
             
                 const itemsToInsert = saleMaterials.map(m => ({
                     sale_id: editingId,
-                    material_name: m.name,
+                    material_id: m.materialId, // Change key here
                     weight: m.weight,
                     rate: m.rate,
                     amount: m.rate * m.weight
@@ -328,8 +332,8 @@ function wireModal() {
         
                 // 2. Map and insert your child items using the new parent sale ID!
                 const itemsToInsert = saleMaterials.map(m => ({
-                    sale_id: insertedSale.id, // Link to the newly generated sale row
-                    material_name: m.name,
+                    sale_id: insertedSale.id,
+                    material_id: m.materialId, // Change key here
                     weight: m.weight,
                     rate: m.rate,
                     amount: m.rate * m.weight
@@ -399,9 +403,11 @@ async function loadMaterialsToDropdown() {
 
     data.forEach(item => {
         const option = document.createElement('option');
-        option.value = item.material_name;
+        // Change value from item.material_name to item.id
+        option.value = item.id; 
         option.textContent = `${item.material_name} (₱${parseFloat(item.price).toFixed(2)}/${item.unit})`;
-        option.dataset.rate = item.price; // Save tracking index context
+        option.dataset.rate = item.price; 
+        option.dataset.name = item.material_name; // Store the text name here for local rendering
         select.appendChild(option);
     });
 }
@@ -441,7 +447,14 @@ async function openEditModal(id) {
     if (!sale) return;
 
     editingId = id;
-    saleMaterials = [...(sale.items || [])];
+    
+    // Fallback assignment context so tracking handles existing values correctly
+    saleMaterials = (sale.items || []).map(item => ({
+        materialId: item.material_id, // Assign relational backlink
+        name: item.name, 
+        rate: item.rate,
+        weight: item.weight
+    }));
 
     const modal = document.getElementById('saleModal');
     if (!modal) return;
