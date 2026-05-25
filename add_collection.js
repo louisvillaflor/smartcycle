@@ -454,3 +454,35 @@ function closePreview() {
     left.style.display = 'block';
     refreshIcons();
 }
+
+const displayId = generateDisplayId('C');
+
+let profileId = null;
+
+const { data: existingProfile } = await _supabase
+    .from('profiles')
+    .select('id')
+    .ilike('name', customer)
+    .maybeSingle();
+
+if (existingProfile) {
+    profileId = existingProfile.id;
+} else {
+    const { data: newProfile, error: profileError } = await _supabase
+        .from('profiles')
+        .insert([{
+            name: customer,
+            category: currentCategory,
+            address: address || 'N/A',
+            contact_num: contact || 'N/A',
+            display_id: displayId
+        }])
+        .select()
+        .single();
+
+    if (profileError) throw profileError;
+    profileId = newProfile.id;
+}
+
+// attach to collection
+collectionPayload.customer_id = profileId;
