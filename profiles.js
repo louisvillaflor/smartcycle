@@ -4,6 +4,8 @@ const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentTab = 'all';
+const ITEMS_PER_PAGE = 10;
+let currentPage = 1; 
 
 // Initialize Lucide icons
 lucide.createIcons();
@@ -45,6 +47,7 @@ async function fetchProfilesFromSupabase() {
             isTemporary: false
         });
     });
+    applyPagination();
 }
 
 // Get category display name safely regardless of DB casing
@@ -121,6 +124,7 @@ function addContactToTable(contact) {
                 if (!error) {
                     row.remove();
                     checkEmptyState();
+                    applyPagination();
                 } else {
                     alert("Error deleting: " + error.message);
                 }
@@ -130,7 +134,6 @@ function addContactToTable(contact) {
 
     tableBody.appendChild(row);
     lucide.createIcons();
-    filterContacts(currentTab);
 }
 
 // Check if table is empty and show message
@@ -172,18 +175,81 @@ function initializeTabSwitching() {
 
 // Filter contacts
 function filterContacts(tab) {
-    const rows = document.querySelectorAll('#contactsTableBody tr:not(.empty-state-row)');
-    rows.forEach(row => {
+    currentPage = 1;
+    applyPagination();
+}
+
+function getFilteredRows() {
+    const rows = Array.from(document.querySelectorAll('#contactsTableBody tr:not(.empty-state-row)'));
+    return rows.filter(row => {
+        if (row.getAttribute('data-search-hidden') === 'true') return false;
         const category = row.getAttribute('data-category');
-        if (tab === 'all') {
-            row.style.display = '';
-        } else if (tab === 'collections') {
-            row.style.display = ['walk-ins', 'school', 'organization', 'partner', 'barangay'].includes(category) ? '' : 'none';
-        } else if (tab === 'sales') {
-            row.style.display = ['junkshop', 'customer'].includes(category) ? '' : 'none';
-        }
+        if (currentTab === 'all') return true;
+        if (currentTab === 'collections') return ['walk-ins', 'school', 'organization', 'partner', 'barangay'].includes(category);
+        if (currentTab === 'sales') return ['junkshop', 'customer'].includes(category);
+        return true;
     });
+}
+
+function applyPagination() {
+    const allRows = Array.from(document.querySelectorAll('#contactsTableBody tr:not(.empty-state-row)'));
+
+    allRows.forEach(row => row.style.display = 'none');
+
+    const filteredRows = getFilteredRows();
+    const totalPages = Math.ceil(filteredRows.length / ITEMS_PER_PAGE);
+    if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
+
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+
+    filteredRows.forEach((row, index) => {
+        row.style.display = (index >= start && index < end) ? '' : 'none';
+    });
+
     checkEmptyState();
+    renderPagination(filteredRows.length, totalPages);
+}
+
+function renderPagination(totalItems, totalPages) {
+    const nav = document.querySelector('.pagination');
+    if (!nav) return;
+
+    if (totalItems <= ITEMS_PER_PAGE) {
+        nav.innerHTML = '';
+        nav.style.display = 'none';
+        return;
+    }
+
+    nav.style.display = 'flex';
+    nav.innerHTML = '';
+
+    const prev = document.createElement('button');
+    prev.className = 'page-btn';
+    prev.innerHTML = '<i data-lucide="chevron-left"></i>';
+    prev.disabled = currentPage === 1;
+    prev.setAttribute('aria-label', 'Previous page');
+    prev.addEventListener('click', () => { currentPage--; applyPagination(); });
+    nav.appendChild(prev);
+
+    for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+        btn.textContent = i;
+        btn.setAttribute('aria-label', `Page ${i}`);
+        btn.addEventListener('click', () => { currentPage = i; applyPagination(); });
+        nav.appendChild(btn);
+    }
+
+    const next = document.createElement('button');
+    next.className = 'page-btn';
+    next.innerHTML = '<i data-lucide="chevron-right"></i>';
+    next.disabled = currentPage === totalPages;
+    next.setAttribute('aria-label', 'Next page');
+    next.addEventListener('click', () => { currentPage++; applyPagination(); });
+    nav.appendChild(next);
+
+    lucide.createIcons();
 }
 
 // Initialize search functionality
@@ -197,9 +263,10 @@ function initializeSearch() {
             const name = row.querySelector('.customer-cell span')?.textContent.toLowerCase() || '';
             const id = row.getAttribute('data-id').toLowerCase();
             const matches = name.includes(searchTerm) || id.includes(searchTerm);
-            row.style.display = matches ? '' : 'none';
+            row.setAttribute('data-search-hidden', matches ? 'false' : 'true');
         });
-        checkEmptyState();
+        currentPage = 1;
+        applyPagination();
     });
 }
 
