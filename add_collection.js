@@ -1,3 +1,5 @@
+
+
 function generateDisplayId(prefix) {
     return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 }
@@ -129,7 +131,7 @@ function resetForm() {
     });
 
     clearAllErrors();
-    currentItems = [];
+    window.currentItems = []; // Safe global reference
     renderItems();
 
     currentCategory = 'School';
