@@ -1,3 +1,7 @@
+function generateDisplayId(prefix) {
+    return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+}
+
 // GLOBAL ASSIGNMENTS & MODAL INTERACTIONS
 window.openAddModal = async () => {
     const modal = document.getElementById('addCollectionModal');
@@ -350,23 +354,54 @@ window.submitCollection = async function() {
 
         } else {
             // --- INSERT MODE ---
-            // 1. Insert Base Document
+            
+            // 🔹 Generate display ID immediately
+            const displayId = generateDisplayId('C');
+            const normalizedCustomer = customer.trim().toLowerCase();
+            
+            
+            // 🔹 Check existing profile
+            let profileId = null;
+            
+            const { data: existingProfile } = await _supabase
+                .from('profiles')
+                .select('id')
+                .ilike('name', normalizedCustomer)
+                .maybeSingle();
+            
+            if (existingProfile) {
+                profileId = existingProfile.id;
+            } else {
+                const { data: newProfile, error: profileError } = await _supabase
+                    .from('profiles')
+                    .insert([{
+                        name: normalizedCustomer,
+                        display_name: customer,          // 👀 for UI
+                        category: currentCategory,
+                        address: address || 'N/A',
+                        contact_num: contact || 'N/A',
+                        display_id: displayId
+                    }])
+                    .select()
+                    .single();
+            
+                if (profileError) throw profileError;
+                profileId = newProfile.id;
+            }
+            
+            // 🔹 Attach FK
+            collectionPayload.customer_id = profileId;
+            
+            // 🔹 Insert collection
             const { data: headerData, error: headerError } = await _supabase
                 .from('collections')
                 .insert([collectionPayload])
                 .select()
                 .single();
-
+            
             if (headerError) throw headerError;
-
-            // 2. Profile Sync Upsert Action
-            const { error: profileError } = await _supabase
-                .from('profiles')
-                .upsert({ name: customer, address: address, contact_num: contact, type: currentCategory }, { onConflict: 'name' });
-
-            if (profileError) console.warn("Profile synced with minor issues:", profileError.message);
-
-            // 3. Child Array Line-Items Injection
+            
+            // 🔹 Insert items
             const itemsToInsert = currentItems.map(item => ({
                 collection_id: headerData.id,
                 material_name: item.material,
@@ -374,11 +409,12 @@ window.submitCollection = async function() {
                 weight: item.weight,
                 subtotal: item.subtotal
             }));
-
-            const { error: itemsError } = await _supabase.from('collection_items').insert(itemsToInsert);
+            
+            const { error: itemsError } = await _supabase
+                .from('collection_items')
+                .insert(itemsToInsert);
+            
             if (itemsError) throw itemsError;
-
-            alert("Collection saved to database!");
         }
 
         closeAddModal();
@@ -454,35 +490,3 @@ function closePreview() {
     left.style.display = 'block';
     refreshIcons();
 }
-
-const displayId = generateDisplayId('C');
-
-let profileId = null;
-
-const { data: existingProfile } = await _supabase
-    .from('profiles')
-    .select('id')
-    .ilike('name', customer)
-    .maybeSingle();
-
-if (existingProfile) {
-    profileId = existingProfile.id;
-} else {
-    const { data: newProfile, error: profileError } = await _supabase
-        .from('profiles')
-        .insert([{
-            name: customer,
-            category: currentCategory,
-            address: address || 'N/A',
-            contact_num: contact || 'N/A',
-            display_id: displayId
-        }])
-        .select()
-        .single();
-
-    if (profileError) throw profileError;
-    profileId = newProfile.id;
-}
-
-// attach to collection
-collectionPayload.customer_id = profileId;
