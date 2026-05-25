@@ -384,7 +384,7 @@ async function loadMaterialsToDropdown() {
     const { data, error } = await window._supabase
         .from('price_list')
         .select('*')
-        .eq('status', 'active') // Ensure case matches your Supabase row records exactly
+        .eq('status', 'Active') 
         .order('material_name', { ascending: true });
 
     if (error) {
