@@ -210,8 +210,8 @@ function getFilteredRows() {
         if (row.getAttribute('data-search-hidden') === 'true') return false;
         const category = row.getAttribute('data-category');
         if (currentTab === 'all') return true;
-        if (currentTab === 'collections') return ['walk-ins', 'school', 'organization', 'partner', 'barangay'].includes(category);
-        if (currentTab === 'sales') return ['junkshop', 'customer'].includes(category);
+        if (currentTab === 'collections') return ['walk-ins', 'school', 'barangay', 'customer'].includes(category);
+        if (currentTab === 'sales') return ['junkshop', 'organization', 'partner' ].includes(category);
         return true;
     });
 }
