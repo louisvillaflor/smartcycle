@@ -312,7 +312,6 @@ window.submitCollection = async function() {
 
         if (editingIndex !== -1) {
             // --- ACTUAL DB UPDATE MODE ---
-            // Fetch the accurate collection object based on your main script tracker logic context
             const targetedCollection = (typeof getFilteredCollections === 'function') 
                 ? getFilteredCollections()[editingIndex] 
                 : window.collections[editingIndex];
@@ -359,16 +358,16 @@ window.submitCollection = async function() {
         } else {
             // --- INSERT MODE ---
             
-            // 🔹 Generate display ID immediately
+            // Generate display ID immediately
             const displayId = generateDisplayId('C');
             
-            // 🔹 Format and capitalize customer name beautifully right away
+            // Format and capitalize customer name beautifully right away
             const formattedCustomer = toTitleCase(customer.trim()); 
             
             // Sync the updated formatted string back into the payload object
             collectionPayload.customer_name = formattedCustomer; 
 
-            // 🔹 Check existing profile
+            // Check existing profile
             let profileId = null;
             
             // Match cleanly using a case-insensitive check against the trimmed input
@@ -381,10 +380,9 @@ window.submitCollection = async function() {
             if (existingProfile) {
                 profileId = existingProfile.id;
 
-                // 💡 ENHANCEMENT: Correct capitalization and update blank/placeholder fields
+                // ENHANCEMENT: Correct capitalization and update blank/placeholder fields
                 const updatePayload = {};
                 
-                // If the old name in DB isn't capitalized correctly, queue it for update
                 if (existingProfile.name !== formattedCustomer) {
                     updatePayload.name = formattedCustomer;
                 }
@@ -422,83 +420,10 @@ window.submitCollection = async function() {
                 profileId = newProfile.id;
             }
             
-            // 🔹 Attach Foreign Key
+            // Attach Foreign Key
             collectionPayload.customer_id = profileId;
             
-            // 🔹 Insert collection
-            const { data: headerData, error: headerError } = await _supabase
-                .from('profiles') // double check your schema context logic here if needed
-                .from('collections')
-                .insert([collectionPayload])
-                .select()
-                .single();
-            
-            if (headerError) throw headerError;
-            
-            // 🔹 Insert items
-            const itemsToInsert = currentItems.map(item => ({
-                collection_id: headerData.id,
-                material_name: item.material,
-                rate: item.rate,
-                weight: item.weight,
-                subtotal: item.subtotal
-            }));
-            
-            const { error: itemsError } = await _supabase
-                .from('collection_items')
-                .insert(itemsToInsert);
-            
-            if (itemsError) throw itemsError;
-        }
-            
-            
-// 🔹 Check existing profile
-            let profileId = null;
-            
-            // Match cleanly using an case-insensitive check against the trimmed input
-            const { data: existingProfile } = await _supabase
-                .from('profiles')
-                .select('id, address, contact_num')
-                .ilike('name', customer)
-                .maybeSingle();
-            
-            if (existingProfile) {
-                profileId = existingProfile.id;
-
-                // 💡 OPTIONAL ENHANCEMENT: Update fields if they were previously 'N/A' or empty
-                if (existingProfile.address === 'N/A' || !existingProfile.contact_num || existingProfile.contact_num === 'N/A') {
-                    await _supabase
-                        .from('profiles')
-                        .update({
-                            name: customer, // Save the nicely formatted display name (e.g., "Nikolas")
-                            address: address || existingProfile.address,
-                            contact_num: contact || existingProfile.contact_num,
-                            category: currentCategory
-                        })
-                        .eq('id', profileId);
-                }
-            } else {
-                // Create a beautiful, filled-out profile row if it doesn't exist yet
-                const { data: newProfile, error: profileError } = await _supabase
-                    .from('profiles')
-                    .insert([{
-                        name: customer,                  // Store the capitalized version directly for your UI layout
-                        category: currentCategory,
-                        address: address || 'N/A',
-                        contact_num: contact || 'N/A',
-                        display_id: displayId
-                    }])
-                    .select()
-                    .single();
-            
-                if (profileError) throw profileError;
-                profileId = newProfile.id;
-            }
-            
-            // 🔹 Attach FK
-            collectionPayload.customer_id = profileId;
-            
-            // 🔹 Insert collection
+            // Insert collection
             const { data: headerData, error: headerError } = await _supabase
                 .from('collections')
                 .insert([collectionPayload])
@@ -507,7 +432,7 @@ window.submitCollection = async function() {
             
             if (headerError) throw headerError;
             
-            // 🔹 Insert items
+            // Insert items
             const itemsToInsert = currentItems.map(item => ({
                 collection_id: headerData.id,
                 material_name: item.material,
