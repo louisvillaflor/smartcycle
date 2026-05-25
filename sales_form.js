@@ -262,7 +262,9 @@ function wireModal() {
         
         try {
             if (editingId) {
-                // UPDATE FLOW
+                // ==========================================
+                // UPDATE FLOW (This part was working)
+                // ==========================================
                 const { error: updateError } = await window._supabase.from('sales').update(saleData).eq('id', editingId);
                 if (updateError) throw new Error("Update failed: " + updateError.message);
             
@@ -281,11 +283,10 @@ function wireModal() {
                 if (insertItemsError) throw new Error("Failed to insert items: " + insertItemsError.message);
             
             } else {
-                // INSERT FLOW
-                // 🔹 Generate display ID immediately
+                // ==========================================
+                // INSERT FLOW (The Fix is here 👇)
+                // ==========================================
                 const displayId = generateDisplayId('S');
-                
-                // 🔹 1. Check if profile already exists
                 let profileId = null;
                 
                 const { data: existingProfile } = await window._supabase
@@ -297,7 +298,6 @@ function wireModal() {
                 if (existingProfile) {
                     profileId = existingProfile.id;
                 } else {
-                    // 🔹 2. Create profile WITH display_id
                     const { data: newProfile, error: profileError } = await window._supabase
                         .from('profiles')
                         .insert([{
@@ -314,25 +314,40 @@ function wireModal() {
                     profileId = newProfile.id;
                 }
                 
-                // 🔹 3. Insert sale with reference
+                // 1. Insert the parent Sale record
                 const { data: insertedSale, error: insertError } = await window._supabase
                     .from('sales')
                     .insert([{
                         ...saleData,
-                        partner_id: profileId // ✅ LINKED
+                        partner_id: profileId 
                     }])
                     .select()
                     .single();
                 
                 if (insertError) throw insertError;
+        
+                // 2. Map and insert your child items using the new parent sale ID!
+                const itemsToInsert = saleMaterials.map(m => ({
+                    sale_id: insertedSale.id, // Link to the newly generated sale row
+                    material_name: m.name,
+                    weight: m.weight,
+                    rate: m.rate,
+                    amount: m.rate * m.weight
+                }));
+        
+                const { error: insertItemsError } = await window._supabase
+                    .from('sale_items')
+                    .insert(itemsToInsert);
+        
+                if (insertItemsError) throw new Error("Failed to insert sale items: " + insertItemsError.message);
             }
-
+        
             closeModal();
             if (typeof window.renderTable === 'function') await window.renderTable();
         } catch (dbError) {
             alert(dbError.message);
         } finally {
-            isSubmitting = false; // Safely unlocks submission state
+            isSubmitting = false; 
         }
     });
 
