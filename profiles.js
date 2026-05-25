@@ -101,7 +101,6 @@ function getRandomColor() {
 }
 
 // Add contact to table
-// Add contact to table
 function addContactToTable(contact) {
     const tableBody = document.getElementById('contactsTableBody');
 
@@ -120,7 +119,7 @@ function addContactToTable(contact) {
                 <i data-lucide="trash-2"></i>
            </button>`;
 
-    // --- REORDERED DATA CELLS ---
+    // --- REORDERED DATA CELLS WITH FIXED LAYOUT WIDTHS ---
     row.innerHTML = `
         <td style="width: 250px; min-width: 250px;">
             <div class="customer-cell">
@@ -130,12 +129,12 @@ function addContactToTable(contact) {
                 <span>${contact.name}</span>
             </div>
         </td>
-        <td>${contact.id}</td>
-        <td>${contact.displayCategory}</td>
-        <td>${contact.address}</td>
-        <td>${contact.contactNumber}</td>
-        <td>
-            <div class="action-buttons">
+        <td style="width: 130px; min-width: 130px;">${contact.id}</td>
+        <td style="width: 150px; min-width: 150px;">${contact.displayCategory}</td>
+        <td style="width: 250px; min-width: 250px;">${contact.address}</td>
+        <td style="width: 160px; min-width: 160px;">${contact.contactNumber}</td>
+        <td style="width: 100px; min-width: 100px;">
+            <div class="action-buttons" style="justify-content: center;">
                 <button class="action-btn edit-btn" title="Edit" ${contact.isTemporary ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : ''}>
                     <i data-lucide="edit-2"></i>
                 </button>
