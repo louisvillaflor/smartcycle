@@ -31,16 +31,18 @@ async function fetchSales() {
         return [];
     }
 
+    // Change this section inside your fetchSales() function:
     return data.map(sale => {
         const items = Array.isArray(sale.sale_items) ? sale.sale_items : [];
-
+    
         return {
             ...sale,
-            // 🔹 FIX: Map the partner name from the joined profiles table
+            // 🔹 FIX: Map raw_date explicitly from the database 'date' or 'created_at' column
+            raw_date: sale.date ? new Date(sale.date).toLocaleDateString() : 'N/A', 
+            
             partner: sale.profiles ? sale.profiles.name : 'Unknown',
             
             items: items.map(i => ({
-                // 🔹 FIX: Extract the material name from the joined price_list table
                 name: i.price_list ? i.price_list.material_name : 'Unknown Material',
                 weight: Number(i.weight) || 0,
                 rate: Number(i.rate) || 0,
