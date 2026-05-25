@@ -1,3 +1,8 @@
+// Ensure strict tracking context variables exist safely at module/global scale
+let editingIndex = -1;
+let currentCategory = 'School';
+window.currentItems = []; // Initializing to prevent undefined array pushes
+
 function generateDisplayId(prefix) {
     return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 }
@@ -25,7 +30,8 @@ window.openAddModal = async () => {
     updatePreview();
     setTimeout(refreshIcons, 100);
 };
-// NEW ENGINE: Fetch real-time active rates from price_list table
+
+// FIXED ENGINE: Added 'id' to the select string so item.id isn't undefined!
 async function loadActivePrices() {
     const selMaterial = document.getElementById('selMaterial');
     if (!selMaterial) return;
@@ -33,16 +39,14 @@ async function loadActivePrices() {
     try {
         const { data: prices, error } = await _supabase
             .from('price_list')
-            .select('material_name, price')
-            .eq('status', 'Active'); // Filters only your green "Active" status markers
+            .select('id, material_name, price') // <-- FIXED: Added 'id' here
+            .eq('status', 'Active'); 
 
         if (error) throw error;
 
-        // CHANGE THIS SECTION INSIDE loadActivePrices()
         if (prices && prices.length > 0) {
             selMaterial.innerHTML = prices.map((item, idx) => {
                 const rate = Math.round(item.price); 
-                // CHANGED: value is now item.id instead of item.material_name
                 return `<option value="${item.id}" data-name="${item.material_name}" data-rate="${rate}" ${idx === 0 ? 'selected' : ''}>
                     ${item.material_name} - ₱${rate}/kg
                 </option>`;
@@ -52,13 +56,13 @@ async function loadActivePrices() {
         }
     } catch (err) {
         console.error("Error fetching live price rates from database:", err.message);
-        // Resilient fallback defaults matching your exact view config state in case connection drops
+        // Resilient fallback defaults using mock integer string IDs instead of names
         selMaterial.innerHTML = `
-            <option value="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
-            <option value="Bakal" data-rate="15">Bakal - ₱15/kg</option>
-            <option value="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
-            <option value="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
-            <option value="Yero" data-rate="8">Yero - ₱8/kg</option>
+            <option value="1" data-name="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
+            <option value="2" data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
+            <option value="3" data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
+            <option value="4" data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
+            <option value="5" data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
         `;
     }
 }
@@ -130,7 +134,7 @@ function resetForm() {
     });
 
     clearAllErrors();
-    window.currentItems = []; // Safe global reference
+    window.currentItems = []; 
     renderItems();
 
     currentCategory = 'School';
@@ -192,7 +196,6 @@ window.addItem = function() {
     const selectedOption = sel.selectedOptions[0];
     const rate = Number(selectedOption?.dataset.rate || 0);
     
-    // CHANGED: Extract the numeric ID from the value, and the name from data-name
     const materialId = Number(sel.value); 
     const material = selectedOption?.dataset.name || '';
 
@@ -206,8 +209,7 @@ window.addItem = function() {
     const itemsErr = document.getElementById('itemsError');
     if (itemsErr) itemsErr.textContent = '';
 
-    // CHANGED: Push materialId along with the standard properties
-    currentItems.push({ 
+    window.currentItems.push({ 
         materialId, 
         material, 
         rate, 
@@ -231,12 +233,12 @@ function renderItems() {
     let mainRowsHtml = '';
     let previewRowsHtml = '';
 
-    if (currentItems.length === 0) {
+    if (window.currentItems.length === 0) {
         itemsBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #94a3b8; padding: 20px;">No items added yet</td></tr>';
-        preItemsBody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: #94a3b8; padding: 20px;">No items</td></tr>';
+        preItemsBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #94a3b8; padding: 20px;">No items</td></tr>';
         if (formTotalLine) formTotalLine.style.display = 'none';
     } else {
-        currentItems.forEach((item, index) => {
+        window.currentItems.forEach((item, index) => {
             total += item.subtotal;
             mainRowsHtml += `
                 <tr>
@@ -271,7 +273,7 @@ function renderItems() {
         }
     }
 
-    const emptyRowsNeeded = Math.max(0, 8 - currentItems.length);
+    const emptyRowsNeeded = Math.max(0, 8 - window.currentItems.length);
     for (let i = 0; i < emptyRowsNeeded; i++) {
         preItemsBody.innerHTML += '<tr class="empty-row"><td></td><td></td><td></td><td></td><td></td></tr>';
     }
@@ -283,7 +285,7 @@ function renderItems() {
 }
 
 window.removeItem = (index) => {
-    currentItems.splice(index, 1);
+    window.currentItems.splice(index, 1);
     renderItems();
 };
 
@@ -302,7 +304,7 @@ window.submitCollection = async function() {
     if (!date) { showError('inDate', 'Date is required'); hasError = true; }
     if (contact && !validateContact(contact)) { showError('inContact', 'Use format: 09XX-XXX-XXXX'); hasError = true; }
     
-    if (currentItems.length === 0) {
+    if (window.currentItems.length === 0) {
         const itemsErr = document.getElementById('itemsError');
         if (itemsErr) itemsErr.textContent = 'Please add at least one item';
         hasError = true;
@@ -324,7 +326,6 @@ window.submitCollection = async function() {
         };
 
         if (editingIndex !== -1) {
-            // --- ACTUAL DB UPDATE MODE ---
             const targetedCollection = (typeof getFilteredCollections === 'function') 
                 ? getFilteredCollections()[editingIndex] 
                 : window.collections[editingIndex];
@@ -335,7 +336,6 @@ window.submitCollection = async function() {
 
             const targetId = targetedCollection.id;
 
-            // 1. Mutate parent row in collections table
             const { error: headerUpdateError } = await _supabase
                 .from('collections')
                 .update(collectionPayload)
@@ -343,47 +343,37 @@ window.submitCollection = async function() {
 
             if (headerUpdateError) throw headerUpdateError;
 
-            // 2. Clear out older sub-row item references linked with this transaction
-                const { error: itemsClearError } = await _supabase
-                    .from('collection_items')
-                    .delete()
-                    .eq('collection_id', targetId);
+            const { error: itemsClearError } = await _supabase
+                .from('collection_items')
+                .delete()
+                .eq('collection_id', targetId);
             
-                if (itemsClearError) throw itemsClearError;
+            if (itemsClearError) throw itemsClearError;
             
-                // 3. CHANGED: Re-serialize array values using material_id instead of material_name
-                const itemsToInsert = currentItems.map(item => ({
-                    collection_id: targetId,
-                    material_id: item.materialId, // CHANGED FIELD NAME AND SOURCE VALUE
-                    rate: item.rate,
-                    weight: item.weight,
-                    subtotal: item.subtotal
-                }));
+            const itemsToInsert = window.currentItems.map(item => ({
+                collection_id: targetId,
+                material_id: item.materialId, 
+                rate: item.rate,
+                weight: item.weight,
+                subtotal: item.subtotal
+            }));
+        
+            const { error: itemsInsertError } = await _supabase
+                .from('collection_items')
+                .insert(itemsToInsert);
+        
+            if (itemsInsertError) throw itemsInsertError;
             
-                const { error: itemsInsertError } = await _supabase
-                    .from('collection_items')
-                    .insert(itemsToInsert);
-            
-                if (itemsInsertError) throw itemsInsertError;
-            
-                alert("Collection entry updated successfully!");
+            alert("Collection entry updated successfully!");
 
         } else {
             // --- INSERT MODE ---
-            
-            // Generate display ID immediately
             const displayId = generateDisplayId('C');
-            
-            // Format and capitalize customer name beautifully right away
             const formattedCustomer = toTitleCase(customer.trim()); 
-            
-            // Sync the updated formatted string back into the payload object
             collectionPayload.customer_name = formattedCustomer; 
 
-            // Check existing profile
             let profileId = null;
             
-            // Match cleanly using a case-insensitive check against the trimmed input
             const { data: existingProfile } = await _supabase
                 .from('profiles')
                 .select('id, name, address, contact_num')
@@ -392,8 +382,6 @@ window.submitCollection = async function() {
             
             if (existingProfile) {
                 profileId = existingProfile.id;
-
-                // ENHANCEMENT: Correct capitalization and update blank/placeholder fields
                 const updatePayload = {};
                 
                 if (existingProfile.name !== formattedCustomer) {
@@ -406,21 +394,18 @@ window.submitCollection = async function() {
                     updatePayload.contact_num = contact || existingProfile.contact_num;
                 }
                 
-                // Always ensure it aligns with the active transaction context category
                 updatePayload.category = currentCategory;
 
-                // Run a single combined update statement
                 await _supabase
                     .from('profiles')
                     .update(updatePayload)
                     .eq('id', profileId);
 
             } else {
-                // Create a beautiful, filled-out profile row if it doesn't exist yet
                 const { data: newProfile, error: profileError } = await _supabase
                     .from('profiles')
                     .insert([{
-                        name: formattedCustomer,          // Store Title Case directly for UI layouts
+                        name: formattedCustomer,          
                         category: currentCategory,
                         address: address || 'N/A',
                         contact_num: contact || 'N/A',
@@ -433,10 +418,8 @@ window.submitCollection = async function() {
                 profileId = newProfile.id;
             }
             
-            // Attach Foreign Key
             collectionPayload.customer_id = profileId;
             
-            // Insert collection
             const { data: headerData, error: headerError } = await _supabase
                 .from('collections')
                 .insert([collectionPayload])
@@ -445,10 +428,9 @@ window.submitCollection = async function() {
             
             if (headerError) throw headerError;
             
-            // CHANGED: Insert items using material_id mapping
-            const itemsToInsert = currentItems.map(item => ({
+            const itemsToInsert = window.currentItems.map(item => ({
                 collection_id: headerData.id,
-                material_id: item.materialId, // CHANGED FIELD NAME AND SOURCE VALUE
+                material_id: item.materialId, 
                 rate: item.rate,
                 weight: item.weight,
                 subtotal: item.subtotal
@@ -462,7 +444,6 @@ window.submitCollection = async function() {
         }
 
         closeAddModal();
-        
         if (typeof fetchAllCollections === 'function') await fetchAllCollections();
 
     } catch (err) {
@@ -477,7 +458,6 @@ window.submitCollection = async function() {
     }
 };
 
-// STABLE FORM DELEGATION HANDLERS
 window.setupFieldListeners = function() {
     const inCustomer = document.getElementById('inCustomer');
     if (inCustomer) {
@@ -501,11 +481,6 @@ window.setupFieldListeners = function() {
             inContact.value = formatContact(inContact.value.replace(/[^\d]/g, '').slice(0, 11));
             clearError('inContact');
         });
-        inContact.addEventListener('blur', () => {
-            const val = inContact.value.trim();
-            if (val && !validateContact(val)) showError('inContact', 'Use format: 09XX-XXX-XXXX');
-            else clearError('inContact');
-        });
     }
 
     const inWeight = document.getElementById('inWeight');
@@ -514,7 +489,6 @@ window.setupFieldListeners = function() {
     }
 };
 
-// RESPONSIVE VIEW ENGINE CONTROLS
 function togglePreview() {
     const left = document.querySelector('.modal-left');
     const right = document.querySelector('.modal-right');
