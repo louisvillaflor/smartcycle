@@ -1,10 +1,8 @@
-<!-- Add Collection Modal -->
 <link rel="stylesheet" href="add_collection.css">
 
 <div id="addCollectionModal" class="modal-overlay" role="dialog" aria-labelledby="modalTitle" aria-modal="true">
   <div class="modal-container-large">
 
-    <!-- LEFT: Form -->
     <section class="modal-left">
       <div class="modal-logo-section">
         <img src="photo/logo_name.png" alt="SmartCycle" width="120" onerror="this.style.display='none'">
@@ -77,7 +75,6 @@
         </div>
       </div>
 
-      <!-- Mobile Preview -->
       <button class="btn-preview-toggle" id="previewToggleBtn" onclick="togglePreview()">
           <i data-lucide="eye"></i> Preview Receipt
       </button>
@@ -94,9 +91,7 @@
       </div>
     </section>
 
-    <!-- RIGHT: Receipt Preview -->
     <aside class="modal-right">
-      <!-- Mobile Back Button -->
       <div class="back-preview-link" onclick="closePreview()">
           <i data-lucide="arrow-left"></i> Back to Form
       </div>
@@ -108,7 +103,6 @@
 
       <article class="receipt-preview">
 
-        <!-- Header: logo and org info -->
         <div class="receipt-header-brand">
           <div class="receipt-logo-placeholder">
             <img src="photo/tezwa_logo.jpg" alt="Logo" style="width:60px;height:60px;object-fit:contain;border-radius:50%;">
@@ -116,12 +110,11 @@
           <div class="receipt-org-info">
             <h3>TAGUMPAY 83ZERO WASTE ASSOCIATION</h3>
             <p>South Nagtahan, Brgy. 830, Zone 90 District VI, Paco, Manila</p>
-            <p>Email: <span style="color:#0ea5e9;text-decoration:underline;"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="c2b6a7b8b5a3ecafa3acabaea382a5afa3abaeeca1adaf">[email&#160;protected]</a></span></p>
+            <p>Email: <span style="color:#0ea5e9;text-decoration:underline;">tagumpay83zerowaste@gmail.com</span></p>
             <p>Contact No.: 0927-286-7378</p>
           </div>
         </div>
 
-        <!-- Cash Receipt No and Date -->
         <div class="receipt-meta-row">
           <div class="receipt-meta-field">
             <label>Cash Receipt No.</label>
@@ -133,7 +126,6 @@
           </div>
         </div>
 
-        <!-- Customer and Contact -->
         <div class="receipt-fields-grid">
           <div class="receipt-field-row">
             <div class="receipt-field-item">
@@ -145,7 +137,6 @@
               <div class="field-value" id="preContact"></div>
             </div>
           </div>
-          <!-- Address and Salesman -->
           <div class="receipt-field-row">
             <div class="receipt-field-item">
               <label>Address</label>
@@ -158,7 +149,6 @@
           </div>
         </div>
 
-        <!-- Items Table -->
         <table class="receipt-table">
           <thead>
             <tr>
@@ -170,7 +160,6 @@
             </tr>
           </thead>
           <tbody id="preItemsBody">
-            <!-- 8 empty rows by default -->
             <tr class="empty-row"><td></td><td></td><td></td><td></td><td></td></tr>
             <tr class="empty-row"><td></td><td></td><td></td><td></td><td></td></tr>
             <tr class="empty-row"><td></td><td></td><td></td><td></td><td></td></tr>
@@ -182,12 +171,10 @@
           </tbody>
         </table>
 
-        <!-- Total -->
         <div class="receipt-total-line">
           <span>TOTAL: </span><strong id="preTotal">₱0.00</strong>
         </div>
 
-        <!-- Signatures -->
         <div class="receipt-signatures">
           <div class="receipt-sig-block">
             <span class="sig-label">Received By:</span>
