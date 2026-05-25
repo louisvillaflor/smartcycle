@@ -37,8 +37,9 @@ async function fetchSales() {
     
         return {
             ...sale,
-            // 🔹 FIX: Map raw_date explicitly from the database 'date' or 'created_at' column
-            raw_date: sale.date ? new Date(sale.date).toLocaleDateString('en-US') : 'N/A',
+            raw_date: sale.date 
+                ? new Date(sale.date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }).replace(/\//g, '-') 
+                : 'N/A',
             
             partner: sale.profiles ? sale.profiles.name : 'Unknown',
             
