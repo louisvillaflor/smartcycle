@@ -367,7 +367,7 @@ function wireModal() {
                 }));
         
                 const { error: insertItemsError } = await window._supabase
-                    .from('sales_items' in window ? 'sales_items' : 'sale_items') // Fallback guard safely matching your schema layout
+                    .from('sale_items') // 🔹 Directly query your exact schema name string safely
                     .insert(itemsToInsert);
         
                 if (insertItemsError) throw new Error("Failed to insert sale items: " + insertItemsError.message);
@@ -473,10 +473,10 @@ async function openEditModal(id) {
 
     editingId = id;
     
-    // Fixed name mapper resolution reference pointing to proper fields
+    // Inside openEditModal(id) in your sales_form.js:
     saleMaterials = (sale.items || []).map(item => ({
         materialId: item.material_id, 
-        name: item.material_name || item.price_list?.material_name || 'Unknown Material', 
+        name: item.name, // 🔹 Match the transformed name property directly
         rate: item.rate,
         weight: item.weight
     }));
@@ -488,8 +488,9 @@ async function openEditModal(id) {
     document.getElementById('saleAddress').value = sale.address || '';
     document.getElementById('saleContact').value = sale.contact || '';
 
-    if (sale.raw_date) {
-        document.getElementById('saleDate').value = sale.raw_date;
+    if (sale.date) {
+        // splits "2026-05-25T23:39:58" down to "2026-05-25"
+        document.getElementById('saleDate').value = sale.date.split('T')[0];
     }
 
     modal.querySelectorAll('.m-tab').forEach(t => {
