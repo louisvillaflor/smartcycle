@@ -7,6 +7,12 @@ let isModalWired = false;
 const salesTableBody = document.getElementById('salesTableBody');
 const emptyState = document.getElementById('emptyState');
 
+
+function generateDisplayId(prefix) {
+    const time = Date.now().toString().slice(-6);
+    const rand = Math.floor(Math.random() * 1000);
+    return `${prefix}-${time}${rand}`;
+}
 // ==========================================
 // RENDER MATERIALS TABLE
 // ==========================================
@@ -277,19 +283,49 @@ function wireModal() {
             
             } else {
                 // INSERT FLOW
-                const { data: insertedSale, error: insertError } = await window._supabase.from('sales').insert([saleData]).select().single();
-                if (insertError) throw new Error("Insert failed: " + insertError.message);
-            
-                const itemsToInsert = saleMaterials.map(m => ({
-                    sale_id: insertedSale.id,
-                    material_name: m.name,
-                    weight: m.weight,
-                    rate: m.rate,
-                    amount: m.rate * m.weight
-                }));
-            
-                const { error: itemsError } = await window._supabase.from('sale_items').insert(itemsToInsert);
-                if (itemsError) throw new Error("Items insert failed: " + itemsError.message);
+                // 🔹 Generate display ID immediately
+                const displayId = generateDisplayId('S');
+                
+                // 🔹 1. Check if profile already exists
+                let profileId = null;
+                
+                const { data: existingProfile } = await window._supabase
+                    .from('profiles')
+                    .select('id')
+                    .ilike('name', partnerVal)
+                    .maybeSingle();
+                
+                if (existingProfile) {
+                    profileId = existingProfile.id;
+                } else {
+                    // 🔹 2. Create profile WITH display_id
+                    const { data: newProfile, error: profileError } = await window._supabase
+                        .from('profiles')
+                        .insert([{
+                            name: partnerVal,
+                            category: type,
+                            address: addressVal || 'N/A',
+                            contact_num: contactVal || 'N/A',
+                            display_id: displayId
+                        }])
+                        .select()
+                        .single();
+                
+                    if (profileError) throw profileError;
+                    profileId = newProfile.id;
+                }
+                
+                // 🔹 3. Insert sale with reference
+                const { data: insertedSale, error: insertError } = await window._supabase
+                    .from('sales')
+                    .insert([{
+                        ...saleData,
+                        partner_id: profileId // ✅ LINKED
+                    }])
+                    .select()
+                    .single();
+                
+                if (insertError) throw insertError;
             }
 
             closeModal();
