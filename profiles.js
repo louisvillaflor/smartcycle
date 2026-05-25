@@ -101,6 +101,7 @@ function getRandomColor() {
 }
 
 // Add contact to table
+// Add contact to table
 function addContactToTable(contact) {
     const tableBody = document.getElementById('contactsTableBody');
 
@@ -119,8 +120,9 @@ function addContactToTable(contact) {
                 <i data-lucide="trash-2"></i>
            </button>`;
 
+    // --- REORDERED DATA CELLS ---
     row.innerHTML = `
-        <td>
+        <td style="width: 250px; min-width: 250px;">
             <div class="customer-cell">
                 <div class="customer-avatar" style="background-color: ${contact.avatarColor};">
                     <i data-lucide="user" style="width: 16px; height: 16px;"></i>
@@ -128,8 +130,8 @@ function addContactToTable(contact) {
                 <span>${contact.name}</span>
             </div>
         </td>
-        <td>${contact.displayCategory}</td>
         <td>${contact.id}</td>
+        <td>${contact.displayCategory}</td>
         <td>${contact.address}</td>
         <td>${contact.contactNumber}</td>
         <td>
