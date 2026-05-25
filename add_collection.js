@@ -149,7 +149,7 @@ function resetForm() {
 
 window.setCategory = (category, btn) => {
     currentCategory = category;
-    document.querySelectorAll('.m-tab').forEach(tab => tab.remove('active'));
+    document.querySelectorAll('.m-tab').forEach(tab => tab.classList.remove('active'));
     btn.classList.add('active');
     updatePreview();
 };
