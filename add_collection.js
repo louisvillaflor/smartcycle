@@ -20,7 +20,6 @@ window.openAddModal = async () => {
     updatePreview();
     setTimeout(refreshIcons, 100);
 };
-
 // NEW ENGINE: Fetch real-time active rates from price_list table
 async function loadActivePrices() {
     const selMaterial = document.getElementById('selMaterial');
