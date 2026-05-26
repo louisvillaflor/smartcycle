@@ -1,4 +1,5 @@
-const JunkshopExport = (() => {
+// Pass the supabase client directly into the IIFE parameter
+const JunkshopExport = ((supabaseClient) => {
 
     const RECYCLABLE_MATERIALS = [
         'Old Newspaper',
@@ -16,13 +17,13 @@ const JunkshopExport = (() => {
         'Others',
     ];
 
-    // Maps your database material names to the official form category headers
+    // Case-insulated mapper to target official form category headers
     const MATERIAL_MAPPING = {
-        'Plastic': 'Plastics Containers',
-        'PET Assorted': 'PET Bottles',
-        'Bakal': 'Steel',
-        'Paper Assorted': 'Paper/Magazines',
-        'Yero': 'Tin' // Adjust maps if 'Yero' fits better under 'Others' or 'Steel' based on your localized specs
+        'plastic': 'Plastics Containers',
+        'pet assorted': 'PET Bottles',
+        'bakal': 'Steel',
+        'paper assorted': 'Paper/Magazines',
+        'yero': 'Tin'
     };
 
     function parseCollectionDate(raw) {
@@ -32,11 +33,12 @@ const JunkshopExport = (() => {
     }
 
     /**
-     * Fetches collections and items directly from Supabase for the targeted month and year,
-     * then aggregates them directly by the calendar day (1 to 28+).
+     * Fetches collections and items directly from Supabase for the targeted month and year.
      */
     async function aggregateSupabaseData(month, year) {
-        // Initialize blank matrix rows for all 28 layout points
+        // Fallback safely if client initialization was skipped
+        const db = supabaseClient || window.supabase;
+        
         const result = {};
         RECYCLABLE_MATERIALS.forEach(m => {
             result[m] = {
@@ -45,14 +47,18 @@ const JunkshopExport = (() => {
             };
         });
 
-        // 1. Define date bounds for the selected month (Months are 0-indexed in JS, format: YYYY-MM-DD)
+        if (!db || typeof db.from !== 'function') {
+            console.error("Supabase client instance is missing or misconfigured! Dropping to local storage fallback.");
+            return aggregateFallbackLocalData(month, year);
+        }
+
         const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
         const lastDay = new Date(year, month + 1, 0).getDate();
         const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
         try {
-            // 2. Fetch parent collections and join their respective child line items
-            const { data: collections, error } = await supabase
+            // 1. Fetch collections bounded within the month range
+            const { data: collections, error } = await db
                 .from('collections')
                 .select(`
                     id,
@@ -67,38 +73,35 @@ const JunkshopExport = (() => {
 
             if (error) throw error;
 
-            // 3. Fetch price_list references to translate material_ids to human strings
-            const { data: priceList, error: priceError } = await supabase
+            // 2. Fetch price_list to decode material_ids
+            const { data: priceList, error: priceError } = await db
                 .from('price_list')
                 .select('id, material_name');
 
             if (priceError) throw priceError;
 
-            // Create a quick-lookup map for item ids
             const materialMap = {};
             priceList.forEach(p => {
                 materialMap[p.id] = p.material_name;
             });
 
-            // 4. Process each record and calculate its position in the 28-day grid
+            // 3. Populate matrix grid
             if (collections) {
                 collections.forEach(col => {
                     const d = parseCollectionDate(col.date_collected);
                     if (!d) return;
 
-                    const dayOfMonth = d.getDate(); // 1 to 31
-                    
-                    // The form layout shows exactly 4 weeks × 7 days = 28 slot positions.
-                    // If a collection happens on day 29, 30, or 31, we accumulate it into day 28 
-                    // or handle it gracefully to prevent array overflow errors.
+                    const dayOfMonth = d.getDate();
+                    // Maps 1-28 cleanly. Days 29, 30, 31 blend gracefully into index 27 (Day 28 slot)
                     const layoutIndex = Math.min(28, dayOfMonth) - 1;
 
                     (col.collection_items || []).forEach(item => {
                         const dbName = materialMap[item.material_id] || 'Others';
+                        const normalizedDbName = dbName.trim().toLowerCase();
                         
-                        // Map the database string profile to the specific standard form row header
-                        const standardFormName = MATERIAL_MAPPING[dbName] || 
-                            RECYCLABLE_MATERIALS.find(m => m.toLowerCase() === dbName.toLowerCase()) || 
+                        // Check explicit mappings first, then look for loose matches in standard array
+                        let standardFormName = MATERIAL_MAPPING[normalizedDbName] || 
+                            RECYCLABLE_MATERIALS.find(m => m.toLowerCase() === normalizedDbName) || 
                             'Others';
 
                         const itemWeight = Number(item.weight) || 0;
@@ -113,7 +116,7 @@ const JunkshopExport = (() => {
             return aggregateFallbackLocalData(month, year);
         }
 
-        // Round numeric figures cleanly
+        // Clean rounding parameters
         Object.values(result).forEach(r => {
             r.total = Math.round(r.total * 100) / 100;
             r.dailyWeights = r.dailyWeights.map(w => Math.round(w * 100) / 100);
@@ -122,7 +125,6 @@ const JunkshopExport = (() => {
         return result;
     }
 
-    // Fallback local layout matrix parsing logic if Supabase drops offline
     function aggregateFallbackLocalData(month, year) {
         const raw = JSON.parse(localStorage.getItem('smartCycleCollections') || '[]');
         const result = {};
@@ -151,7 +153,6 @@ const JunkshopExport = (() => {
         'July','August','September','October','November','December'
     ];
 
-    // PDF EXPORT
     async function exportPDF(opts = {}) {
         const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         if (!jsPDF) {
@@ -163,11 +164,9 @@ const JunkshopExport = (() => {
         const month      = opts.month ?? now.getMonth();
         const year       = opts.year  ?? now.getFullYear();
         
-        // Await the live database payload aggregation asynchronously
         const data       = await aggregateSupabaseData(month, year);
         const monthLabel = `${MONTHS[month]} ${year}`;
 
-        // A4 landscape layout settings
         const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
         const W   = doc.internal.pageSize.getWidth();   
         const H   = doc.internal.pageSize.getHeight();  
@@ -194,7 +193,7 @@ const JunkshopExport = (() => {
             doc.setDrawColor(0,0,0); doc.setLineWidth(0.4); doc.rect(x, yy, w, h, 'S');
         };
 
-        // Header Logos setup
+        // Image loader logic
         const loadImage = async (path) => {
             try {
                 const resp = await fetch(path);
@@ -319,7 +318,6 @@ const JunkshopExport = (() => {
         }
         ry += rh2;
 
-        // Render rows using fetched matrix values
         RECYCLABLE_MATERIALS.forEach(mat => {
             const item = data[mat];
 
@@ -402,4 +400,5 @@ const JunkshopExport = (() => {
 
     return { exportPDF, aggregateData: aggregateSupabaseData, RECYCLABLE_MATERIALS };
 
-})();
+// Send your global instance inside the executing wrapper parameter
+})(window.supabase);
