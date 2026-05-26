@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const SUPABASE_KEY = "sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au";
     
     // FIX: Variable renamed to 'supabase' to match lines downstream
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // ------------------------------------------------------------------------
     // POPOVER HELPERS
