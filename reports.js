@@ -5,10 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------------------
     // 1. SUPABASE INITIALIZATION
     // -------------------------------------------------------------------------
-    // FIX: Change your initialization to access the global 'supabase' object correctly
     const SUPABASE_URL = "https://nlybbvlhhdjjmqkzjnhx.supabase.co"; 
     const SUPABASE_KEY = "sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au";
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    
+    // FIX: Variable renamed to 'supabase' to match lines downstream
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // -------------------------------------------------------------------------
     // POPOVER HELPERS
@@ -71,8 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // STATE MANAGEMENT FOR FILTERS
     let selectedStart = null;
     let selectedEnd = null;
-    
-    // FIX: Match the lowercase values used inside reports.html checkboxes
     let activeCategories = ['collections', 'sales']; 
 
     // Initialize with current month as default date range
@@ -83,39 +82,57 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     initDates();
 
+    // Helper to safely format JS Date objects to YYYY-MM-DD for PostgreSQL strings
+    function formatDateToSQL(dateObj) {
+        if (!dateObj) return null;
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     // -------------------------------------------------------------------------
     // 2. DIRECT SUPABASE FETCHING ENGINE
     // -------------------------------------------------------------------------
-    async function fetchAndRenderReportData(startDate, endDate, category) {
+    async function fetchAndRenderReportData() {
         try {
-            // 1. Invoke the database function directly via the Supabase client SDK
+            // FIX: Read date states inside the call block dynamically if params aren't passed
+            const sqlStart = formatDateToSQL(selectedStart);
+            const sqlEnd = formatDateToSQL(selectedEnd);
+
+            if (!sqlStart || !sqlEnd) return;
+
+            // FIX: Invoking client using global 'supabase' target match
             const { data, error } = await supabase
                 .rpc('get_material_transactions', { 
-                    start_date: startDate, 
-                    end_date: endDate 
+                    start_date: sqlStart, 
+                    end_date: sqlEnd 
                 });
     
-            // Handle database exceptions
             if (error) {
                 console.error("Supabase RPC Execution Error:", error.message);
                 return;
             }
     
-            // 2. Validate response structure
+            const emptyState = document.getElementById('emptyState');
+            const tableBody = document.getElementById('reportsTableBody');
+
             if (!data || data.length === 0) {
-                displayNoDataMessage(); // Triggers your "No report data available" state
+                if (tableBody) tableBody.innerHTML = '';
+                if (emptyState) emptyState.style.display = 'flex';
                 return;
             }
     
-            // 3. Process records into weekly column breakdown metrics
-            // Filter by category client-side if your drop-down filter specifies "Collections" or "Sales" exclusively
+            if (emptyState) emptyState.style.display = 'none';
+    
+            // FIX: Clean up matching case-insensitive array checks
             const filteredData = data.filter(item => {
-                if (category === 'Collections') return item.type === 'collection'; // If you decide to add a type tag
-                if (category === 'Sales') return item.type === 'sale';
-                return true; // Default to 'All'
+                // If item.type doesn't exist yet from RPC, default to true
+                if (!item.type) return true; 
+                return activeCategories.includes(item.type.toLowerCase());
             });
     
-            renderReportTable(filteredData, startDate);
+            renderReportTable(filteredData, selectedStart);
     
         } catch (err) {
             console.error("Failed handling interface rendering workflow:", err);
@@ -125,23 +142,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------------------
     // 3. WEEK GENERATION LOGIC
     // -------------------------------------------------------------------------
-    function renderReportTable(transactions, startDateStr) {
-        const tableBody = document.querySelector('#report-table-body'); // Adjust selector to your HTML
+    function renderReportTable(transactions, startRangeDate) {
+        // FIX: Match exact element identity ID attribute found on your DOM string
+        const tableBody = document.getElementById('reportsTableBody'); 
         if (!tableBody) return;
         
-        tableBody.innerHTML = ''; // Reset UI view
-        const startRange = new Date(startDateStr);
+        tableBody.innerHTML = ''; 
+        const startRange = new Date(startRangeDate);
+        startRange.setHours(0,0,0,0);
     
-        // Grouping structure matching your UI row components
         const materialSummary = {};
     
         transactions.forEach(tx => {
             const txDate = new Date(tx.transaction_date);
+            txDate.setHours(0,0,0,0);
             const name = tx.material_name;
     
-            // Determine difference in days to map to the correct column bucket
-            const diffTime = Math.abs(txDate - startRange);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            // Determine difference in days relative to the target selection
+            const diffTime = txDate - startRange;
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
             
             // Match specific 7-day windows
             let weekKey = 'week1';
@@ -157,54 +176,32 @@ document.addEventListener('DOMContentLoaded', () => {
             materialSummary[name].total += parseFloat(tx.weight || 0);
         });
     
-        // Generate table markup matching your clean dashboard UI
+        // If categories or date filters zero out matching metrics
+        if (Object.keys(materialSummary).length === 0) {
+            const emptyState = document.getElementById('emptyState');
+            if (emptyState) emptyState.style.display = 'flex';
+            return;
+        }
+
+        // Generate table markup matching your clean UI rules
         Object.keys(materialSummary).forEach(matName => {
             const rowData = materialSummary[matName];
             const rowHTML = `
                 <tr>
-                    <td class="material-name-cell">${matName}</td>
-                    <td>${rowData.week1.toFixed(1)}</td>
-                    <td>${rowData.week2.toFixed(1)}</td>
-                    <td>${rowData.week3.toFixed(1)}</td>
-                    <td>${rowData.week4.toFixed(1)}</td>
-                    <td class="total-weight-cell"><strong>${rowData.total.toFixed(1)}</strong></td>
+                    <td class="col-material" style="font-weight: 600; color: #1e293b; text-align: left; padding: 14px 24px;">${matName}</td>
+                    <td style="color: #334155; padding: 14px 24px;">${rowData.week1.toFixed(1)}</td>
+                    <td style="color: #334155; padding: 14px 24px;">${rowData.week2.toFixed(1)}</td>
+                    <td style="color: #334155; padding: 14px 24px;">${rowData.week3.toFixed(1)}</td>
+                    <td style="color: #334155; padding: 14px 24px;">${rowData.week4.toFixed(1)}</td>
+                    <td class="col-total" style="font-weight: 700; color: #0f172a; padding: 14px 24px;"><strong>${rowData.total.toFixed(1)}</strong></td>
                 </tr>
             `;
             tableBody.insertAdjacentHTML('beforeend', rowHTML);
         });
     }
 
-    // -------------------------------------------------------------------------
-    // 4. RENDERING POPULATED TABLES
-    // -------------------------------------------------------------------------
-    const reportsBody = document.getElementById('reportsTableBody');
-    const emptyState = document.getElementById('emptyState');
-
-    function renderTable(data) {
-        if (!reportsBody) return;
-        reportsBody.innerHTML = '';
-
-        if (!data || data.length === 0) {
-            if (emptyState) emptyState.style.display = 'flex';
-            return;
-        }
-
-        if (emptyState) emptyState.style.display = 'none';
-
-        data.forEach(row => {
-            const tr = document.createElement('tr');
-            
-            tr.innerHTML = `
-                <td class="col-material" style="font-weight: 600; color: #1e293b; text-align: left; padding: 14px 24px;">${row.material}</td>
-                <td style="color: #334155; padding: 14px 24px;">${row.week1 || 0}</td>
-                <td style="color: #334155; padding: 14px 24px;">${row.week2 || 0}</td>
-                <td style="color: #334155; padding: 14px 24px;">${row.week3 || 0}</td>
-                <td style="color: #334155; padding: 14px 24px;">${row.week4 || 0}</td>
-                <td class="col-total" style="font-weight: 700; color: #0f172a; padding: 14px 24px;">${row.total}</td>
-            `;
-            reportsBody.appendChild(tr);
-        });
-    }
+    // You can remove your old "function renderTable(data)" block entirely because 
+    // renderReportTable now handles the HTML injection cleanly.
 
     // -------------------------------------------------------------------------
     // UI EVENT LISTENERS (Category & Calendar Range Sync)
