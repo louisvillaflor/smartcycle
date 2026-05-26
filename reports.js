@@ -86,111 +86,92 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------------------
     // 2. DIRECT SUPABASE FETCHING ENGINE
     // -------------------------------------------------------------------------
-    async function fetchAndRenderReportData() {
-        if (!selectedStart || !selectedEnd) return;
-
-        const startISO = selectedStart.toISOString().split('T')[0];
-        const endISO = selectedEnd.toISOString().split('T')[0];
-
-        let unifiedTransactions = [];
-
+    async function fetchAndRenderReportData(startDate, endDate, category) {
         try {
-            // A. FETCH COLLECTIONS DATA (If checked in UI)
-            // FIX: Updated matching rule to match lowercase tracking values
-            if (activeCategories.includes('collections')) {
-                const { data: collData, error: collErr } = await supabaseClient
-                    .from('collection_items')
-                    .select(`
-                        weight,
-                        price_list ( material_name ),
-                        collections ! inner ( date_collected )
-                    `)
-                    .gte('collections.date_collected', startISO)
-                    .lte('collections.date_collected', endISO);
-
-                if (collErr) throw collErr;
-
-                if (collData) {
-                    collData.forEach(item => {
-                        unifiedTransactions.push({
-                            material_name: item.price_list?.material_name || 'Unknown',
-                            transaction_date: item.collections?.date_collected,
-                            weight: item.weight
-                        });
-                    });
-                }
+            // 1. Invoke the database function directly via the Supabase client SDK
+            const { data, error } = await supabase
+                .rpc('get_material_transactions', { 
+                    start_date: startDate, 
+                    end_date: endDate 
+                });
+    
+            // Handle database exceptions
+            if (error) {
+                console.error("Supabase RPC Execution Error:", error.message);
+                return;
             }
-
-            // B. FETCH SALES DATA (If checked in UI)
-            // FIX: Updated matching rule to match lowercase tracking values
-            if (activeCategories.includes('sales')) {
-                const { data: salesData, error: salesErr } = await supabaseClient
-                    .from('sale_items')
-                    .select(`
-                        weight,
-                        price_list ( material_name ),
-                        sales ! inner ( date )
-                    `)
-                    .gte('sales.date', startISO)
-                    .lte('sales.date', endISO);
-
-                if (salesErr) throw salesErr;
-
-                if (salesData) {
-                    salesData.forEach(item => {
-                        unifiedTransactions.push({
-                            material_name: item.price_list?.material_name || 'Unknown',
-                            transaction_date: item.sales?.date,
-                            weight: item.weight
-                        });
-                    });
-                }
+    
+            // 2. Validate response structure
+            if (!data || data.length === 0) {
+                displayNoDataMessage(); // Triggers your "No report data available" state
+                return;
             }
-
-            // Process data into weekly columns and update UI
-            const processedData = processReportMetrics(unifiedTransactions, selectedStart);
-            renderTable(processedData);
-
-        } catch (error) {
-            console.error('Supabase query error:', error);
-            renderTable([]);
+    
+            // 3. Process records into weekly column breakdown metrics
+            // Filter by category client-side if your drop-down filter specifies "Collections" or "Sales" exclusively
+            const filteredData = data.filter(item => {
+                if (category === 'Collections') return item.type === 'collection'; // If you decide to add a type tag
+                if (category === 'Sales') return item.type === 'sale';
+                return true; // Default to 'All'
+            });
+    
+            renderReportTable(filteredData, startDate);
+    
+        } catch (err) {
+            console.error("Failed handling interface rendering workflow:", err);
         }
     }
 
     // -------------------------------------------------------------------------
     // 3. WEEK GENERATION LOGIC
     // -------------------------------------------------------------------------
-    function processReportMetrics(transactions, startDate) {
-        const materialMap = {};
-        const startTimestamp = new Date(startDate).setHours(0,0,0,0);
-
-        transactions.forEach(item => {
-            const matName = item.material_name;
-            if (!materialMap[matName]) {
-                materialMap[matName] = { material: matName, week1: 0, week2: 0, week3: 0, week4: 0, total: 0 };
+    function renderReportTable(transactions, startDateStr) {
+        const tableBody = document.querySelector('#report-table-body'); // Adjust selector to your HTML
+        if (!tableBody) return;
+        
+        tableBody.innerHTML = ''; // Reset UI view
+        const startRange = new Date(startDateStr);
+    
+        // Grouping structure matching your UI row components
+        const materialSummary = {};
+    
+        transactions.forEach(tx => {
+            const txDate = new Date(tx.transaction_date);
+            const name = tx.material_name;
+    
+            // Determine difference in days to map to the correct column bucket
+            const diffTime = Math.abs(txDate - startRange);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            // Match specific 7-day windows
+            let weekKey = 'week1';
+            if (diffDays > 7 && diffDays <= 14) weekKey = 'week2';
+            else if (diffDays > 14 && diffDays <= 21) weekKey = 'week3';
+            else if (diffDays > 21) weekKey = 'week4';
+    
+            if (!materialSummary[name]) {
+                materialSummary[name] = { week1: 0, week2: 0, week3: 0, week4: 0, total: 0 };
             }
-
-            const txDate = new Date(item.transaction_date).setHours(0,0,0,0);
-            const diffDays = Math.floor((txDate - startTimestamp) / (1000 * 60 * 60 * 24));
-            const weight = parseFloat(item.weight) || 0;
-
-            // Group transactions into 7-day windows starting from the selected start date
-            if (diffDays >= 0 && diffDays < 7) materialMap[matName].week1 += weight;
-            else if (diffDays >= 7 && diffDays < 14) materialMap[matName].week2 += weight;
-            else if (diffDays >= 14 && diffDays < 21) materialMap[matName].week3 += weight;
-            else if (diffDays >= 21) materialMap[matName].week4 += weight;
-
-            materialMap[matName].total += weight;
+    
+            materialSummary[name][weekKey] += parseFloat(tx.weight || 0);
+            materialSummary[name].total += parseFloat(tx.weight || 0);
         });
-
-        return Object.values(materialMap).map(row => ({
-            material: row.material,
-            week1: row.week1 > 0 ? parseFloat(row.week1.toFixed(1)) : 0,
-            week2: row.week2 > 0 ? parseFloat(row.week2.toFixed(1)) : 0,
-            week3: row.week3 > 0 ? parseFloat(row.week3.toFixed(1)) : 0,
-            week4: row.week4 > 0 ? parseFloat(row.week4.toFixed(1)) : 0,
-            total: parseFloat(row.total.toFixed(1))
-        }));
+    
+        // Generate table markup matching your clean dashboard UI
+        Object.keys(materialSummary).forEach(matName => {
+            const rowData = materialSummary[matName];
+            const rowHTML = `
+                <tr>
+                    <td class="material-name-cell">${matName}</td>
+                    <td>${rowData.week1.toFixed(1)}</td>
+                    <td>${rowData.week2.toFixed(1)}</td>
+                    <td>${rowData.week3.toFixed(1)}</td>
+                    <td>${rowData.week4.toFixed(1)}</td>
+                    <td class="total-weight-cell"><strong>${rowData.total.toFixed(1)}</strong></td>
+                </tr>
+            `;
+            tableBody.insertAdjacentHTML('beforeend', rowHTML);
+        });
     }
 
     // -------------------------------------------------------------------------
