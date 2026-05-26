@@ -119,6 +119,8 @@ const JunkshopExport = (() => {
 
     // PDF EXPORT
 
+ // PDF EXPORT
+
     async function exportPDF(opts = {}) {
         const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         if (!jsPDF) {
@@ -184,9 +186,9 @@ const JunkshopExport = (() => {
         const leftLogoData  = await loadImage('photo/left_logo.jpg');
         const rightLogoData = await loadImage('photo/right_logo.png');
         if (leftLogoData)  doc.addImage(leftLogoData,  'JPEG', centerX - 200 - logoW, logoY, logoW, logoH);
-        if (rightLogoData) doc.addImage(rightLogoData, 'PNG',  centerX + 200,         logoY, logoW, logoH);
+        if (rightLogoData) doc.addImage(rightLogoData, 'PNG',   centerX + 200,         logoY, logoW, logoH);
 
-        ctext('Republic of the Philippines',   y + 13, 9.5, 'normal');
+        ctext('Republic of the Philippines',    y + 13, 9.5, 'normal');
         ctext('City of Manila',                y + 25,  9.5, 'normal');
         ctext('DEPARTMENT OF PUBLIC SERVICES', y + 42, 17,  'bold', [0, 70, 150]);
         ctext('Manila, Philippines',           y + 57, 9.5, 'normal');
@@ -241,7 +243,7 @@ const JunkshopExport = (() => {
         hline(ML, W - MR, y + 4, 0.6);
         y += 12;
 
-        // TABLE
+        // TABLE METRICS
         const colMat   = 88;
         const colTotal = 44;
         const colWeeks = usableW - colMat - colTotal;
@@ -270,9 +272,7 @@ const JunkshopExport = (() => {
         ry += rh0;
 
         // Header row 1
-        // RECYCLABLE cell
         box(ML, ry, colMat, rh1 + rh2);
-        // Monthly Total cell
         const totX = ML + colMat + colWeeks;
         box(totX, ry, colTotal, rh1 + rh2);
 
@@ -285,11 +285,9 @@ const JunkshopExport = (() => {
             wx += colWeek;
         }
 
-        // RECYCLABLE vertically centred
         doc.setFontSize(8);
         doc.text('RECYCLABLE', ML + colMat / 2, ry + (rh1 + rh2) / 2 + 3, { align: 'center' });
 
-        // Monthly Total vertically
         doc.setFontSize(7.5);
         doc.text('Monthly', totX + colTotal / 2, ry + (rh1 + rh2) / 2 - 1, { align: 'center' });
         doc.text('Total',   totX + colTotal / 2, ry + (rh1 + rh2) / 2 + 9, { align: 'center' });
@@ -308,37 +306,56 @@ const JunkshopExport = (() => {
         }
         ry += rh2;
 
-        // Data rows
+        // =========================================================
+        // DATA ROW PROCESSING WITH MATRIX MAPPING
+        // =========================================================
         RECYCLABLE_MATERIALS.forEach(mat => {
-            const r = data[mat];
+            // Check if our options payload passed reportData matrix, otherwise fall back to aggregated data
+            const item = (opts.reportData && opts.reportData[mat]) ? opts.reportData[mat] : null;
+            const fallbackItem = data[mat];
 
+            // Material Label Column
             box(ML, ry, colMat, rh3);
             doc.setFont('times', 'normal'); doc.setFontSize(8); doc.setTextColor(0,0,0);
             doc.text(mat, ML + 3, ry + rh3 - 4);
 
+            // Iterate across all 28 day cell points sequentially
             wx = ML + colMat;
-            [r.w1, r.w2, r.w3, r.w4].forEach(weekVal => {
-                for (let d = 1; d <= dayCount; d++) {
-                    box(wx, ry, dayW, rh3);
-                    if (d === dayCount && weekVal > 0) {
-                        doc.setFont('times', 'bold'); doc.setFontSize(6.5);
-                        doc.text(String(weekVal), wx + dayW / 2, ry + rh3 - 3, { align: 'center' });
-                        doc.setFont('times', 'normal'); doc.setFontSize(8);
-                    }
-                    wx += dayW;
-                }
-            });
+            doc.setFont('times', 'normal'); doc.setFontSize(6.5);
 
+            for (let i = 0; i < 28; i++) {
+                box(wx, ry, dayW, rh3);
+                
+                let dayWeight = 0;
+                if (item && item.dailyWeights) {
+                    dayWeight = Number(item.dailyWeights[i]) || 0;
+                }
+
+                // Render value if it exists
+                if (dayWeight > 0) {
+                    doc.text(dayWeight.toFixed(1), wx + dayW / 2, ry + rh3 - 4, { align: 'center' });
+                } else {
+                    // Clean look for blank days matching official forms
+                    doc.text('-', wx + dayW / 2, ry + rh3 - 4, { align: 'center' });
+                }
+                wx += dayW;
+            }
+
+            // Monthly Total Column
             box(totX, ry, colTotal, rh3);
-            if (r.total > 0) {
+            const totalValue = item ? item.total : (fallbackItem ? fallbackItem.total : 0);
+            if (totalValue > 0) {
                 doc.setFont('times', 'bold'); doc.setFontSize(8);
-                doc.text(String(r.total), totX + colTotal / 2, ry + rh3 - 4, { align: 'center' });
+                doc.text(totalValue.toFixed(1), totX + colTotal / 2, ry + rh3 - 4, { align: 'center' });
+            } else {
+                doc.setFont('times', 'normal'); doc.setFontSize(8);
+                doc.text('-', totX + colTotal / 2, ry + rh3 - 4, { align: 'center' });
             }
 
             ry += rh3;
         });
 
-        // Two blank rows at bottom
+        // Two blank rows at bottom for physical/manual logs
         for (let i = 0; i < 2; i++) {
             box(ML, ry, colMat, rh3);
             wx = ML + colMat;
@@ -355,15 +372,13 @@ const JunkshopExport = (() => {
         y += 28;
 
         const sigL = 175, dateL = 75;
-        // Left side: signature line and Date line
         hline(ML,         ML + sigL,                  y, 0.8);
         hline(ML + sigL + 14, ML + sigL + 14 + dateL, y, 0.8);
-        // Right side
         hline(W / 2 + 8,              W / 2 + 8 + sigL,                  y, 0.8);
         hline(W / 2 + 8 + sigL + 14,  W / 2 + 8 + sigL + 14 + dateL,    y, 0.8);
 
         y += 9;
-        ltext('Junkshop Owner/In-Charge', ML,                   y, 9,   'bold');
+        ltext('Junkshop Owner/In-Charge', ML,                    y, 9,   'bold');
         ltext('Date',                     ML + sigL + 20,        y, 9,   'normal');
         ltext('DPS - Monitoring',         W / 2 + 8,             y, 9,   'bold');
         ltext('Date',                     W / 2 + 8 + sigL + 20, y, 9,   'normal');
