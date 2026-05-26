@@ -226,7 +226,7 @@ body {
 }
 
 .main-row.open .chevron-cell i {
-    transform: rotate(90deg);
+    transform: rotate(180deg);
 }
 
 .action-btns {
@@ -301,7 +301,6 @@ body {
 /* Expandable sub row */
 .sub-row-container {
     display: none;
-    background-color: #fcfdfe;
 }
 
 .sub-row-container.show {
@@ -314,17 +313,26 @@ body {
 }
 
 .expanded-content {
-    background: transparent;
-    padding: 0 0 12px 0;
-}
-
-.expanded-inner {
-    padding: 20px 50px 20px 90px;
+    background: #f8fafc;
+    border-top: 1px solid #e9f0f7;
+    border-bottom: 1px solid #e9f0f7;
 }
 
 .expanded-table {
     width: 100%;
     border-collapse: collapse;
+    font-size: 13px;
+}
+
+.expanded-table thead tr {
+    padding: 10px 12px;
+    background: #edf3f8;
+    color: #526072;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #dce8f0;
 }
 
 .expanded-table tbody tr {
@@ -337,14 +345,14 @@ body {
 
 .expanded-table tbody td {
     font-size: 13px;
-    color: #334155;
-    padding: 12px 20px;
+    color: #374151;
+    padding: 10px 12px;
     background: transparent;
 }
 
-.expanded-table td:nth-child(2) { text-align: center; }
-.expanded-table td:nth-child(3) { text-align: center; }
-.expanded-table td:nth-child(4) { text-align: right; font-weight: 700; }
+.expanded-table tbody tr:hover{
+    background: #f1f8ff;
+}
 
 .total-summary-line {
     display: flex;
