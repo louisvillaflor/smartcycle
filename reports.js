@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const SUPABASE_URL = "https://nlybbvlhhdjjmqkzjnhx.supabase.co"; 
     const SUPABASE_KEY = "sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au";
     
-    // FIX: Variable renamed to 'supabase' to match lines downstream
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // ------------------------------------------------------------------------
@@ -28,7 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function togglePopover(btn, popover, others = []) {
         const isOpen = popover.getAttribute('aria-hidden') === 'false';
-        others.forEach(({ b, p }) => closePopover(b, p));
+        others.forEach(({ b, p }) => {
+            if (b && p) closePopover(b, p);
+        });
         isOpen ? closePopover(btn, popover) : openPopover(btn, popover);
     }
 
@@ -50,23 +51,59 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // POPOVER ELEMENTS REGISTRATION
+    // POPOVER ELEMENTS REGISTRATION (Desktop & Mobile)
     const dateBtn = document.getElementById('dateBtn');
     const datePopover = document.getElementById('datePopover');
     const categoryBtn = document.getElementById('categoryBtn');
     const categoryPopover = document.getElementById('categoryPopover');
 
+    const dateBtnMobile = document.getElementById('dateBtnMobile');
+    const datePopoverMobile = document.getElementById('datePopoverMobile');
+    const categoryBtnMobile = document.getElementById('categoryBtnMobile');
+    const categoryPopoverMobile = document.getElementById('categoryPopoverMobile');
+
+    // Register pairs for click away detection
     registerPair(dateBtn, datePopover);
     registerPair(categoryBtn, categoryPopover);
+    registerPair(dateBtnMobile, datePopoverMobile);
+    registerPair(categoryBtnMobile, categoryPopoverMobile);
 
+    // Desktop Click Listeners
     dateBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
-        togglePopover(dateBtn, datePopover, [{ b: categoryBtn, p: categoryPopover }]);
+        togglePopover(dateBtn, datePopover, [
+            { b: categoryBtn, p: categoryPopover },
+            { b: dateBtnMobile, p: datePopoverMobile },
+            { b: categoryBtnMobile, p: categoryPopoverMobile }
+        ]);
     });
 
     categoryBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
-        togglePopover(categoryBtn, categoryPopover, [{ b: dateBtn, p: datePopover }]);
+        togglePopover(categoryBtn, categoryPopover, [
+            { b: dateBtn, p: datePopover },
+            { b: dateBtnMobile, p: datePopoverMobile },
+            { b: categoryBtnMobile, p: categoryPopoverMobile }
+        ]);
+    });
+
+    // Mobile Click Listeners
+    dateBtnMobile?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePopover(dateBtnMobile, datePopoverMobile, [
+            { b: dateBtn, p: datePopover },
+            { b: categoryBtn, p: categoryPopover },
+            { b: categoryBtnMobile, p: categoryPopoverMobile }
+        ]);
+    });
+
+    categoryBtnMobile?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        togglePopover(categoryBtnMobile, categoryPopoverMobile, [
+            { b: dateBtn, p: datePopover },
+            { b: categoryBtn, p: categoryPopover },
+            { b: dateBtnMobile, p: datePopoverMobile }
+        ]);
     });
 
     // STATE MANAGEMENT FOR FILTERS
@@ -82,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     initDates();
 
-    // Helper to safely format JS Date objects to YYYY-MM-DD for PostgreSQL strings
     function formatDateToSQL(dateObj) {
         if (!dateObj) return null;
         const year = dateObj.getFullYear();
@@ -101,7 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!sqlStart || !sqlEnd) return;
 
-            // Call your Supabase RPC function directly
             const { data, error } = await supabase
                 .rpc('get_material_transactions', { 
                     start_date: sqlStart, 
@@ -124,13 +159,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
             if (emptyState) emptyState.style.display = 'none';
     
-            // Filter categories client-side based on checkboxes
+            // Filter categories client-side based on active checkboxes
             const filteredData = data.filter(item => {
                 if (!item.type) return true; 
                 return activeCategories.includes(item.type.toLowerCase());
             });
     
-            // Render rows to your UI table wrapper
             renderReportTable(filteredData, selectedStart);
     
         } catch (err) {
@@ -142,7 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3. WEEK GENERATION LOGIC
     // -------------------------------------------------------------------------
     function renderReportTable(transactions, startRangeDate) {
-        // FIX: Match exact element identity ID attribute found on your DOM string
         const tableBody = document.getElementById('reportsTableBody'); 
         if (!tableBody) return;
         
@@ -157,11 +190,9 @@ document.addEventListener('DOMContentLoaded', () => {
             txDate.setHours(0,0,0,0);
             const name = tx.material_name;
     
-            // Determine difference in days relative to the target selection
             const diffTime = txDate - startRange;
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
             
-            // Match specific 7-day windows
             let weekKey = 'week1';
             if (diffDays > 7 && diffDays <= 14) weekKey = 'week2';
             else if (diffDays > 14 && diffDays <= 21) weekKey = 'week3';
@@ -175,14 +206,12 @@ document.addEventListener('DOMContentLoaded', () => {
             materialSummary[name].total += parseFloat(tx.weight || 0);
         });
     
-        // If categories or date filters zero out matching metrics
         if (Object.keys(materialSummary).length === 0) {
             const emptyState = document.getElementById('emptyState');
             if (emptyState) emptyState.style.display = 'flex';
             return;
         }
 
-        // Generate table markup matching your clean UI rules
         Object.keys(materialSummary).forEach(matName => {
             const rowData = materialSummary[matName];
             const rowHTML = `
@@ -199,22 +228,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // You can remove your old "function renderTable(data)" block entirely because 
-    // renderReportTable now handles the HTML injection cleanly.
-
     // -------------------------------------------------------------------------
     // UI EVENT LISTENERS (Category & Calendar Range Sync)
     // -------------------------------------------------------------------------
-    document.querySelectorAll('.popover-content input[type="checkbox"]').forEach(cb => {
-        // Set UI defaults dynamically based on initial script state
+    
+    // Target all category checkboxes across both desktop and mobile containers
+    const allCheckboxes = document.querySelectorAll('.category-popover input[type="checkbox"]');
+
+    allCheckboxes.forEach(cb => {
+        // Apply default checking configuration
         if (activeCategories.includes(cb.value)) {
             cb.checked = true;
         }
 
-        cb.addEventListener('change', () => {
+        cb.addEventListener('change', (e) => {
+            const changedValue = e.target.value;
+            const isChecked = e.target.checked;
+
+            // Cross-synchronize changes between Desktop and Mobile configurations
+            allCheckboxes.forEach(item => {
+                if (item.value === changedValue) {
+                    item.checked = isChecked;
+                }
+            });
+
+            // Recalculate unique values currently selected
             activeCategories = [
-                ...document.querySelectorAll('.popover-content input[type="checkbox"]:checked')
-            ].map(c => c.value);
+                ...new Set([...allCheckboxes].filter(c => c.checked).map(c => c.value))
+            ];
             
             fetchAndRenderReportData();
         });
@@ -310,7 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-let desktopYear = new Date().getFullYear();
+    let desktopYear = new Date().getFullYear();
     let desktopMonth = new Date().getMonth();
     
     let mobileYear = new Date().getFullYear();
@@ -334,7 +375,6 @@ let desktopYear = new Date().getFullYear();
         buildDesktop();
     });
 
-    // Add Fallbacks for Mobile navigation controls if they exist in your DOM
     document.getElementById('calPrevMobile')?.addEventListener('click', () => {
         if (--mobileMonth < 0) { mobileMonth = 11; mobileYear--; }
         buildMobile();
@@ -347,10 +387,10 @@ let desktopYear = new Date().getFullYear();
 
     function rebuildAllCalendars() {
         buildDesktop();
-        buildMobile(); // Safely keep mobile rendering synchronized 
+        buildMobile(); 
     }
 
-    // QUICK RANGES LINK CODES
+    // QUICK RANGES LOGIC
     document.querySelectorAll('.quick-dates li button').forEach(btn => {
         btn.addEventListener('click', () => {
             btn.closest('ul').querySelectorAll('button').forEach(b => b.classList.remove('active'));
