@@ -5,10 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------------------
     // 1. SUPABASE INITIALIZATION
     // -------------------------------------------------------------------------
-    // Replace these strings with your actual Supabase Project URL and Anon API Key
-    const SUPABASE_URL = "https://your-project-id.supabase.co"; 
-    const SUPABASE_KEY = "your-actual-anon-public-api-key";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // FIX: Change your initialization to access the global 'supabase' object correctly
+    const SUPABASE_URL = "https://nlybbvlhhdjjmqkzjnhx.supabase.co"; 
+    const SUPABASE_KEY = "sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // -------------------------------------------------------------------------
     // POPOVER HELPERS
@@ -71,7 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // STATE MANAGEMENT FOR FILTERS
     let selectedStart = null;
     let selectedEnd = null;
-    let activeCategories = ['Collections', 'Sales']; // Tracks which categories are checked
+    
+    // FIX: Match the lowercase values used inside reports.html checkboxes
+    let activeCategories = ['collections', 'sales']; 
 
     // Initialize with current month as default date range
     const initDates = () => {
@@ -94,8 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // A. FETCH COLLECTIONS DATA (If checked in UI)
-            if (activeCategories.includes('Collections')) {
-                const { data: collData, error: collErr } = await supabase
+            // FIX: Updated matching rule to match lowercase tracking values
+            if (activeCategories.includes('collections')) {
+                const { data: collData, error: collErr } = await supabaseClient
                     .from('collection_items')
                     .select(`
                         weight,
@@ -119,8 +122,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // B. FETCH SALES DATA (If checked in UI)
-            if (activeCategories.includes('Sales')) {
-                const { data: salesData, error: salesErr } = await supabase
+            // FIX: Updated matching rule to match lowercase tracking values
+            if (activeCategories.includes('sales')) {
+                const { data: salesData, error: salesErr } = await supabaseClient
                     .from('sale_items')
                     .select(`
                         weight,
@@ -154,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // -------------------------------------------------------------------------
-    // 3. WEEK GENERATION LOGIC (MATCHING THE FIGMA COMPONENT)
+    // 3. WEEK GENERATION LOGIC
     // -------------------------------------------------------------------------
     function processReportMetrics(transactions, startDate) {
         const materialMap = {};
@@ -209,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
         data.forEach(row => {
             const tr = document.createElement('tr');
             
-            // Replicates exactly the clean table styles from Image 2 & 3
             tr.innerHTML = `
                 <td class="col-material" style="font-weight: 600; color: #1e293b; text-align: left; padding: 14px 24px;">${row.material}</td>
                 <td style="color: #334155; padding: 14px 24px;">${row.week1 || 0}</td>
@@ -226,6 +229,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // UI EVENT LISTENERS (Category & Calendar Range Sync)
     // -------------------------------------------------------------------------
     document.querySelectorAll('.popover-content input[type="checkbox"]').forEach(cb => {
+        // Set UI defaults dynamically based on initial script state
+        if (activeCategories.includes(cb.value)) {
+            cb.checked = true;
+        }
+
         cb.addEventListener('change', () => {
             activeCategories = [
                 ...document.querySelectorAll('.popover-content input[type="checkbox"]:checked')
