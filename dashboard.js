@@ -1,8 +1,8 @@
 // Dashboard JavaScript with Supabase Integration
 
 // TODO: Replace these with your actual Supabase credentials
-const SUPABASE_URL = 'https://your-project-id.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 
 // Initialize Supabase Client
 const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
