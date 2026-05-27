@@ -48,7 +48,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     editingIndex = index;
     clearAllErrors();
 
-    // 1. Force reload live prices into dropdown select first to avoid async timing issues
+    // 1. Force reload live prices into dropdown select and wait for cache population
     await loadActivePrices();
 
     // 2. Populate Header Fields
@@ -63,30 +63,21 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     if (document.getElementById('inAddress')) document.getElementById('inAddress').value = collectionHeader.address || '';
     if (document.getElementById('inContact')) document.getElementById('inContact').value = collectionHeader.contact_number || '';
 
-    // 3. Map line items securely matching current selector options to cure the "Unknown" rendering issue
+    // 3. SECURE FIX: Safely parse names using the robust local cache array directly
     window.currentItems = (detailedItems || []).map(item => {
-        // Attempt to match the material id against options currently loaded inside the drop-down selector
-        const selMaterial = document.getElementById('selMaterial');
-        let matchedName = '';
+        const targetMaterialId = parseInt(item.material_id, 10);
         
-        if (selMaterial) {
-            const matchedOption = Array.from(selMaterial.options).find(opt => parseInt(opt.value, 10) === parseInt(item.material_id, 10));
-            if (matchedOption) {
-                matchedName = matchedOption.dataset.name;
-            }
-        }
-
-        // Fallback to cache or simple lookup array if element parsing isn't finished in DOM tree
-        if (!matchedName) {
-            const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === parseInt(item.material_id, 10));
-            matchedName = cachedItem ? cachedItem.material_name : 'Unknown Material';
-        }
+        // Find the matched object directly in the array data fetched from Supabase
+        const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
+        
+        // Match standard naming fallbacks across both frontend layouts and backend joined fields
+        const finalName = item.material_name || item.material || (cachedItem ? cachedItem.material_name : 'Unknown Material');
 
         return {
-            materialId: parseInt(item.material_id, 10),
-            material: item.material_name || item.material || matchedName, // <-- Added item.material fallback
-            material_name: item.material_name || item.material || matchedName, // <-- Explicitly bind material_name
-            rate: Number(item.rate || 0),
+            materialId: targetMaterialId,
+            material: finalName,        // Resolves your modal preview layout
+            material_name: finalName,   // Resolves your main dashboard loop template
+            rate: Number(item.rate || (cachedItem ? cachedItem.price : 0)),
             weight: Number(item.weight || 0),
             subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
         };
