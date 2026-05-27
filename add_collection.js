@@ -1,9 +1,7 @@
-// Ensure strict tracking context variables exist safely at module/global scale
 let editingIndex = -1;
 let currentCategory = 'School';
 window.currentItems = []; // Initializing to prevent undefined array pushes
 
-// Local cache to resolve names during edit mode if needed
 let loadedPricesCache = [];
 
 function generateDisplayId(prefix) {
@@ -15,7 +13,6 @@ function toTitleCase(str) {
     return str.toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
 }
 
-// GLOBAL ASSIGNMENTS & MODAL INTERACTIONS
 window.openAddModal = async () => {
     const modal = document.getElementById('addCollectionModal');
     if (!modal) return;
@@ -26,18 +23,13 @@ window.openAddModal = async () => {
     editingIndex = -1;
     resetForm();
 
-    // Dynamically fetch and fill up material prices matching your Price List dashboard
     await loadActivePrices();
 
     document.getElementById('inDate').value = new Date().toISOString().split('T')[0];
     updatePreview();
-    setTimeout(refreshIcons, 100);
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 100);
 };
 
-/**
- * NEW FIXED ENGINE FUNCTION: Called from your main dashboard controller to safely open edit mode.
- * Resolves the missing 'material' name mapping bug from 'collection_items' structural relations.
- */
 window.openEditModal = async (index, collectionHeader, detailedItems) => {
     const modal = document.getElementById('addCollectionModal');
     if (!modal) return;
@@ -48,10 +40,9 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     editingIndex = index;
     clearAllErrors();
 
-    // 1. Force reload live prices into dropdown select and wait for cache population
+    // 1. CRITICAL: Await and completely load prices first so loadedPricesCache is ready!
     await loadActivePrices();
 
-    // 2. Populate Header Fields
     currentCategory = collectionHeader.type || 'School';
     document.querySelectorAll('.m-tab').forEach(tab => {
         const tabCategory = tab.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
@@ -63,39 +54,59 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     if (document.getElementById('inAddress')) document.getElementById('inAddress').value = collectionHeader.address || '';
     if (document.getElementById('inContact')) document.getElementById('inContact').value = collectionHeader.contact_number || '';
 
-    // 3. SECURE FIX: Safely parse names using the robust local cache array directly
+    // 2. Map structural values carefully avoiding the "Unknown" mutation loop
     window.currentItems = (detailedItems || []).map(item => {
-        const targetMaterialId = parseInt(item.material_id, 10);
+        // Fallback checks for various naming properties coming from database joins
+        const rawId = item.material_id || item.materialId || item.id;
+        const targetMaterialId = rawId ? parseInt(rawId, 10) : NaN;
         
-        // Find the matched object directly in the array data fetched from Supabase
-        const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
+        // Attempt to match via cached ID first
+        let cachedItem = null;
+        if (!isNaN(targetMaterialId)) {
+            cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
+        }
         
-        // Match standard naming fallbacks across both frontend layouts and backend joined fields
-        const finalName = item.material_name || item.material || (cachedItem ? cachedItem.material_name : 'Unknown Material');
+        // Secondary fuzzy matching using strings if structural IDs are missing
+        if (!cachedItem && (item.material_name || item.material || item.description)) {
+            const lookUpName = (item.material_name || item.material || item.description || '').trim().toLowerCase();
+            cachedItem = loadedPricesCache.find(p => (p.material_name || '').trim().toLowerCase() === lookUpName);
+        }
+
+        // Final naming resolution falling back to clean display targets
+        // CHANGED HERE: Make sure to check price_list (via price_list relational metadata joins)
+        const databaseFallbackName = item.price_list?.material_name || item.material_name || item.material || item.description;
+        const finalName = cachedItem ? cachedItem.material_name : (databaseFallbackName || 'Unknown Material');
+        
+        const resolvedId = cachedItem ? parseInt(cachedItem.id, 10) : targetMaterialId;
+        const resolvedRate = Number(item.rate || item.price || (cachedItem ? cachedItem.price : 0));
+        const resolvedWeight = Number(item.weight || item.qty || 0);
 
         return {
-            materialId: targetMaterialId,
-            material: finalName,        // Resolves your modal preview layout
-            material_name: finalName,   // Resolves your main dashboard loop template
-            rate: Number(item.rate || (cachedItem ? cachedItem.price : 0)),
-            weight: Number(item.weight || 0),
-            subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
+            materialId: isNaN(resolvedId) ? 0 : resolvedId,
+            material: finalName,        
+            material_name: finalName,   
+            rate: resolvedRate,
+            weight: resolvedWeight,
+            subtotal: Number(item.subtotal || item.amount || (resolvedRate * resolvedWeight) || 0)
         };
     });
 
-    // 4. Transform Action Button to Update context
-    const submitBtn = document.querySelector('.btn-submit-green');
+    // 3. Transform Action Button to Update context safely
+    const submitBtn = document.querySelector('.btn-submit-green') || document.querySelector('.modal-footer .btn-submit') || document.getElementById('btnSubmitCollection');
     if (submitBtn) {
-        submitBtn.onclick = () => submitCollection();
+        submitBtn.onclick = (e) => {
+            e.preventDefault();
+            submitCollection();
+        };
         submitBtn.innerHTML = '<i data-lucide="check"></i> Update Entry';
     }
 
     updatePreview();
     renderItems();
-    setTimeout(refreshIcons, 100);
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 100);
 };
 
-// FIXED ENGINE: Added 'id' to the select string so item.id isn't undefined
+// POPULATE LIVE PRICING ASYNC ENGINE
 async function loadActivePrices() {
     const selMaterial = document.getElementById('selMaterial');
     if (!selMaterial) return;
@@ -109,32 +120,32 @@ async function loadActivePrices() {
         if (error) throw error;
 
         if (prices && prices.length > 0) {
-            loadedPricesCache = prices; // Store references globally to parse safely on edit tasks
+            loadedPricesCache = prices; 
             selMaterial.innerHTML = prices.map((item, idx) => {
                 const rate = Math.round(item.price); 
-                return `<option value="${item.id}" data-name="${item.material_name}" data-rate="${rate}" ${idx === 0 ? 'selected' : ''}>
+                return `<option value="${item.id}" data-name="${item.material_name}" data-rate="${rate}">
                     ${item.material_name} - ₱${rate}/kg
                 </option>`;
-            }).join('');
+            ).join('');
         } else {
-            selMaterial.innerHTML = '<option value="" disabled>No active materials found</option>';
+            selMaterial.innerHTML = '<option value="" disabled selected>No active materials found</option>';
         }
     } catch (err) {
         console.error("Error fetching live price rates from database:", err.message);
-        // Fallback structures initialized cleanly to maintain operational tracking integrity
+        // Clean fallback defaults in case of connection drops
         loadedPricesCache = [
-            { id: 1, material_name: "Plastic", price: 3 },
+            { id: 1, material_name: "Plastic", price: 4 },
             { id: 2, material_name: "Bakal", price: 15 },
             { id: 3, material_name: "PET-Assorted", price: 5 },
             { id: 4, material_name: "Paper Assorted", price: 8 },
             { id: 5, material_name: "Yero", price: 8 }
         ];
         selMaterial.innerHTML = `
-            <option value=1 data-name="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
-            <option value=2 data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
-            <option value=3 data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
-            <option value=4 data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
-            <option value=5 data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
+            <option value="1" data-name="Plastic" data-rate="4">Plastic - ₱4/kg</option>
+            <option value="2" data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
+            <option value="3" data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
+            <option value="4" data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
+            <option value="5" data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
         `;
     }
 }
@@ -148,7 +159,6 @@ window.closeAddModal = () => {
     resetForm();
 };
 
-// Outside click modal dismiss handler
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('addCollectionModal');
     if (modal && e.target === modal) {
@@ -198,7 +208,6 @@ function formatContact(value) {
     return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 7)}-${cleaned.slice(7, 11)}`;
 }
 
-// RESET STATE ACTIONS
 function resetForm() {
     ['inCustomer', 'inDate', 'inAddress', 'inContact', 'inWeight'].forEach(id => {
         const el = document.getElementById(id);
@@ -214,7 +223,7 @@ function resetForm() {
         tab.classList.toggle('active', idx === 0);
     });
 
-    const submitBtn = document.querySelector('.btn-submit-green');
+    const submitBtn = document.querySelector('.btn-submit-green') || document.querySelector('.modal-footer .btn-submit') || document.getElementById('btnSubmitCollection');
     if (submitBtn) {
         submitBtn.onclick = () => submitCollection();
         submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
@@ -226,7 +235,7 @@ function resetForm() {
         if (el) el.innerText = value;
     });
 
-    refreshIcons();
+    if (typeof refreshIcons === 'function') refreshIcons();
 }
 
 window.setCategory = (category, btn) => {
@@ -259,7 +268,6 @@ window.updatePreview = function() {
 };
 
 // RECEIPT LINE ITEMS CONTROLLER
-// Replace your existing window.addItem function with this:
 window.addItem = function() {
     const sel = document.getElementById('selMaterial');
     const weightInput = document.getElementById('inWeight');
@@ -289,8 +297,8 @@ window.addItem = function() {
 
     window.currentItems.push({ 
         materialId,
-        material: materialName,     // Matches layout expectation
-        material_name: materialName, // Matches database expectation
+        material: materialName,     
+        material_name: materialName, 
         rate, 
         weight, 
         subtotal: rate * weight 
@@ -321,12 +329,12 @@ function renderItems() {
             total += item.subtotal;
             mainRowsHtml += `
                 <tr>
-                  <td>${item.material || 'Unknown'}</td>
+                  <td>${item.material || 'Unknown Material'}</td>
                   <td>₱${item.rate}</td>
                   <td>${item.weight} kg</td>
                   <td><strong>₱${item.subtotal.toFixed(2)}</strong></td>
                   <td>
-                    <button class="remove-item-btn" onclick="removeItem(${index})" title="Remove item">
+                    <button class="remove-item-btn" type="button" onclick="removeItem(${index})" title="Remove item">
                       <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
                     </button>
                   </td>
@@ -336,7 +344,7 @@ function renderItems() {
                 <tr>
                   <td style="text-align:center;">${item.weight}</td>
                   <td style="text-align:center;">kg</td>
-                  <td style="text-align:left;">${item.material || 'Unknown'}</td>
+                  <td style="text-align:left;">${item.material || 'Unknown Material'}</td>
                   <td style="text-align:center;">₱${item.rate}</td>
                   <td style="text-align:center;">₱${item.subtotal.toFixed(2)}</td>
                 </tr>`;
@@ -360,7 +368,7 @@ function renderItems() {
     const preTotalEl = document.getElementById('preTotal');
     if (preTotalEl) preTotalEl.innerText = `₱${total.toFixed(2)}`;
 
-    refreshIcons();
+    if (typeof refreshIcons === 'function') refreshIcons();
 }
 
 window.removeItem = (index) => {
@@ -368,13 +376,13 @@ window.removeItem = (index) => {
     renderItems();
 };
 
-// PERSISTENCE (SUPABASE SYNC ENGINE)
+// PERSISTENCE SYNC ENGINE
 window.submitCollection = async function() {
     const customer = document.getElementById('inCustomer')?.value.trim();
     const date = document.getElementById('inDate')?.value;
     const address = document.getElementById('inAddress')?.value.trim();
     const contact = document.getElementById('inContact')?.value.trim();
-    const submitBtn = document.querySelector('.btn-submit-green');
+    const submitBtn = document.querySelector('.btn-submit-green') || document.querySelector('.modal-footer .btn-submit') || document.getElementById('btnSubmitCollection');
 
     clearAllErrors();
     let hasError = false;
@@ -407,7 +415,7 @@ window.submitCollection = async function() {
         if (editingIndex !== -1) {
             const targetedCollection = (typeof getFilteredCollections === 'function') 
                 ? getFilteredCollections()[editingIndex] 
-                : window.collections[editingIndex];
+                : (window.collections ? window.collections[editingIndex] : null);
 
             if (!targetedCollection || !targetedCollection.id) {
                 throw new Error("Unable to identify targeted collection ID context.");
@@ -422,6 +430,7 @@ window.submitCollection = async function() {
 
             if (headerUpdateError) throw headerUpdateError;
 
+            // Clear old items securely
             const { error: itemsClearError } = await _supabase
                 .from('collection_items')
                 .delete()
@@ -429,13 +438,19 @@ window.submitCollection = async function() {
             
             if (itemsClearError) throw itemsClearError;
             
-            const itemsToInsert = window.currentItems.map(item => ({
-                collection_id: targetId,
-                material_id: item.materialId, 
-                rate: item.rate,
-                weight: item.weight,
-                subtotal: item.subtotal
-            }));
+            // Build the updated insert payloads safely
+            const itemsToInsert = window.currentItems.map(item => {
+                if (!item.materialId || item.materialId === 0) {
+                    throw new Error(`Data Integrity Error: Core Material ID configuration missing for entry "${item.material}"`);
+                }
+                return {
+                    collection_id: targetId,
+                    material_id: item.materialId, 
+                    rate: item.rate,
+                    weight: item.weight,
+                    subtotal: item.subtotal
+                };
+            });
         
             const { error: itemsInsertError } = await _supabase
                 .from('collection_items')
@@ -527,12 +542,12 @@ window.submitCollection = async function() {
 
     } catch (err) {
         console.error("Database Transaction Error:", err.message);
-        alert("Failed to save: " + err.message);
+        alert("Failed to save transaction: " + err.message);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
-            refreshIcons();
+            submitBtn.innerHTML = editingIndex !== -1 ? '<i data-lucide="check"></i> Update Entry' : '<i data-lucide="check"></i> Submit';
+            if (typeof refreshIcons === 'function') refreshIcons();
         }
     }
 };
@@ -575,7 +590,7 @@ function togglePreview() {
     
     right.classList.add('show-preview');
     left.style.display = 'none';
-    refreshIcons();
+    if (typeof refreshIcons === 'function') refreshIcons();
 }
 
 function closePreview() {
@@ -585,5 +600,10 @@ function closePreview() {
 
     right.classList.remove('show-preview');
     left.style.display = 'block';
-    refreshIcons();
+    if (typeof refreshIcons === 'function') refreshIcons();
 }
+
+// Call listeners initializations securely once window DOM settles
+document.addEventListener('DOMContentLoaded', () => {
+    window.setupFieldListeners();
+});
