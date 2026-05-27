@@ -38,6 +38,10 @@ window.openAddModal = async () => {
  * NEW FIXED ENGINE FUNCTION: Called from your main dashboard controller to safely open edit mode.
  * Resolves the missing 'material' name mapping bug from 'collection_items' structural relations.
  */
+/**
+ * FIXED ENGINE FUNCTION: Called from your main dashboard controller to safely open edit mode.
+ * Resolves the missing 'material' name mapping bug from 'collection_items' structural relations.
+ */
 window.openEditModal = async (index, collectionHeader, detailedItems) => {
     const modal = document.getElementById('addCollectionModal');
     if (!modal) return;
@@ -48,7 +52,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     editingIndex = index;
     clearAllErrors();
 
-    // 1. Force reload live prices into dropdown select and wait for cache population
+    // 1. Force reload live prices into dropdown select and await the network response fully
     await loadActivePrices();
 
     // 2. Populate Header Fields
@@ -65,13 +69,14 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
 
     // 3. SECURE FIX: Safely parse names using the robust local cache array directly
     window.currentItems = (detailedItems || []).map(item => {
+        // Ensure standard integer parsing for matching keys
         const targetMaterialId = parseInt(item.material_id, 10);
         
         // Find the matched object directly in the array data fetched from Supabase
         const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
         
-        // Match standard naming fallbacks across both frontend layouts and backend joined fields
-        const finalName = item.material_name || item.material || (cachedItem ? cachedItem.material_name : 'Unknown Material');
+        // PRIORITIZE CACHED ENTRY TO AVOID NULL VALUES FROM JOIN OVERLAYS
+        const finalName = (cachedItem ? cachedItem.material_name : null) || item.material_name || item.material || 'Unknown Material';
 
         return {
             materialId: targetMaterialId,
