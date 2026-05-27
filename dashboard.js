@@ -1,4 +1,11 @@
-// Dashboard JavaScript 
+// Dashboard JavaScript with Supabase Integration
+
+// TODO: Replace these with your actual Supabase credentials
+const SUPABASE_URL = 'https://your-project-id.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+
+// Initialize Supabase Client
+const supabase = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 // CHECK AUTHENTICATION - Protect dashboard page
 (function checkAuth() {
@@ -24,92 +31,256 @@ document.addEventListener('DOMContentLoaded', function() {
         lucide.createIcons();
     }
     
-    // Load dashboard data from backend
+    if (!supabase) {
+        console.error("Supabase client failed to load from CDN.");
+        return;
+    }
+
+    // Load dynamic dashboard data from Supabase
     loadDashboardData();
 });
 
 /**
- * Main function to load all dashboard data from backend
- * Replace the endpoint with actual backend url in short eme lang to 
+ * Main function to load all dashboard data from Supabase database
  */
 async function loadDashboardData() {
     try {
-        // For now, using mock data as template
-        // Oreplace this with actual data
-        const data = {
-            userName: 'Admin',
+        const now = new Date();
+        const currentMonthNum = now.getMonth(); // 0 = Jan, 4 = May, etc.
+        const currentYear = now.getFullYear();
+
+        // ----------------------------------------
+        // 1. TOTAL DISTRIBUTORS & TREND
+        // ----------------------------------------
+        // Category 'Distributor' corresponds to profile entries count
+        const { data: profiles, error: pError } = await supabase
+            .from('profiles')
+            .select('created_at, type');
+
+        if (pError) throw pError;
+
+        // Assuming distributors are records where type is 'distributor' or similar, 
+        // if profiles are purely distributors, we count all.
+        const totalDistributors = profiles.length;
+
+        // Calculate Distributor MoM trend
+        const currentMonthDistributors = profiles.filter(p => {
+            const d = new Date(p.created_at);
+            return d.getMonth() === currentMonthNum && d.getFullYear() === currentYear;
+        }).length;
+
+        const prevMonthDistributors = profiles.filter(p => {
+            const d = new Date(p.created_at);
+            return d.getMonth() === (currentMonthNum - 1 === -1 ? 11 : currentMonthNum - 1) && 
+                   d.getFullYear() === (currentMonthNum - 1 === -1 ? currentYear - 1 : currentYear);
+        }).length;
+
+        const distributorTrend = calculateTrend(currentMonthDistributors, prevMonthDistributors);
+
+        // ----------------------------------------
+        // 2. TOTAL SALES & TREND
+        // ----------------------------------------
+        const { data: sales, error: sError } = await supabase
+            .from('sales')
+            .select('date, total_amount');
+
+        if (sError) throw sError;
+
+        const totalSales = sales.reduce((acc, curr) => acc + Number(curr.total_amount || 0), 0);
+
+        // Calculate Sales MoM trend
+        const currentMonthSales = sales.filter(s => {
+            const d = new Date(s.date);
+            return d.getMonth() === currentMonthNum && d.getFullYear() === currentYear;
+        }).reduce((acc, curr) => acc + Number(curr.total_amount || 0), 0);
+
+        const prevMonthSales = sales.filter(s => {
+            const d = new Date(s.date);
+            return d.getMonth() === (currentMonthNum - 1 === -1 ? 11 : currentMonthNum - 1) && 
+                   d.getFullYear() === (currentMonthNum - 1 === -1 ? currentYear - 1 : currentYear);
+        }).reduce((acc, curr) => acc + Number(curr.total_amount || 0), 0);
+
+        const salesTrend = calculateTrend(currentMonthSales, prevMonthSales);
+
+        // ----------------------------------------
+        // 3. TOTAL COLLECTION & TREND
+        // ----------------------------------------
+        // Fetch raw weights accumulated from collection_items
+        const { data: collectionItems, error: ciError } = await supabase
+            .from('collection_items')
+            .select('weight, collections(date_collected), price_list(material_name)');
+
+        if (ciError) throw ciError;
+
+        const totalCollection = collectionItems.reduce((acc, curr) => acc + Number(curr.weight || 0), 0);
+
+        // Calculate Collection MoM trend
+        const currentMonthColl = collectionItems.filter(item => {
+            if (!item.collections || !item.collections.date_collected) return false;
+            const d = new Date(item.collections.date_collected);
+            return d.getMonth() === currentMonthNum && d.getFullYear() === currentYear;
+        }).reduce((acc, curr) => acc + Number(curr.weight || 0), 0);
+
+        const prevMonthColl = collectionItems.filter(item => {
+            if (!item.collections || !item.collections.date_collected) return false;
+            const d = new Date(item.collections.date_collected);
+            return d.getMonth() === (currentMonthNum - 1 === -1 ? 11 : currentMonthNum - 1) && 
+                   d.getFullYear() === (currentMonthNum - 1 === -1 ? currentYear - 1 : currentYear);
+        }).reduce((acc, curr) => acc + Number(curr.weight || 0), 0);
+
+        const collectionTrend = calculateTrend(currentMonthColl, prevMonthColl);
+
+        // ----------------------------------------
+        // 4. SPARKLINE CHRONOLOGY (Last 6 Months Data Array)
+        // ----------------------------------------
+        const sparklineData = {
+            collection: getMonthlyChronology(collectionItems, 'weight', 'collections', 'date_collected'),
+            sales: getMonthlyChronology(sales, 'total_amount', null, 'date'),
+            distributors: getMonthlyChronology(profiles, 'count', null, 'created_at')
+        };
+
+        // ----------------------------------------
+        // 5. CHART: MOST COLLECTED MATERIALS (Bar Chart)
+        // ----------------------------------------
+        const monthLabels = ['Jan', 'Feb', 'March', 'April', 'May'];
+        const materialDatasets = processMaterialData(collectionItems, monthLabels, currentYear);
+
+        // ----------------------------------------
+        // 6. CHART: TOP CONTRIBUTION BY CATEGORY (Donut Chart)
+        // ----------------------------------------
+        // Grouping users by profiles categories (Barangay, School, Walk-in)
+        const categoriesCount = { 'Barangay': 0, 'School': 0, 'Walk-in': 0 };
+        profiles.forEach(p => {
+            if (p.type && categoriesCount[p.type] !== undefined) {
+                categoriesCount[p.type]++;
+            } else if (p.category && categoriesCount[p.category] !== undefined) {
+                // matching fallback column name in your schema description
+                categoriesCount[p.category]++;
+            }
+        });
+
+        const totalCatSum = categoriesCount['Barangay'] + categoriesCount['School'] + categoriesCount['Walk-in'] || 1;
+        const categoryPercentages = [
+            Math.round((categoriesCount['Barangay'] / totalCatSum) * 100),
+            Math.round((categoriesCount['School'] / totalCatSum) * 100),
+            Math.round((categoriesCount['Walk-in'] / totalCatSum) * 100)
+        ];
+
+        // Combine everything into the dashboard structural format
+        const finalDashboardData = {
+            userName: sessionStorage.getItem('userName') || 'Admin',
             stats: {
-                totalCollection: 1253,
-                collectionTrend: 1.5,
-                collectionTrendPositive: true,
-                totalSales: 2142,
-                salesTrend: 5.5,
-                salesTrendPositive: true,
-                totalDistributors: 872,
-                distributorTrend: 1.4,
-                distributorTrendPositive: true
+                totalCollection: Math.round(totalCollection),
+                collectionTrend: Math.abs(collectionTrend),
+                collectionTrendPositive: collectionTrend >= 0,
+                totalSales: Math.round(totalSales),
+                salesTrend: Math.abs(salesTrend),
+                salesTrendPositive: salesTrend >= 0,
+                totalDistributors: totalDistributors,
+                distributorTrend: Math.abs(distributorTrend),
+                distributorTrendPositive: distributorTrend >= 0
             },
-            sparklineData: {
-                collection: [30, 45, 40, 55, 50, 65, 60, 75],
-                sales: [40, 55, 50, 70, 65, 80, 75, 90],
-                distributors: [20, 25, 30, 28, 35, 40, 38, 45]
-            },
+            sparklineData: sparklineData,
             materialsData: {
-                labels: ['Jan', 'Feb', 'March', 'April', 'May'],
-                datasets: [
-                    {
-                        label: 'Plastic',
-                        data: [120, 90, 70, 50, 40],
-                        backgroundColor: '#FFEB8A'
-                    },
-                    {
-                        label: 'Metal',
-                        data: [140, 100, 80, 60, 50],
-                        backgroundColor: '#71D7D0'
-                    },
-                    {
-                        label: 'Paper',
-                        data: [160, 110, 90, 70, 60],
-                        backgroundColor: '#B9E682'
-                    }
-                ]
+                labels: monthLabels,
+                datasets: materialDatasets
             },
             categoryData: {
                 labels: ['Barangay', 'School', 'Walk-in'],
-                data: [45, 30, 25],
+                data: categoryPercentages,
                 backgroundColor: ['#FFEB8A', '#71D7D0', '#B9E682']
             }
         };
-        
-        // Update the dashboard with the data
-        updateDashboard(data);
+
+        // Render to Screen Layout
+        updateDashboard(finalDashboardData);
         
     } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        console.error('Error loading dashboard data from Supabase:', error);
     }
+}
+
+/**
+ * Helper: Math percentage parser for MoM Trend Values
+ */
+function calculateTrend(current, previous) {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Number(((current - previous) / previous * 100).toFixed(1));
+}
+
+/**
+ * Helper: Generates a sequential trend array of values for Sparklines over last 6 months
+ */
+function getMonthlyChronology(items, valueField, relationField, dateField) {
+    const counts = new Array(6).fill(0);
+    const now = new Date();
+    
+    items.forEach(item => {
+        let dateStr = relationField ? (item[relationField] ? item[relationField][dateField] : null) : item[dateField];
+        if (!dateStr) return;
+        
+        const date = new Date(dateStr);
+        const monthDiff = (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
+        
+        if (monthDiff >= 0 && monthDiff < 6) {
+            const index = 5 - monthDiff; // order older months first
+            if (valueField === 'count') {
+                counts[index]++;
+            } else {
+                counts[index] += Number(item[valueField] || 0);
+            }
+        }
+    });
+    return counts;
+}
+
+/**
+ * Helper: Aggregates weights by matching specific material names per calendar month
+ */
+function processMaterialData(collectionItems, months, targetYear) {
+    const materials = [
+        { label: 'Plastic', color: '#FFEB8A' },
+        { label: 'Metal', color: '#71D7D0' },
+        { label: 'Paper', color: '#B9E682' }
+    ];
+
+    return materials.map(mat => {
+        const monthlyData = new Array(months.length).fill(0);
+        
+        collectionItems.forEach(item => {
+            const name = item.price_list?.material_name?.toLowerCase() || "";
+            if (name.includes(mat.label.toLowerCase())) {
+                if (item.collections && item.collections.date_collected) {
+                    const d = new Date(item.collections.date_collected);
+                    if (d.getFullYear() === targetYear) {
+                        const mIndex = d.getMonth(); // 0 = Jan, 1 = Feb etc.
+                        if (mIndex < months.length) {
+                            monthlyData[mIndex] += Number(item.weight || 0);
+                        }
+                    }
+                }
+            }
+        });
+
+        return {
+            label: mat.label,
+            data: monthlyData.map(v => Math.round(v)),
+            backgroundColor: mat.color
+        };
+    });
 }
 
 /**
  * Update dashboard elements with data from backend
  */
 function updateDashboard(data) {
-    // Update user name in greeting
     updateUserName(data.userName);
-    
-    // Update statistics cards
     updateStats(data.stats);
-    
-    // Create sparkline charts
     createSparklines(data.sparklineData);
-    
-    // Create main charts
     createMaterialsChart(data.materialsData);
     createCategoryChart(data.categoryData);
 }
 
-/**
- * Update user name in greeting
- */
 function updateUserName(name) {
     const userNameElement = document.getElementById('user-name');
     if (userNameElement) {
@@ -117,67 +288,46 @@ function updateUserName(name) {
     }
 }
 
-/**
- * Update all statistics cards
- * Backend should provide stats object with all values
- */
 function updateStats(stats) {
-    // Update Total Collection
     document.getElementById('total-collection').textContent = formatNumber(stats.totalCollection);
     document.getElementById('collection-trend-value').textContent = stats.collectionTrend + '%';
     updateTrendIndicator('collection-trend', stats.collectionTrendPositive);
     
-    // Update Total Sales
     document.getElementById('total-sales').textContent = formatNumber(stats.totalSales);
     document.getElementById('sales-trend-value').textContent = stats.salesTrend + '%';
     updateTrendIndicator('sales-trend', stats.salesTrendPositive);
     
-    // Update Total Distributors
     document.getElementById('total-distributors').textContent = formatNumber(stats.totalDistributors);
     document.getElementById('distributor-trend-value').textContent = stats.distributorTrend + '%';
     updateTrendIndicator('distributor-trend', stats.distributorTrendPositive);
 }
 
-/**
- * Update trend indicator (positive/negative)
- */
 function updateTrendIndicator(elementId, isPositive) {
     const trendElement = document.getElementById(elementId);
     if (trendElement) {
         trendElement.classList.remove('positive', 'negative');
         trendElement.classList.add(isPositive ? 'positive' : 'negative');
         
-        // Update icon
         const icon = trendElement.querySelector('i');
         if (icon) {
             icon.setAttribute('data-lucide', isPositive ? 'trending-up' : 'trending-down');
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
     }
 }
 
-/**
- * Create sparkline charts
- * Backend should provide array of values for each sparkline
- */
 function createSparklines(sparklineData) {
     createSparkline('collectionSparkline', sparklineData.collection, '#FFEB8A');
     createSparkline('salesSparkline', sparklineData.sales, '#71D7D0');
     createSparkline('distributorSparkline', sparklineData.distributors, '#B9E682');
 }
 
-/**
- * Create individual sparkline chart
- */
 function createSparkline(canvasId, data, color) {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
     
-    // Destroy existing chart if it exists to prevent duplication
     const existingChart = Chart.getChart(ctx);
-    if (existingChart) {
-        existingChart.destroy();
-    }
+    if (existingChart) existingChart.destroy();
     
     new Chart(ctx, {
         type: 'line',
@@ -205,24 +355,17 @@ function createSparkline(canvasId, data, color) {
                 x: { display: false },
                 y: { display: false }
             },
-            events: [] // Disable all events to prevent redraws
+            events: []
         }
     });
 }
 
-/**
- * Create Most Collected Materials bar chart
- * Backend should provide labels and datasets
- */
 function createMaterialsChart(data) {
     const ctx = document.getElementById('materialsChart');
     if (!ctx) return;
     
-    // Destroy existing chart if it exists
     const existingChart = Chart.getChart(ctx);
-    if (existingChart) {
-        existingChart.destroy();
-    }
+    if (existingChart) existingChart.destroy();
     
     new Chart(ctx, {
         type: 'bar',
@@ -254,19 +397,12 @@ function createMaterialsChart(data) {
     });
 }
 
-/**
- * Create Top Contribution by Category donut chart
- * Backend should provide labels, data, and colors
- */
 function createCategoryChart(data) {
     const ctx = document.getElementById('categoryChart');
     if (!ctx) return;
     
-    // Destroy existing chart if it exists
     const existingChart = Chart.getChart(ctx);
-    if (existingChart) {
-        existingChart.destroy();
-    }
+    if (existingChart) existingChart.destroy();
     
     new Chart(ctx, {
         type: 'doughnut',
@@ -297,9 +433,6 @@ function createCategoryChart(data) {
     });
 }
 
-/**
- * Helper function to format numbers with commas
- */
 function formatNumber(num) {
     return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
