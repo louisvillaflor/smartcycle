@@ -31,13 +31,9 @@ window.openAddModal = async () => {
 
     document.getElementById('inDate').value = new Date().toISOString().split('T')[0];
     updatePreview();
-    setTimeout(refreshIcons, 100);
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 100);
 };
 
-/**
- * NEW FIXED ENGINE FUNCTION: Called from your main dashboard controller to safely open edit mode.
- * Resolves the missing 'material' name mapping bug from 'collection_items' structural relations.
- */
 /**
  * FIXED ENGINE FUNCTION: Called from your main dashboard controller to safely open edit mode.
  * Resolves the missing 'material' name mapping bug from 'collection_items' structural relations.
@@ -52,7 +48,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     editingIndex = index;
     clearAllErrors();
 
-    // 1. Force reload live prices into dropdown select and await the network response fully
+    // 1. CRITICAL FIX: Force reload live prices into dropdown select and completely AWAIT network delivery before mapping items
     await loadActivePrices();
 
     // 2. Populate Header Fields
@@ -89,7 +85,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     });
 
     // 4. Transform Action Button to Update context
-    const submitBtn = document.querySelector('.btn-submit-green');
+    const submitBtn = document.querySelector('.btn-submit-green') || document.querySelector('.modal-footer .btn-submit') || document.getElementById('btnSubmitCollection');
     if (submitBtn) {
         submitBtn.onclick = () => submitCollection();
         submitBtn.innerHTML = '<i data-lucide="check"></i> Update Entry';
@@ -97,10 +93,10 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
 
     updatePreview();
     renderItems();
-    setTimeout(refreshIcons, 100);
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 100);
 };
 
-// FIXED ENGINE: Added 'id' to the select string so item.id isn't undefined
+// FIXED ENGINE: Added explicit state safety structures to preserve item dropdown during editing processes
 async function loadActivePrices() {
     const selMaterial = document.getElementById('selMaterial');
     if (!selMaterial) return;
@@ -122,24 +118,24 @@ async function loadActivePrices() {
                 </option>`;
             }).join('');
         } else {
-            selMaterial.innerHTML = '<option value="" disabled>No active materials found</option>';
+            selMaterial.innerHTML = '<option value="" disabled selected>No active materials found</option>';
         }
     } catch (err) {
         console.error("Error fetching live price rates from database:", err.message);
         // Fallback structures initialized cleanly to maintain operational tracking integrity
         loadedPricesCache = [
-            { id: 1, material_name: "Plastic", price: 3 },
+            { id: 1, material_name: "Plastic", price: 4 },
             { id: 2, material_name: "Bakal", price: 15 },
             { id: 3, material_name: "PET-Assorted", price: 5 },
             { id: 4, material_name: "Paper Assorted", price: 8 },
             { id: 5, material_name: "Yero", price: 8 }
         ];
         selMaterial.innerHTML = `
-            <option value=1 data-name="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
-            <option value=2 data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
-            <option value=3 data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
-            <option value=4 data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
-            <option value=5 data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
+            <option value="1" data-name="Plastic" data-rate="4" selected>Plastic - ₱4/kg</option>
+            <option value="2" data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
+            <option value="3" data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
+            <option value="4" data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
+            <option value="5" data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
         `;
     }
 }
@@ -219,7 +215,7 @@ function resetForm() {
         tab.classList.toggle('active', idx === 0);
     });
 
-    const submitBtn = document.querySelector('.btn-submit-green');
+    const submitBtn = document.querySelector('.btn-submit-green') || document.querySelector('.modal-footer .btn-submit') || document.getElementById('btnSubmitCollection');
     if (submitBtn) {
         submitBtn.onclick = () => submitCollection();
         submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
@@ -231,7 +227,7 @@ function resetForm() {
         if (el) el.innerText = value;
     });
 
-    refreshIcons();
+    if (typeof refreshIcons === 'function') refreshIcons();
 }
 
 window.setCategory = (category, btn) => {
@@ -264,7 +260,6 @@ window.updatePreview = function() {
 };
 
 // RECEIPT LINE ITEMS CONTROLLER
-// Replace your existing window.addItem function with this:
 window.addItem = function() {
     const sel = document.getElementById('selMaterial');
     const weightInput = document.getElementById('inWeight');
@@ -326,12 +321,12 @@ function renderItems() {
             total += item.subtotal;
             mainRowsHtml += `
                 <tr>
-                  <td>${item.material || 'Unknown'}</td>
+                  <td>${item.material || 'Unknown Material'}</td>
                   <td>₱${item.rate}</td>
                   <td>${item.weight} kg</td>
                   <td><strong>₱${item.subtotal.toFixed(2)}</strong></td>
                   <td>
-                    <button class="remove-item-btn" onclick="removeItem(${index})" title="Remove item">
+                    <button class="remove-item-btn" type="button" onclick="removeItem(${index})" title="Remove item">
                       <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
                     </button>
                   </td>
@@ -341,7 +336,7 @@ function renderItems() {
                 <tr>
                   <td style="text-align:center;">${item.weight}</td>
                   <td style="text-align:center;">kg</td>
-                  <td style="text-align:left;">${item.material || 'Unknown'}</td>
+                  <td style="text-align:left;">${item.material || 'Unknown Material'}</td>
                   <td style="text-align:center;">₱${item.rate}</td>
                   <td style="text-align:center;">₱${item.subtotal.toFixed(2)}</td>
                 </tr>`;
@@ -365,7 +360,7 @@ function renderItems() {
     const preTotalEl = document.getElementById('preTotal');
     if (preTotalEl) preTotalEl.innerText = `₱${total.toFixed(2)}`;
 
-    refreshIcons();
+    if (typeof refreshIcons === 'function') refreshIcons();
 }
 
 window.removeItem = (index) => {
@@ -379,7 +374,7 @@ window.submitCollection = async function() {
     const date = document.getElementById('inDate')?.value;
     const address = document.getElementById('inAddress')?.value.trim();
     const contact = document.getElementById('inContact')?.value.trim();
-    const submitBtn = document.querySelector('.btn-submit-green');
+    const submitBtn = document.querySelector('.btn-submit-green') || document.querySelector('.modal-footer .btn-submit') || document.getElementById('btnSubmitCollection');
 
     clearAllErrors();
     let hasError = false;
@@ -412,7 +407,7 @@ window.submitCollection = async function() {
         if (editingIndex !== -1) {
             const targetedCollection = (typeof getFilteredCollections === 'function') 
                 ? getFilteredCollections()[editingIndex] 
-                : window.collections[editingIndex];
+                : (window.collections ? window.collections[editingIndex] : null);
 
             if (!targetedCollection || !targetedCollection.id) {
                 throw new Error("Unable to identify targeted collection ID context.");
@@ -536,8 +531,8 @@ window.submitCollection = async function() {
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
-            refreshIcons();
+            submitBtn.innerHTML = editingIndex !== -1 ? '<i data-lucide="check"></i> Update Entry' : '<i data-lucide="check"></i> Submit';
+            if (typeof refreshIcons === 'function') refreshIcons();
         }
     }
 };
@@ -580,7 +575,7 @@ function togglePreview() {
     
     right.classList.add('show-preview');
     left.style.display = 'none';
-    refreshIcons();
+    if (typeof refreshIcons === 'function') refreshIcons();
 }
 
 function closePreview() {
@@ -590,5 +585,10 @@ function closePreview() {
 
     right.classList.remove('show-preview');
     left.style.display = 'block';
-    refreshIcons();
+    if (typeof refreshIcons === 'function') refreshIcons();
 }
+
+// Call listeners initialize once DOM loads fully
+document.addEventListener('DOMContentLoaded', () => {
+    window.setupFieldListeners();
+});
