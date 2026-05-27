@@ -1,7 +1,4 @@
-/* Base Layout */
-.main-content *,
-.main-content *::before,
-.main-content *::after {
+* {
   box-sizing: border-box;
 }
 
