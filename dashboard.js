@@ -1,6 +1,3 @@
-// Dashboard JavaScript with Supabase Integration
-
-// TODO: Replace these with your actual Supabase credentials
 const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 
@@ -116,14 +113,21 @@ async function loadDashboardData() {
 
         // Calculate Collection MoM trend
         const currentMonthColl = collectionItems.filter(item => {
-            if (!item.collections || !item.collections.date_collected) return false;
-            const d = new Date(item.collections.date_collected);
+            if (!item.collections) return false;
+            // Handle both single object or array response formats
+            const collectionData = Array.isArray(item.collections) ? item.collections[0] : item.collections;
+            if (!collectionData || !collectionData.date_collected) return false;
+            
+            const d = new Date(collectionData.date_collected);
             return d.getMonth() === currentMonthNum && d.getFullYear() === currentYear;
         }).reduce((acc, curr) => acc + Number(curr.weight || 0), 0);
-
+        
         const prevMonthColl = collectionItems.filter(item => {
-            if (!item.collections || !item.collections.date_collected) return false;
-            const d = new Date(item.collections.date_collected);
+            if (!item.collections) return false;
+            const collectionData = Array.isArray(item.collections) ? item.collections[0] : item.collections;
+            if (!collectionData || !collectionData.date_collected) return false;
+            
+            const d = new Date(collectionData.date_collected);
             return d.getMonth() === (currentMonthNum - 1 === -1 ? 11 : currentMonthNum - 1) && 
                    d.getFullYear() === (currentMonthNum - 1 === -1 ? currentYear - 1 : currentYear);
         }).reduce((acc, curr) => acc + Number(curr.weight || 0), 0);
@@ -216,7 +220,17 @@ function getMonthlyChronology(items, valueField, relationField, dateField) {
     const now = new Date();
     
     items.forEach(item => {
-        let dateStr = relationField ? (item[relationField] ? item[relationField][dateField] : null) : item[dateField];
+        let dateStr = null;
+        
+        if (relationField) {
+            const relationData = item[relationField];
+            if (relationData) {
+                dateStr = Array.isArray(relationData) ? relationData[0]?.[dateField] : relationData[dateField];
+            }
+        } else {
+            dateStr = item[dateField];
+        }
+        
         if (!dateStr) return;
         
         const date = new Date(dateStr);
@@ -248,12 +262,17 @@ function processMaterialData(collectionItems, months, targetYear) {
         const monthlyData = new Array(months.length).fill(0);
         
         collectionItems.forEach(item => {
-            const name = item.price_list?.material_name?.toLowerCase() || "";
+            // Safely parse relation objects/arrays
+            const priceListData = Array.isArray(item.price_list) ? item.price_list[0] : item.price_list;
+            const collectionsData = Array.isArray(item.collections) ? item.collections[0] : item.collections;
+            
+            const name = priceListData?.material_name?.toLowerCase() || "";
+            
             if (name.includes(mat.label.toLowerCase())) {
-                if (item.collections && item.collections.date_collected) {
-                    const d = new Date(item.collections.date_collected);
+                if (collectionsData && collectionsData.date_collected) {
+                    const d = new Date(collectionsData.date_collected);
                     if (d.getFullYear() === targetYear) {
-                        const mIndex = d.getMonth(); // 0 = Jan, 1 = Feb etc.
+                        const mIndex = d.getMonth(); 
                         if (mIndex < months.length) {
                             monthlyData[mIndex] += Number(item.weight || 0);
                         }
