@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    // ADD THIS LINE: Expose the active client instance globally
+    window.supabase = supabase;
+
     // -------------------------------------------------------------------------
     // 2. POPOVER HELPERS & LIFECYCLE MANAGEMENT
     // -------------------------------------------------------------------------
