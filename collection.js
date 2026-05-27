@@ -3,7 +3,7 @@ const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 🟩 FIXED GLOBAL APP STATE Explicitly shared with the window context
+// 🟩 FIXED GLOBAL APP STATE (Explicitly shared with the window context)
 window.collections = [];
 window.currentItems = [];       // Changed from let to window.
 window.currentCategory = 'School'; // Changed from let to window.
@@ -43,18 +43,14 @@ window.fetchAllCollections = async function() {
     const { data, error } = await _supabase
         .from('collections')
         .select(`
-                *, 
-                collection_items (
-                    id,
-                    material_id,
-                    rate,
-                    weight,
-                    subtotal,
-                    price_list (
-                        material_name
-                    )
+            *, 
+            collection_items (
+                *,
+                price_list (
+                    material_name
                 )
-            `)
+            )
+        `)
         .order('date_collected', { ascending: false })
         .order('id', { ascending: false });
 
@@ -66,30 +62,34 @@ window.fetchAllCollections = async function() {
     console.log("Raw Data Received:", data);
 
     window.collections = data.map(col => {
+        // Safe extraction of collection items
         const rawItems = col.collection_items || [];
         
-        const mappedItems = rawItems.map(item => {
-            let materialName = 'Unknown';
-            
-            // Safely traverse the joined relation object
-            if (item.price_list && item.price_list.material_name) {
+    // Locate this block inside window.fetchAllCollections inside collection.js
+    const mappedItems = rawItems.map(item => {
+        let materialName = 'Unknown';
+        
+        // Check if the relation object exists and isn't null
+        if (item.price_list) {
+            if (Array.isArray(item.price_list) && item.price_list.length > 0) {
+                materialName = item.price_list[0].material_name || 'Unknown';
+            } else if (item.price_list.material_name) {
                 materialName = item.price_list.material_name;
-            } else if (item.material_name) {
-                // Fallback for flat schema data instances
-                materialName = item.material_name;
             }
-            
-            return {
-                // Add materialId here so Edit Mode can reference it for item.materialId
-                materialId: item.material_id, 
-                material: materialName,
-                rate: parseFloat(item.rate) || 0,
-                weight: parseFloat(item.weight) || 0,
-                subtotal: parseFloat(item.subtotal) || 0
-            };
-        });
-    
-        // Map parent database fields to match renderTable expect paths
+        } else if (item.material_name) {
+            // Fallback for flat tables or alternative inserts
+            materialName = item.material_name;
+        }
+        
+        return {
+            material: materialName,
+            rate: parseFloat(item.rate) || 0,
+            weight: parseFloat(item.weight) || 0,
+            subtotal: parseFloat(item.subtotal) || 0
+        };
+    });
+
+        // Map database fields directly to the keys your renderTable() expects
         return {
             id: col.id,
             date: formatDateToMDY(col.date_collected),
@@ -99,7 +99,7 @@ window.fetchAllCollections = async function() {
             totalWeight: mappedItems.reduce((sum, i) => sum + i.weight, 0),
             address: col.address,
             contact: col.contact_number,
-            items: mappedItems 
+            items: mappedItems // Crucial: This populates the expanded sub-rows
         };
     });
 
