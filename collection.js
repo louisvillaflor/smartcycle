@@ -201,7 +201,7 @@ function renderTable() {
             </td>
           </tr>
           <tr id="${rowId}" class="sub-row-container">
-            <td colspan="8" style="padding:0 !important; border:none;">
+            <td colspan="8" style="border:none;">
               <div class="expanded-content">
                 <table class="expanded-table">
                     <thead>
@@ -215,6 +215,10 @@ function renderTable() {
                       </thead>
                     <tbody>${buildReceiptItemRows(collection.items || [], 0)}</tbody>
                 </table>
+                <div style="text-align:right; padding: 15px 25px; border-top: 1px solid #f1f5f9;">
+                    <span style="font-size:13px; color:#64748b; margin-right:10px;">Total Amount:</span>
+                    <span style="font-weight:700; color:#10b981;">₱${collection.totalAmount.toFixed(2)}</span>
+                </div>
               </div>
             </td>
           </tr>`;
