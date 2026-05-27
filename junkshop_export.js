@@ -51,7 +51,7 @@ const JunkshopExport = (() => {
             // Build structural cells dynamically based on the database materials list
             materialsList.forEach(m => {
                 result[m] = {
-                    dailyWeights: Array(32).fill(0),
+                    dailyWeights: Array(32).fill(0), // 1-indexed mapping convenience (indices 1 to 31)
                     total: 0
                 };
             });
@@ -83,18 +83,17 @@ const JunkshopExport = (() => {
                     const d = parseCollectionDate(col.date_collected);
                     if (!d) return;
 
-                    const dayOfMonth = d.getDate();
-                    const layoutIndex = dayOfMonth - 1;
+                    const dayOfMonth = d.getDate(); // 1 to 31
 
                     (col.collection_items || []).forEach(item => {
                         const matchedMaterialName = materialMap[item.material_id] || 'Others';
                         const itemWeight = Number(item.weight) || 0;
                         
                         if (result[matchedMaterialName]) {
-                            result[matchedMaterialName].dailyWeights[layoutIndex] += itemWeight;
+                            result[matchedMaterialName].dailyWeights[dayOfMonth] += itemWeight;
                             result[matchedMaterialName].total += itemWeight;
                         } else {
-                            result['Others'].dailyWeights[layoutIndex] += itemWeight;
+                            result['Others'].dailyWeights[dayOfMonth] += itemWeight;
                             result['Others'].total += itemWeight;
                         }
                     });
@@ -108,7 +107,9 @@ const JunkshopExport = (() => {
         // Clean values to neat decimal limits
         Object.values(result).forEach(r => {
             r.total = Math.round(r.total * 100) / 100;
-            r.dailyWeights = r.dailyWeights.map(w => Math.round(w * 100) / 100);
+            for (let d = 1; d <= 31; d++) {
+                r.dailyWeights[d] = Math.round(r.dailyWeights[d] * 100) / 100;
+            }
         });
 
         return { dataGrid: result, materialsList };
@@ -122,7 +123,6 @@ const JunkshopExport = (() => {
         const materialsSet = new Set();
         const result = {};
 
-        // Discover materials implicitly through active data array structures
         raw.forEach(col => {
             (col.items || col.collection_items || []).forEach(item => {
                 if (item.material) materialsSet.add(item.material);
@@ -141,14 +141,14 @@ const JunkshopExport = (() => {
         raw.forEach(col => {
             const d = parseCollectionDate(col.date || col.date_collected);
             if (!d || d.getMonth() !== month || d.getFullYear() !== year) return;
-            const dayIdx = d.getDate() - 1;
+            const dayOfMonth = d.getDate();
 
             (col.items || col.collection_items || []).forEach(item => {
                 const mat = item.material || 'Others';
                 const known = materialsList.find(m => m.toLowerCase() === mat.toLowerCase()) || 'Others';
                 const wt = Number(item.weight) || 0;
 
-                result[known].dailyWeights[dayIdx] += wt;
+                result[known].dailyWeights[dayOfMonth] += wt;
                 result[known].total += wt;
             });
         });
@@ -334,23 +334,40 @@ const JunkshopExport = (() => {
             doc.text(mat, ML + 3, ry + rh3 - 4);
 
             wx = ML + colMat;
-            doc.setFont('times', 'normal'); doc.setFontSize(6.5);
             
+            // Loop through the 28 visual spreadsheet column nodes
             for (let i = 0; i < 28; i++) {
                 box(wx, ry, dayW, rh3);
-                let dayWeight = item.dailyWeights[i] || 0;
+                
+                let dayNumber = i + 1;
+                let displayStr = '';
 
-                if (i === 27) {
-                    dayWeight += (item.dailyWeights[28] || 0) + 
-                                 (item.dailyWeights[29] || 0) + 
-                                 (item.dailyWeights[30] || 0);
-                }
-
-                if (dayWeight > 0) {
-                    doc.text(dayWeight.toFixed(1), wx + dayW / 2, ry + rh3 - 4, { align: 'center' });
+                if (dayNumber < 28) {
+                    // Days 1 to 27 map precisely to columns 1 to 27
+                    let wt = item.dailyWeights[dayNumber] || 0;
+                    displayStr = wt > 0 ? wt.toFixed(1) : '-';
                 } else {
-                    doc.text('-', wx + dayW / 2, ry + rh3 - 4, { align: 'center' });
+                    // Day 28 handles overflow remainder dates gracefully (28, 29, 30, 31)
+                    let combinedWeights = [];
+                    for (let d = 28; d <= 31; d++) {
+                        if (item.dailyWeights[d] > 0) {
+                            combinedWeights.push(item.dailyWeights[d].toFixed(1));
+                        }
+                    }
+                    
+                    if (combinedWeights.length > 0) {
+                        displayStr = combinedWeights.join('/');
+                        // Automatically adjust font scaling if multiple dates occupy the same block element
+                        doc.setFontSize(combinedWeights.length > 2 ? 4.5 : 5.5);
+                    } else {
+                        displayStr = '-';
+                        doc.setFontSize(6.5);
+                    }
                 }
+
+                doc.setFont('times', 'normal');
+                doc.text(displayStr, wx + dayW / 2, ry + rh3 - 4, { align: 'center' });
+                doc.setFontSize(6.5); // Reset baseline text size
                 wx += dayW;
             }
 
