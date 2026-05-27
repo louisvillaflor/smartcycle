@@ -249,7 +249,8 @@ const JunkshopExport = (() => {
         const field = (label, value, x, yy, ulLen) => {
             ltext(label, x, yy, 9, 'bold');
             const lw = doc.getTextWidth(label);
-            if (value) ltext(value, String(value), x + lw + 1, yy, 9, 'normal');
+            // Corrected parameter positioning: text first, then numeric coordinates
+            if (value) ltext(String(value), x + lw + 1, yy, 9, 'normal'); 
             hline(x + lw + 1, x + lw + 1 + ulLen, yy + 1.5, 0.5);
         };
 
