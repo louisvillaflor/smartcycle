@@ -84,7 +84,8 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
 
         return {
             materialId: parseInt(item.material_id, 10),
-            material: item.material_name || matchedName, // Prefers joined field string if available, otherwise handles manually
+            material: item.material_name || item.material || matchedName, // <-- Added item.material fallback
+            material_name: item.material_name || item.material || matchedName, // <-- Explicitly bind material_name
             rate: Number(item.rate || 0),
             weight: Number(item.weight || 0),
             subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
@@ -267,6 +268,7 @@ window.updatePreview = function() {
 };
 
 // RECEIPT LINE ITEMS CONTROLLER
+// Replace your existing window.addItem function with this:
 window.addItem = function() {
     const sel = document.getElementById('selMaterial');
     const weightInput = document.getElementById('inWeight');
@@ -277,7 +279,7 @@ window.addItem = function() {
     const rate = Number(selectedOption?.dataset.rate || 0);
     
     const materialId = parseInt(sel.value, 10); 
-    const material = selectedOption?.dataset.name || '';
+    const materialName = selectedOption?.dataset.name || '';
 
     if (isNaN(materialId)) {
         alert("Please select a valid material collection type.");
@@ -296,7 +298,8 @@ window.addItem = function() {
 
     window.currentItems.push({ 
         materialId,
-        material, 
+        material: materialName,     // Matches layout expectation
+        material_name: materialName, // Matches database expectation
         rate, 
         weight, 
         subtotal: rate * weight 
