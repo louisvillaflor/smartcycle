@@ -36,7 +36,7 @@ window.openAddModal = async () => {
 
 /**
  * FIXED ENGINE FUNCTION: Called from your main dashboard controller to safely open edit mode.
- * Resolves the missing 'material' name mapping bug from 'collection_items' structural relations.
+ * Resolves missing foreign key mappings and prevents "Unknown" data rewrites.
  */
 window.openEditModal = async (index, collectionHeader, detailedItems) => {
     const modal = document.getElementById('addCollectionModal');
@@ -48,7 +48,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     editingIndex = index;
     clearAllErrors();
 
-    // 1. CRITICAL FIX: Force reload live prices into dropdown select and completely AWAIT network delivery before mapping items
+    // 1. Force reload live prices into dropdown select and completely AWAIT network delivery before mapping items
     await loadActivePrices();
 
     // 2. Populate Header Fields
@@ -63,31 +63,47 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     if (document.getElementById('inAddress')) document.getElementById('inAddress').value = collectionHeader.address || '';
     if (document.getElementById('inContact')) document.getElementById('inContact').value = collectionHeader.contact_number || '';
 
-    // 3. SECURE FIX: Safely parse names using the robust local cache array directly
+    // 3. DEFENSIVE MATCHING ENGINE: Map incoming detailed items accurately to cached price list IDs
     window.currentItems = (detailedItems || []).map(item => {
-        // Ensure standard integer parsing for matching keys
-        const targetMaterialId = parseInt(item.material_id, 10);
+        // Fallback checks for various naming properties coming from join queries (material_id, materialId, id)
+        const rawId = item.material_id || item.materialId || item.id;
+        const targetMaterialId = rawId ? parseInt(rawId, 10) : NaN;
         
-        // Find the matched object directly in the array data fetched from Supabase
-        const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
+        // Attempt to match via cached ID first
+        let cachedItem = null;
+        if (!isNaN(targetMaterialId)) {
+            cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
+        }
         
-        // PRIORITIZE CACHED ENTRY TO AVOID NULL VALUES FROM JOIN OVERLAYS
-        const finalName = (cachedItem ? cachedItem.material_name : null) || item.material_name || item.material || 'Unknown Material';
+        // Secondary fuzzy matching using strings if structural IDs are missing from the join dashboard dataset
+        if (!cachedItem && (item.material_name || item.material || item.description)) {
+            const lookUpName = (item.material_name || item.material || item.description || '').trim().toLowerCase();
+            cachedItem = loadedPricesCache.find(p => (p.material_name || '').trim().toLowerCase() === lookUpName);
+        }
+
+        // Final naming resolution falling back to clean display targets
+        const finalName = cachedItem ? cachedItem.material_name : (item.material_name || item.material || item.description || 'Unknown Material');
+        const resolvedId = cachedItem ? parseInt(cachedItem.id, 10) : targetMaterialId;
+        const resolvedRate = Number(item.rate || item.price || (cachedItem ? cachedItem.price : 0));
+        const resolvedWeight = Number(item.weight || item.qty || 0);
 
         return {
-            materialId: targetMaterialId,
-            material: finalName,        // Resolves your modal preview layout
-            material_name: finalName,   // Resolves your main dashboard loop template
-            rate: Number(item.rate || (cachedItem ? cachedItem.price : 0)),
-            weight: Number(item.weight || 0),
-            subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
+            materialId: isNaN(resolvedId) ? 0 : resolvedId,
+            material: finalName,        
+            material_name: finalName,   
+            rate: resolvedRate,
+            weight: resolvedWeight,
+            subtotal: Number(item.subtotal || item.amount || (resolvedRate * resolvedWeight) || 0)
         };
     });
 
-    // 4. Transform Action Button to Update context
+    // 4. Transform Action Button to Update context safely
     const submitBtn = document.querySelector('.btn-submit-green') || document.querySelector('.modal-footer .btn-submit') || document.getElementById('btnSubmitCollection');
     if (submitBtn) {
-        submitBtn.onclick = () => submitCollection();
+        submitBtn.onclick = (e) => {
+            e.preventDefault();
+            submitCollection();
+        };
         submitBtn.innerHTML = '<i data-lucide="check"></i> Update Entry';
     }
 
@@ -96,7 +112,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 100);
 };
 
-// FIXED ENGINE: Added explicit state safety structures to preserve item dropdown during editing processes
+// POPULATE LIVE PRICING ASYNC ENGINE
 async function loadActivePrices() {
     const selMaterial = document.getElementById('selMaterial');
     if (!selMaterial) return;
@@ -110,7 +126,7 @@ async function loadActivePrices() {
         if (error) throw error;
 
         if (prices && prices.length > 0) {
-            loadedPricesCache = prices; // Store references globally to parse safely on edit tasks
+            loadedPricesCache = prices; 
             selMaterial.innerHTML = prices.map((item, idx) => {
                 const rate = Math.round(item.price); 
                 return `<option value="${item.id}" data-name="${item.material_name}" data-rate="${rate}" ${idx === 0 ? 'selected' : ''}>
@@ -122,7 +138,7 @@ async function loadActivePrices() {
         }
     } catch (err) {
         console.error("Error fetching live price rates from database:", err.message);
-        // Fallback structures initialized cleanly to maintain operational tracking integrity
+        // Clean fallback defaults in case of connection dropouts
         loadedPricesCache = [
             { id: 1, material_name: "Plastic", price: 4 },
             { id: 2, material_name: "Bakal", price: 15 },
@@ -149,7 +165,6 @@ window.closeAddModal = () => {
     resetForm();
 };
 
-// Outside click modal dismiss handler
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('addCollectionModal');
     if (modal && e.target === modal) {
@@ -199,7 +214,6 @@ function formatContact(value) {
     return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 7)}-${cleaned.slice(7, 11)}`;
 }
 
-// RESET STATE ACTIONS
 function resetForm() {
     ['inCustomer', 'inDate', 'inAddress', 'inContact', 'inWeight'].forEach(id => {
         const el = document.getElementById(id);
@@ -289,8 +303,8 @@ window.addItem = function() {
 
     window.currentItems.push({ 
         materialId,
-        material: materialName,     // Matches layout expectation
-        material_name: materialName, // Matches database expectation
+        material: materialName,     
+        material_name: materialName, 
         rate, 
         weight, 
         subtotal: rate * weight 
@@ -368,7 +382,7 @@ window.removeItem = (index) => {
     renderItems();
 };
 
-// PERSISTENCE (SUPABASE SYNC ENGINE)
+// PERSISTENCE SYNC ENGINE
 window.submitCollection = async function() {
     const customer = document.getElementById('inCustomer')?.value.trim();
     const date = document.getElementById('inDate')?.value;
@@ -422,6 +436,7 @@ window.submitCollection = async function() {
 
             if (headerUpdateError) throw headerUpdateError;
 
+            // Clear old items securely
             const { error: itemsClearError } = await _supabase
                 .from('collection_items')
                 .delete()
@@ -429,13 +444,19 @@ window.submitCollection = async function() {
             
             if (itemsClearError) throw itemsClearError;
             
-            const itemsToInsert = window.currentItems.map(item => ({
-                collection_id: targetId,
-                material_id: item.materialId, 
-                rate: item.rate,
-                weight: item.weight,
-                subtotal: item.subtotal
-            }));
+            // Build the updated insert payloads safely
+            const itemsToInsert = window.currentItems.map(item => {
+                if (!item.materialId || item.materialId === 0) {
+                    throw new Error(`Data Integrity Error: Core Material ID configuration missing for entry "${item.material}"`);
+                }
+                return {
+                    collection_id: targetId,
+                    material_id: item.materialId, 
+                    rate: item.rate,
+                    weight: item.weight,
+                    subtotal: item.subtotal
+                };
+            });
         
             const { error: itemsInsertError } = await _supabase
                 .from('collection_items')
@@ -527,7 +548,7 @@ window.submitCollection = async function() {
 
     } catch (err) {
         console.error("Database Transaction Error:", err.message);
-        alert("Failed to save: " + err.message);
+        alert("Failed to save transaction: " + err.message);
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
@@ -588,7 +609,7 @@ function closePreview() {
     if (typeof refreshIcons === 'function') refreshIcons();
 }
 
-// Call listeners initialize once DOM loads fully
+// Call listeners initializations securely once window DOM settles
 document.addEventListener('DOMContentLoaded', () => {
     window.setupFieldListeners();
 });
