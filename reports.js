@@ -51,7 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // POPOVER ELEMENTS REGISTRATION (Desktop & Mobile)
     const dateBtn = document.getElementById('dateBtn');
     const datePopover = document.getElementById('datePopover');
     const categoryBtn = document.getElementById('categoryBtn');
@@ -67,7 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
     registerPair(dateBtnMobile, datePopoverMobile);
     registerPair(categoryBtnMobile, categoryPopoverMobile);
 
-    // Desktop Click Listeners
     dateBtn?.addEventListener('click', (e) => {
         e.stopPropagation();
         togglePopover(dateBtn, datePopover, [
@@ -86,7 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ]);
     });
 
-    // Mobile Click Listeners
     dateBtnMobile?.addEventListener('click', (e) => {
         e.stopPropagation();
         togglePopover(dateBtnMobile, datePopoverMobile, [
@@ -105,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ]);
     });
 
-    // EXPORT INTERFACE REGISTRATION
     const exportDropdownBtn = document.getElementById('exportDropdownBtn');
     const exportDropdown    = document.getElementById('exportDropdown');
 
@@ -136,6 +132,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedStart = null;
     let selectedEnd = null;
     let activeCategories = ['collections', 'sales']; 
+    
+    // Global variable cache to store current data state safely for your exporter
+    let processedReportSummary = {}; 
 
     const initDates = () => {
         const today = new Date();
@@ -175,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!data || data.length === 0) {
                 if (tableBody) tableBody.innerHTML = '';
                 if (emptyState) emptyState.style.display = 'flex';
+                processedReportSummary = {}; // flush cache
                 return;
             }
         
@@ -198,7 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         tableBody.innerHTML = ''; 
         const startRange = new Date(startRangeDate.getFullYear(), startRangeDate.getMonth(), startRangeDate.getDate());
-        const materialSummary = {};
+        
+        // Reset our calculation engine
+        processedReportSummary = {}; 
     
         transactions.forEach(tx => {
             if (!tx.transaction_date) return;
@@ -209,28 +211,29 @@ document.addEventListener('DOMContentLoaded', () => {
             const diffTime = txDate.getTime() - startRange.getTime();
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
             
+            // Map cleanly to columns matching your DPS form
             let weekKey = 'week1';
             if (diffDays > 7 && diffDays <= 14) weekKey = 'week2';
             else if (diffDays > 14 && diffDays <= 21) weekKey = 'week3';
             else if (diffDays > 21) weekKey = 'week4';
     
-            if (!materialSummary[name]) {
-                materialSummary[name] = { week1: 0, week2: 0, week3: 0, week4: 0, total: 0 };
+            if (!processedReportSummary[name]) {
+                processedReportSummary[name] = { week1: 0, week2: 0, week3: 0, week4: 0, total: 0 };
             }
     
             const currentWeight = parseFloat(tx.weight || 0);
-            materialSummary[name][weekKey] += currentWeight;
-            materialSummary[name].total += currentWeight;
+            processedReportSummary[name][weekKey] += currentWeight;
+            processedReportSummary[name].total += currentWeight;
         });
     
-        if (Object.keys(materialSummary).length === 0) {
+        if (Object.keys(processedReportSummary).length === 0) {
             const emptyState = document.getElementById('emptyState');
             if (emptyState) emptyState.style.display = 'flex';
             return;
         }
 
-        Object.keys(materialSummary).forEach(matName => {
-            const rowData = materialSummary[matName];
+        Object.keys(processedReportSummary).forEach(matName => {
+            const rowData = processedReportSummary[matName];
             const rowHTML = `
                 <tr>
                     <td class="col-material" style="font-weight: 600; color: #1e293b; text-align: left; padding: 14px 24px;">${matName}</td>
@@ -246,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // -------------------------------------------------------------------------
-    // 4. FIX: EXPORT ENGINE AND MODAL INTERACTION CORRECTION
+    // 4. FIXED: EXPORT ENGINE AND MODAL INTERACTION CORRECTION
     // -------------------------------------------------------------------------
     function handleExport(format) {
         showExportModal(format);
@@ -295,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
 
                     <label style="${labelStyle}">Junkshop Name
-                        <input id="expJunkshop" type="text" placeholder="e.g. Juan's Junkshop" style="${fieldStyle}">
+                        <input id="expJunkshop" type="text" placeholder="e.g. TEZWA" value="TEZWA" style="${fieldStyle}">
                     </label>
                     <label style="${labelStyle}">Address
                         <input id="expAddress" type="text" placeholder="Street, City" style="${fieldStyle}">
@@ -303,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
                         <label style="${labelStyle}">Barangay
-                            <input id="expBrgy" type="text" style="${fieldStyle}">
+                            <input id="expBrgy" type="text" value="830" style="${fieldStyle}">
                         </label>
                         <label style="${labelStyle}">Zone
                             <input id="expZone" type="text" style="${fieldStyle}">
@@ -366,6 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
         overlay.querySelector('#exportModalConfirm').addEventListener('click', () => {
+            // CRITICAL FIX: Bundling the compiled metrics payload into your options map
             const opts = {
                 month:           parseInt(overlay.querySelector('#expMonth').value),
                 year:            parseInt(overlay.querySelector('#expYear').value),
@@ -380,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 dateEstablished: overlay.querySelector('#expDateEst').value.trim(),
                 floorArea:       overlay.querySelector('#expFloor').value.trim(),
                 noOfAide:        overlay.querySelector('#expAide').value.trim(),
+                reportData:      processedReportSummary // Sent directly to the export module template script!
             };
 
             close();
@@ -388,7 +393,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (typeof JunkshopExport !== 'undefined' && JunkshopExport.exportPDF) {
                     JunkshopExport.exportPDF(opts).catch(err => {
                         console.error('PDF export error:', err);
-                        alert('PDF export failed. Please try again.');
+                        alert('PDF export failed. Please verify your print template parsing functions.');
                     });
                 } else {
                     console.error('Missing: JunkshopExport object handler for PDF targets.');
@@ -406,7 +411,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------------------
     // 5. CALENDAR & INTERFACE LOGIC SYNC
     // -------------------------------------------------------------------------
-    // FIX: Fallback selectors to account for structural changes across layouts
     const allCheckboxes = document.querySelectorAll('.category-popover input[type="checkbox"], .popover-content input[type="checkbox"]');
 
     allCheckboxes.forEach(cb => {
@@ -559,7 +563,6 @@ document.addEventListener('DOMContentLoaded', () => {
         buildMobile(); 
     }
 
-    // QUICK RANGES LINK ENGINE
     document.querySelectorAll('.quick-dates li button').forEach(btn => {
         btn.addEventListener('click', () => {
             btn.closest('ul').querySelectorAll('button').forEach(b => b.classList.remove('active'));
