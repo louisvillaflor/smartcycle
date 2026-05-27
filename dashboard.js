@@ -90,7 +90,7 @@ async function loadDashboardData() {
         // ----------------------------------------
         // 2. TOTAL SALES & TREND
         // ----------------------------------------
-        const { data: sales, error: sError } = await supabase
+        const { data: sales, error: sError } = await supabaseClient
             .from('sales')
             .select('date, total_amount');
 
