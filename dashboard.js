@@ -195,15 +195,15 @@ async function loadDashboardData() {
             userName: sessionStorage.getItem('userName') || 'Office Admin',
             stats: {
                 totalCollection: Math.round(currentMonthColl), 
-                collectionTrend: Math.abs(collectionTrend),
+                collectionTrend: collectionTrend,
                 collectionTrendPositive: collectionTrend >= 0,
                 
                 totalSales: Math.round(currentMonthSales), 
-                salesTrend: Math.abs(salesTrend),
+                salesTrend: salesTrend,
                 salesTrendPositive: salesTrend >= 0,
                 
                 totalDistributors: currentMonthDistributors, 
-                distributorTrend: Math.abs(distributorTrend),
+                distributorTrend: distributorTrend,
                 distributorTrendPositive: distributorTrend >= 0
             },
             sparklineData: sparklineData,
