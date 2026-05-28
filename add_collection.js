@@ -369,6 +369,7 @@ window.removeItem = (index) => {
 };
 
 // PERSISTENCE (SUPABASE SYNC ENGINE)
+// PERSISTENCE (SUPABASE SYNC ENGINE)
 window.submitCollection = async function() {
     const customer = document.getElementById('inCustomer')?.value.trim();
     const date = document.getElementById('inDate')?.value;
@@ -459,6 +460,15 @@ window.submitCollection = async function() {
                 .ilike('name', formattedCustomer)
                 .maybeSingle();
             
+            // NEW LOGIC: Fixed routing per your correction
+            const lowerCat = currentCategory ? currentCategory.toLowerCase() : '';
+            let determinedType = 'customer'; // Default to customer
+            
+            // If you have specific categories that act as partners, enter them here:
+            if (lowerCat === 'partner_category_name' || lowerCat === 'another_partner') {
+                determinedType = 'partner';
+            }
+
             if (existingProfile) {
                 profileId = existingProfile.id;
                 const updatePayload = {};
@@ -467,13 +477,14 @@ window.submitCollection = async function() {
                     updatePayload.name = formattedCustomer;
                 }
                 if (existingProfile.address === 'N/A' || !existingProfile.address) {
-                    updatePayload.address = address || existingProfile.address;
+                    updatePayload.address = address || 'N/A';
                 }
                 if (existingProfile.contact_num === 'N/A' || !existingProfile.contact_num) {
-                    updatePayload.contact_num = contact || existingProfile.contact_num;
+                    updatePayload.contact_num = contact || 'N/A';
                 }
                 
-                updatePayload.category = currentCategory;
+                updatePayload.category = currentCategory || 'Walk-ins';
+                updatePayload.type = determinedType; 
 
                 await _supabase
                     .from('profiles')
@@ -485,10 +496,11 @@ window.submitCollection = async function() {
                     .from('profiles')
                     .insert([{
                         name: formattedCustomer,          
-                        category: currentCategory,
-                        address: address || 'N/A',
-                        contact_num: contact || 'N/A',
-                        display_id: displayId
+                        category: currentCategory || 'Walk-ins', 
+                        address: address || 'N/A',               
+                        contact_num: contact || 'N/A',           
+                        display_id: displayId,
+                        type: determinedType                     
                     }])
                     .select()
                     .single();
