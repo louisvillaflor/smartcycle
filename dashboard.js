@@ -53,9 +53,6 @@ document.addEventListener('DOMContentLoaded', function() {
 /**
  * Main function to load all dashboard data from Supabase database
  */
-/**
- * Main function to load all dashboard data from Supabase database
- */
 async function loadDashboardData() {
     try {
         const now = new Date();
@@ -67,17 +64,15 @@ async function loadDashboardData() {
         // ----------------------------------------
         const { data: profiles, error: pError } = await supabaseClient
             .from('profiles')
-            .select('created_at, type');
+            .select('created_at, type, category'); // Added category to select
 
         if (pError) throw pError;
 
-        // Calculate Current Month Distributors (This is now your main metric!)
         const currentMonthDistributors = profiles.filter(p => {
             const d = new Date(p.created_at);
             return d.getMonth() === currentMonthNum && d.getFullYear() === currentYear;
         }).length;
 
-        // Calculate Previous Month Distributors for Trend
         const prevMonthDistributors = profiles.filter(p => {
             const d = new Date(p.created_at);
             return d.getMonth() === (currentMonthNum - 1 === -1 ? 11 : currentMonthNum - 1) && 
@@ -95,13 +90,11 @@ async function loadDashboardData() {
 
         if (sError) throw sError;
 
-        // Calculate Current Month Sales (This is now your main metric!)
         const currentMonthSales = sales.filter(s => {
             const d = new Date(s.date);
             return d.getMonth() === currentMonthNum && d.getFullYear() === currentYear;
         }).reduce((acc, curr) => acc + Number(curr.total_amount || 0), 0);
 
-        // Calculate Previous Month Sales for Trend
         const prevMonthSales = sales.filter(s => {
             const d = new Date(s.date);
             return d.getMonth() === (currentMonthNum - 1 === -1 ? 11 : currentMonthNum - 1) && 
@@ -119,7 +112,6 @@ async function loadDashboardData() {
 
         if (ciError) throw ciError;
 
-        // Calculate Current Month Collection (This is now your main metric!)
         const currentMonthColl = collectionItems.filter(item => {
             if (!item.collections) return false;
             const collectionData = Array.isArray(item.collections) ? item.collections[0] : item.collections;
@@ -129,7 +121,6 @@ async function loadDashboardData() {
             return d.getMonth() === currentMonthNum && d.getFullYear() === currentYear;
         }).reduce((acc, curr) => acc + Number(curr.weight || 0), 0);
         
-        // Calculate Previous Month Collection for Trend
         const prevMonthColl = collectionItems.filter(item => {
             if (!item.collections) return false;
             const collectionData = Array.isArray(item.collections) ? item.collections[0] : item.collections;
@@ -152,37 +143,57 @@ async function loadDashboardData() {
         };
 
         // ----------------------------------------
-        // 5. CHART: MOST COLLECTED MATERIALS 
+        // 5. CHART: MOST COLLECTED MATERIALS (Dynamic)
         // ----------------------------------------
-        const monthLabels = ['Jan', 'Feb', 'March', 'April', 'May'];
-        const materialDatasets = processMaterialData(collectionItems, monthLabels, currentYear);
+        // Fetch materials dynamically from price_list
+        const { data: priceList, error: plError } = await supabaseClient
+            .from('price_list')
+            .select('material_name');
+
+        if (plError) throw plError;
+
+        // Create a dynamic materials array with a repeating color palette
+        const barColors = ['#FFEB8A', '#71D7D0', '#B9E682', '#FFB6C1', '#FFDAB9', '#E6E6FA', '#87CEFA'];
+        const dynamicMaterials = priceList.map((item, index) => ({
+            label: item.material_name,
+            color: barColors[index % barColors.length]
+        }));
+
+        // Dynamically generate month labels up to the current month to prevent future bugs
+        const allMonths = ['Jan', 'Feb', 'March', 'April', 'May', 'June', 'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+        const monthLabels = allMonths.slice(0, currentMonthNum + 1); 
+        
+        const materialDatasets = processMaterialData(collectionItems, monthLabels, currentYear, dynamicMaterials);
 
         // ----------------------------------------
-        // 6. CHART: TOP CONTRIBUTION BY CATEGORY 
+        // 6. CHART: TOP CONTRIBUTION BY CATEGORY (Dynamic)
         // ----------------------------------------
-        const categoriesCount = { 'Barangay': 0, 'School': 0, 'Walk-in': 0 };
+        // Dynamically group users by category/type to avoid case-sensitivity or hardcoding issues
+        const categoriesCount = {};
         profiles.forEach(p => {
-            if (p.type && categoriesCount[p.type] !== undefined) {
-                categoriesCount[p.type]++;
-            } else if (p.category && categoriesCount[p.category] !== undefined) {
-                categoriesCount[p.category]++;
-            }
+            // Check 'category' first, fallback to 'type', default to 'Uncategorized'
+            let cat = p.category || p.type || 'Uncategorized';
+            // Normalize string (e.g. 'barangay' -> 'Barangay')
+            cat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+
+            categoriesCount[cat] = (categoriesCount[cat] || 0) + 1;
         });
 
-        const totalCatSum = categoriesCount['Barangay'] + categoriesCount['School'] + categoriesCount['Walk-in'] || 1;
-        const categoryPercentages = [
-            Math.round((categoriesCount['Barangay'] / totalCatSum) * 100),
-            Math.round((categoriesCount['School'] / totalCatSum) * 100),
-            Math.round((categoriesCount['Walk-in'] / totalCatSum) * 100)
-        ];
+        const categoryLabels = Object.keys(categoriesCount);
+        const categoryDataRaw = Object.values(categoriesCount);
+        const totalCatSum = categoryDataRaw.reduce((sum, val) => sum + val, 0) || 1;
+
+        const categoryPercentages = categoryDataRaw.map(val => Math.round((val / totalCatSum) * 100));
+
+        const donutColors = ['#FFEB8A', '#71D7D0', '#B9E682', '#FFA07A', '#98FB98', '#DDA0DD'];
+        const dynamicCategoryColors = categoryLabels.map((_, i) => donutColors[i % donutColors.length]);
 
         // ----------------------------------------
         // BUILD FINAL DATA STRUCTURE
         // ----------------------------------------
         const finalDashboardData = {
-            userName: sessionStorage.getItem('userName') || 'Admin',
+            userName: sessionStorage.getItem('userName') || 'Office Admin',
             stats: {
-                // Notice these now use the currentMonth variables!
                 totalCollection: Math.round(currentMonthColl), 
                 collectionTrend: Math.abs(collectionTrend),
                 collectionTrendPositive: collectionTrend >= 0,
@@ -201,9 +212,9 @@ async function loadDashboardData() {
                 datasets: materialDatasets
             },
             categoryData: {
-                labels: ['Barangay', 'School', 'Walk-in'],
+                labels: categoryLabels,
                 data: categoryPercentages,
-                backgroundColor: ['#FFEB8A', '#71D7D0', '#B9E682']
+                backgroundColor: dynamicCategoryColors
             }
         };
 
@@ -262,13 +273,8 @@ function getMonthlyChronology(items, valueField, relationField, dateField) {
 /**
  * Helper: Aggregates weights by matching specific material names per calendar month
  */
-function processMaterialData(collectionItems, months, targetYear) {
-    const materials = [
-        { label: 'Plastic', color: '#FFEB8A' },
-        { label: 'Metal', color: '#71D7D0' },
-        { label: 'Paper', color: '#B9E682' }
-    ];
 
+function processMaterialData(collectionItems, months, targetYear, materials) {
     return materials.map(mat => {
         const monthlyData = new Array(months.length).fill(0);
         
@@ -284,6 +290,7 @@ function processMaterialData(collectionItems, months, targetYear) {
                     const d = new Date(collectionsData.date_collected);
                     if (d.getFullYear() === targetYear) {
                         const mIndex = d.getMonth(); 
+                        // Only add if the month falls within our generated labels
                         if (mIndex < months.length) {
                             monthlyData[mIndex] += Number(item.weight || 0);
                         }
