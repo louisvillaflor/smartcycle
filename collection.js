@@ -236,7 +236,7 @@ function renderTable() {
             <td onclick="event.stopPropagation()">
               <div class="action-btns">
                 <button class="icon-btn receipt-btn" onclick="viewReceipt(${actualIndex})"><i data-lucide="image"></i></button>
-                <button class="icon-btn" onclick="editEntry(${actualIndex})"><i data-lucide="edit-2"></i></button>
+                <button class="icon-btn" onclick="(${actualIndex})"><i data-lucide="edit-2"></i></button>
                 <button class="icon-btn delete" onclick="deleteEntry(${actualIndex})"><i data-lucide="trash-2"></i></button>
               </div>
             </td>
@@ -370,46 +370,77 @@ function setupSearch() {
     });
 }
 
-// 5. DATA MODIFICATION MATCHES (EDIT / SAVE / DELETE)
-window.editEntry = function(index) {
-    window.editingIndex = index;
-    const data = getFilteredCollections()[index]; // Source data accurately from filtered collections context
-    const modal = document.getElementById('addCollectionModal');
-    if (!modal || !data) return;
 
-    document.getElementById('inCustomer').value = data.customer;
-    document.getElementById('inAddress').value = data.address || '';
-    document.getElementById('inContact').value = data.contact || '';
+// Ensure the global tracker is safely initialized ONLY if it doesn't exist yet
+if (typeof window.editingIndex === 'undefined') {
+    window.editingIndex = -1;
+}
+
+/**
+ * 1. OPEN MODAL FOR EDITING
+ */
+window.editEntry = function(index) {
+    // 1. Explicitly force a base-10 integer to prevent type comparison issues
+    const parsedIndex = parseInt(index, 10);
+    window.editingIndex = parsedIndex;
     
-    // Convert 'MM-DD-YYYY' back to 'YYYY-MM-DD' for the native HTML date input field
-    if (data.date && data.date.includes('-')) {
-        const parts = data.date.split('-');
-        if (parts.length === 3) {
-            const [month, day, year] = parts;
-            document.getElementById('inDate').value = `${year}-${month}-${day}`;
-        } else {
-            document.getElementById('inDate').value = data.date;
-        }
-    } else {
-        document.getElementById('inDate').value = data.date;
+    console.log(`[SmartCycle] Edit mode triggered! window.editingIndex is now:`, window.editingIndex);
+
+    // 2. Fetch data using your existing filtered list logic
+    const filteredList = getFilteredCollections(); // Make sure this matches your data retriever
+    const data = filteredList[parsedIndex]; 
+    
+    const modal = document.getElementById('addCollectionModal');
+    if (!modal) {
+        console.error("Could not find #addCollectionModal in the DOM.");
+        return;
     }
 
-    window.currentCategory = data.category;
+    if (!data) {
+        console.error(`No collection data found at index: ${parsedIndex}`);
+        return;
+    }
+
+    // 3. Populate your form inputs safely
+    if (document.getElementById('inCustomer')) document.getElementById('inCustomer').value = data.customer_name || data.customer || '';
+    if (document.getElementById('inAddress')) document.getElementById('inAddress').value = data.address || '';
+    if (document.getElementById('inContact')) document.getElementById('inContact').value = data.contact_number || data.contact || '';
+    
+    // Date conversion (Handles both native YYYY-MM-DD and displayed formats)
+    if (document.getElementById('inDate') && data.date_collected) {
+        let dateVal = data.date_collected;
+        if (dateVal.includes('-') && dateVal.split('-')[0].length !== 4) {
+            // Converts MM-DD-YYYY back to YYYY-MM-DD for native input layout
+            const [m, d, y] = dateVal.split('-');
+            dateVal = `${y}-${m}-${d}`;
+        }
+        document.getElementById('inDate').value = dateVal;
+    }
+
+    // 4. Update the category tabs matching your HTML buttons
+    window.currentCategory = data.type || 'School';
     document.querySelectorAll('.m-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.innerText.trim() === data.category);
+        const isMatch = tab.innerText.trim().toLowerCase() === window.currentCategory.toLowerCase();
+        tab.classList.toggle('active', isMatch);
     });
 
+    // 5. Load existing items array
     window.currentItems = [...(data.items || [])];
     if (typeof renderItems === 'function') renderItems();
 
+    // 6. Change the green submit button's appearance to "Update"
     const submitBtn = document.querySelector('.btn-submit-green');
-    if (submitBtn) submitBtn.innerHTML = '<i data-lucide="check"></i> Update';
+    if (submitBtn) {
+        submitBtn.innerHTML = '<i data-lucide="check"></i> Update';
+    }
 
+    // 7. Show modal
     modal.classList.add('show');
     document.body.style.overflow = 'hidden';
 
+    // 8. Refresh visual components
     if (typeof updatePreview === 'function') updatePreview();
-    setTimeout(refreshIcons, 100);
+    if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 };
 
 // Inside collection.js
