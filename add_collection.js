@@ -6,6 +6,15 @@ window.currentItems = []; // Initializing to prevent undefined array pushes
 // Local cache to resolve names during edit mode if needed
 let loadedPricesCache = [];
 
+// Safety utility wrapper for external rendering dependencies
+function safeRefreshIcons() {
+    if (typeof refreshIcons === 'function') {
+        refreshIcons();
+    } else if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
+    }
+}
+
 function generateDisplayId(prefix) {
     return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 }
@@ -29,9 +38,13 @@ window.openAddModal = async () => {
     // Dynamically fetch and fill up material prices matching your Price List dashboard
     await loadActivePrices();
 
-    document.getElementById('inDate').value = new Date().toISOString().split('T')[0];
+    const dateField = document.getElementById('inDate');
+    if (dateField) {
+        dateField.value = new Date().toISOString().split('T')[0];
+    }
+    
     updatePreview();
-    setTimeout(refreshIcons, 100);
+    setTimeout(safeRefreshIcons, 100);
 };
 
 /**
@@ -92,7 +105,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
 
     updatePreview();
     renderItems();
-    setTimeout(refreshIcons, 100);
+    setTimeout(safeRefreshIcons, 100);
 };
 
 // FIXED ENGINE: Added 'id' to the select string so item.id isn't undefined
@@ -130,11 +143,11 @@ async function loadActivePrices() {
             { id: 5, material_name: "Yero", price: 8 }
         ];
         selMaterial.innerHTML = `
-            <option value=1 data-name="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
-            <option value=2 data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
-            <option value=3 data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
-            <option value=4 data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
-            <option value=5 data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
+            <option value="1" data-name="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
+            <option value="2" data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
+            <option value="3" data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
+            <option value="4" data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
+            <option value="5" data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
         `;
     }
 }
@@ -226,13 +239,13 @@ function resetForm() {
         if (el) el.innerText = value;
     });
 
-    refreshIcons();
+    safeRefreshIcons();
 }
 
 window.setCategory = (category, btn) => {
     currentCategory = category;
     document.querySelectorAll('.m-tab').forEach(tab => tab.classList.remove('active'));
-    btn.classList.add('active');
+    if (btn) btn.classList.add('active');
     updatePreview();
 };
 
@@ -243,7 +256,7 @@ window.updatePreview = function() {
     const contact = document.getElementById('inContact')?.value || '---';
 
     let formattedDate = date;
-    if (date !== '---') {
+    if (date !== '---' && date) {
         formattedDate = new Date(date).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -254,12 +267,11 @@ window.updatePreview = function() {
     const updates = { preCustomer: customer, preDate: formattedDate, preAddress: address, preContact: contact };
     Object.entries(updates).forEach(([id, value]) => {
         const el = document.getElementById(id);
-        if (el) el.innerText = value;
+        if (el) el.innerText = value || '---';
     });
 };
 
 // RECEIPT LINE ITEMS CONTROLLER
-// Replace your existing window.addItem function with this:
 window.addItem = function() {
     const sel = document.getElementById('selMaterial');
     const weightInput = document.getElementById('inWeight');
@@ -326,7 +338,7 @@ function renderItems() {
                   <td>${item.weight} kg</td>
                   <td><strong>₱${item.subtotal.toFixed(2)}</strong></td>
                   <td>
-                    <button class="remove-item-btn" onclick="removeItem(${index})" title="Remove item">
+                    <button class="remove-item-btn" type="button" onclick="removeItem(${index})" title="Remove item">
                       <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
                     </button>
                   </td>
@@ -360,7 +372,7 @@ function renderItems() {
     const preTotalEl = document.getElementById('preTotal');
     if (preTotalEl) preTotalEl.innerText = `₱${total.toFixed(2)}`;
 
-    refreshIcons();
+    safeRefreshIcons();
 }
 
 window.removeItem = (index) => {
@@ -400,29 +412,23 @@ window.submitCollection = async function() {
         const formattedCustomer = toTitleCase(customer.trim()); 
 
         const collectionPayload = { 
-            customer_name: formattedCustomer, // 🌟 Title case synced for both tables
+            customer_name: formattedCustomer, // Title case synced for both tables
             date_collected: date, 
-            address: address, 
-            contact_number: contact, 
+            address: address || 'N/A', 
+            contact_number: contact || 'N/A', 
             type: currentCategory 
         };
 
-        // NEW PROFILE ROUTING LOGIC (Determining Type)
-        const lowerCat = currentCategory ? currentCategory.toLowerCase() : '';
+        // PROFILE ROUTING LOGIC (Enforces profile type as 'customer')
         let determinedType = 'customer'; 
-        
-        // Match specific structural categories to change profile type if needed
-        if (lowerCat === 'partner_category_name' || lowerCat === 'another_partner') {
-            determinedType = 'partner';
-        }
 
         if (editingIndex !== -1) {
             // ==========================================
-            // --- 🟩 FIXED EDIT MODE WITH SYNC ENGINE ---
+            // --- FIXED EDIT MODE WITH SYNC ENGINE ---
             // ==========================================
             const targetedCollection = (typeof getFilteredCollections === 'function') 
                 ? getFilteredCollections()[editingIndex] 
-                : window.collections[editingIndex];
+                : (window.collections ? window.collections[editingIndex] : null);
 
             if (!targetedCollection || !targetedCollection.id) {
                 throw new Error("Unable to identify targeted collection ID context.");
@@ -493,7 +499,7 @@ window.submitCollection = async function() {
 
         } else {
             // ==========================================
-            // --- 🟦 INSERT MODE ---
+            // --- INSERT MODE ---
             // ==========================================
             const displayId = generateDisplayId('C');
             let profileId = null;
@@ -580,8 +586,12 @@ window.submitCollection = async function() {
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
-            refreshIcons();
+            if (editingIndex !== -1) {
+                submitBtn.innerHTML = '<i data-lucide="check"></i> Update Entry';
+            } else {
+                submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
+            }
+            safeRefreshIcons();
         }
     }
 };
@@ -589,7 +599,10 @@ window.submitCollection = async function() {
 window.setupFieldListeners = function() {
     const inCustomer = document.getElementById('inCustomer');
     if (inCustomer) {
-        inCustomer.addEventListener('input', () => { if (inCustomer.value.trim()) clearError('inCustomer'); });
+        inCustomer.addEventListener('input', () => { 
+            if (inCustomer.value.trim()) clearError('inCustomer'); 
+            updatePreview();
+        });
         inCustomer.addEventListener('blur', () => {
             const val = inCustomer.value.trim();
             if (!val) showError('inCustomer', 'Customer name is required');
@@ -600,7 +613,17 @@ window.setupFieldListeners = function() {
 
     const inDate = document.getElementById('inDate');
     if (inDate) {
-        inDate.addEventListener('change', () => { if (inDate.value) clearError('inDate'); else showError('inDate', 'Date is required'); });
+        inDate.addEventListener('change', () => { 
+            if (inDate.value) clearError('inDate'); else showError('inDate', 'Date is required'); 
+            updatePreview();
+        });
+    }
+
+    const inAddress = document.getElementById('inAddress');
+    if (inAddress) {
+        inAddress.addEventListener('input', () => {
+            updatePreview();
+        });
     }
 
     const inContact = document.getElementById('inContact');
@@ -608,6 +631,7 @@ window.setupFieldListeners = function() {
         inContact.addEventListener('input', () => {
             inContact.value = formatContact(inContact.value.replace(/[^\d]/g, '').slice(0, 11));
             clearError('inContact');
+            updatePreview();
         });
     }
 
@@ -624,7 +648,7 @@ function togglePreview() {
     
     right.classList.add('show-preview');
     left.style.display = 'none';
-    refreshIcons();
+    safeRefreshIcons();
 }
 
 function closePreview() {
@@ -634,5 +658,10 @@ function closePreview() {
 
     right.classList.remove('show-preview');
     left.style.display = 'block';
-    refreshIcons();
+    safeRefreshIcons();
 }
+
+// Automatically bind document listeners once DOMContentLoaded completes
+document.addEventListener('DOMContentLoaded', () => {
+    window.setupFieldListeners();
+});
