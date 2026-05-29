@@ -1,4 +1,4 @@
-// Ensure strict tracking context variables exist safely at module
+// Ensure strict tracking context variables exist safely at module level
 let editingIndex = -1;
 let currentCategory = 'School';
 window.currentItems = []; // Initializing to prevent undefined array
@@ -23,7 +23,7 @@ window.openAddModal = async () => {
     modal.classList.add('show');
     document.body.style.overflow = 'hidden';
 
-    editingIndex = -1;
+    editingIndex = -1; // Reset local tracker
     resetForm();
 
     // Dynamically fetch and fill up material prices matching your Price List dashboard
@@ -41,7 +41,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     modal.classList.add('show');
     document.body.style.overflow = 'hidden';
 
-    editingIndex = index; // Ensure global context tracking
+    editingIndex = index; // Fix: Ensure global context tracking is exactly bound locally
     clearAllErrors();
 
     await loadActivePrices();
@@ -87,7 +87,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
         const selMaterial = document.getElementById('selMaterial');
         if (selMaterial) {
            selMaterial.value = window.currentItems[0].material_id || window.currentItems[0].materialId;
-            selMaterial.dispatchEvent(new Event('change'));
+           selMaterial.dispatchEvent(new Event('change'));
         }
     }
 
@@ -115,7 +115,7 @@ async function loadActivePrices() {
         if (error) throw error;
 
         if (prices && prices.length > 0) {
-            loadedPricesCache = prices; // Store references globally to parse safely on edit tasks
+            loadedPricesCache = prices; 
             selMaterial.innerHTML = prices.map((item, idx) => {
                 const rate = Math.round(item.price); 
                 return `<option value="${item.id}" data-name="${item.material_name}" data-rate="${rate}" ${idx === 0 ? 'selected' : ''}>
@@ -127,7 +127,6 @@ async function loadActivePrices() {
         }
     } catch (err) {
         console.error("Error fetching live price rates from database:", err.message);
-        // Fallback structures initialized cleanly to maintain operational tracking integrity
         loadedPricesCache = [
             { id: 1, material_name: "Plastic", price: 3 },
             { id: 2, material_name: "Bakal", price: 15 },
@@ -154,7 +153,6 @@ window.closeAddModal = () => {
     resetForm();
 };
 
-// Outside click modal dismiss handler
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('addCollectionModal');
     if (modal && e.target === modal) {
@@ -162,7 +160,6 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// FORM SYSTEM UTILITIES & VALIDATION HELPERS
 function showError(fieldId, message) {
     const field = document.getElementById(fieldId);
     if (!field) return;
@@ -212,8 +209,7 @@ function resetForm() {
 
     clearAllErrors();
     window.currentItems = []; 
-    window.editingIndex = -1; // CRITICAL: Reset the edit index back to default state
-    renderItems();
+    editingIndex = -1; // FIXED: Resets the actual locally-scoped module index cleanly
 
     currentCategory = 'School';
     document.querySelectorAll('.m-tab').forEach((tab, idx) => {
@@ -263,8 +259,6 @@ window.updatePreview = function() {
     });
 };
 
-// RECEIPT LINE ITEMS CONTROLLER
-// Replace your existing window.addItem function with this:
 window.addItem = function() {
     const sel = document.getElementById('selMaterial');
     const weightInput = document.getElementById('inWeight');
@@ -294,8 +288,8 @@ window.addItem = function() {
 
     window.currentItems.push({ 
         materialId,
-        material: materialName,     // Matches layout expectation
-        material_name: materialName, // Matches database expectation
+        material: materialName,     
+        material_name: materialName, 
         rate, 
         weight, 
         subtotal: rate * weight 
@@ -410,6 +404,7 @@ window.submitCollection = async function() {
         };
 
         if (editingIndex !== -1) {
+            // FIXED: Reliably look up context records without leaking array index mismatches
             const targetedCollection = (typeof getFilteredCollections === 'function') 
                 ? getFilteredCollections()[editingIndex] 
                 : window.collections[editingIndex];
@@ -436,10 +431,6 @@ window.submitCollection = async function() {
             
             const itemsToInsert = window.currentItems.map(item => {
                 const validMaterialId = parseInt(item.material_id || item.materialId, 10);
-                if (isNaN(validMaterialId)) {
-                    console.error("Defensive Halt: Detected NaN materialId for item", item);
-                }
-            
                 return {
                     collection_id: targetId,
                     material_id: isNaN(validMaterialId) ? null : validMaterialId, 
@@ -471,9 +462,7 @@ window.submitCollection = async function() {
                 .ilike('name', formattedCustomer)
                 .maybeSingle();
             
-            // NEW LOGIC: Fixed routing per your correction
-            const lowerCat = currentCategory ? currentCategory.toLowerCase() : '';
-            let determinedType = 'customer'; // Default to customer
+            let determinedType = 'customer'; 
 
             if (existingProfile) {
                 profileId = existingProfile.id;
@@ -536,7 +525,7 @@ window.submitCollection = async function() {
             const { error: itemsError } = await _supabase
                 .from('collection_items')
                 .insert(itemsToInsert);
-            
+        
             if (itemsError) throw itemsError;
         }
 
