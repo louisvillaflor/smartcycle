@@ -176,7 +176,7 @@ async function loadDashboardData() {
         const categoriesCount = {
             'Barangay': 0,
             'School': 0,
-            'Walk-in': 0
+            'Walk-ins': 0
         };
         
         profiles.forEach(p => {
