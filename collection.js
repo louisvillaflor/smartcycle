@@ -9,7 +9,6 @@ let currentPage = 1;
 let currentFilter = 'all';
 const itemsPerPage = 10;
 
-// 1. INITIALIZATION
 document.addEventListener('DOMContentLoaded', async () => {
     loadModalHTML();
     setupSearch();
