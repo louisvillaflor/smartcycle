@@ -64,7 +64,7 @@ async function loadDashboardData() {
         // ----------------------------------------
         const { data: profiles, error: pError } = await supabaseClient
             .from('profiles')
-            .select('created_at, type, category'); // Added category to select
+            .select('created_at, type, category');
 
         if (pError) throw pError;
 
@@ -104,11 +104,11 @@ async function loadDashboardData() {
         const salesTrend = calculateTrend(currentMonthSales, prevMonthSales);
 
         // ----------------------------------------
-        // 3. TOTAL COLLECTION & TREND
+        // 3. TOTAL COLLECTION & TREND (UPDATED RELATION SELECT)
         // ----------------------------------------
         const { data: collectionItems, error: ciError } = await supabaseClient
             .from('collection_items')
-            .select('weight, collections(date_collected), price_list(material_name)');
+            .select('weight, collections(date_collected, profiles(category, type)), price_list(material_name)');
 
         if (ciError) throw ciError;
 
@@ -145,46 +145,52 @@ async function loadDashboardData() {
         // ----------------------------------------
         // 5. CHART: MOST COLLECTED MATERIALS (Dynamic)
         // ----------------------------------------
-        // Fetch materials dynamically from price_list
         const { data: priceList, error: plError } = await supabaseClient
             .from('price_list')
             .select('material_name');
 
         if (plError) throw plError;
 
-        // Create a dynamic materials array with a repeating color palette
         const barColors = ['#FFEB8A', '#71D7D0', '#B9E682', '#FFB6C1', '#FFDAB9', '#E6E6FA', '#87CEFA'];
         const dynamicMaterials = priceList.map((item, index) => ({
             label: item.material_name,
             color: barColors[index % barColors.length]
         }));
 
-        // Dynamically generate month labels up to the current month to prevent future bugs
         const allMonths = ['Jan', 'Feb', 'March', 'April', 'May', 'June', 'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
         const monthLabels = allMonths.slice(0, currentMonthNum + 1); 
         
         const materialDatasets = processMaterialData(collectionItems, monthLabels, currentYear, dynamicMaterials);
 
         // ----------------------------------------
-        // 6. CHART: TOP CONTRIBUTION BY CATEGORY (Dynamic)
+        // 6. CHART: TOP CONTRIBUTION BY CATEGORY (AGGREGATING TOTAL WEIGHT)
         // ----------------------------------------
         
-        // 1. Define the exact categories in the exact order you want them
         const allowedCategories = ['Barangay', 'School', 'Walk-in'];
         
-        // 2. Initialize the count object with 0s so no category is ever missing
-        const categoriesCount = {
+        // Initialize the tracking object with 0 kilograms
+        const categoriesWeight = {
             'Barangay': 0,
             'School': 0,
             'Walk-in': 0
         };
         
-        profiles.forEach(p => {
-            // Check 'category' first, fallback to 'type', default to empty string
-            let rawCat = p.category || p.type || '';
-            let lowerCat = rawCat.toLowerCase();
+        collectionItems.forEach(item => {
+            if (!item.collections) return;
+            const collectionData = Array.isArray(item.collections) ? item.collections[0] : item.collections;
+            if (!collectionData || !collectionData.date_collected) return;
+            
+            // Only sum up weights for the current month and year
+            const d = new Date(collectionData.date_collected);
+            if (d.getMonth() !== currentMonthNum || d.getFullYear() !== currentYear) return;
+            
+            // Extract profile categories safely from nested data fields
+            if (!collectionData.profiles) return;
+            const profileData = Array.isArray(collectionData.profiles) ? collectionData.profiles[0] : collectionData.profiles;
+            if (!profileData) return;
 
-            // Map database variations to your exact allowed categories
+            let rawCat = profileData.category || profileData.type || '';
+            let lowerCat = rawCat.toLowerCase();
             let mappedCat = 'Uncategorized';
             
             if (lowerCat.includes('barangay')) {
@@ -192,28 +198,25 @@ async function loadDashboardData() {
             } else if (lowerCat.includes('school')) {
                 mappedCat = 'School';
             } else if (lowerCat.includes('walk-in')) { 
-                // Using .includes() catches both "walk-in" and "walk-ins" from your database
                 mappedCat = 'Walk-in';
             }
 
-            // Increment if it matched one of our allowed categories
-            if (categoriesCount.hasOwnProperty(mappedCat)) {
-                categoriesCount[mappedCat]++;
+            // Aggregate transaction weights instead of simple integers
+            if (categoriesWeight.hasOwnProperty(mappedCat)) {
+                categoriesWeight[mappedCat] += Number(item.weight || 0);
             }
         });
 
-        // 3. Ensure labels and data always use the strict order
         const categoryLabels = allowedCategories;
-        const categoryDataRaw = allowedCategories.map(cat => categoriesCount[cat]);
-        const totalCatSum = categoryDataRaw.reduce((sum, val) => sum + val, 0) || 1;
+        const categoryDataRaw = allowedCategories.map(cat => categoriesWeight[cat]);
+        const totalWeightSum = categoryDataRaw.reduce((sum, val) => sum + val, 0) || 1;
 
-        const categoryPercentages = categoryDataRaw.map(val => Math.round((val / totalCatSum) * 100));
+        const categoryPercentages = categoryDataRaw.map(val => Math.round((val / totalWeightSum) * 100));
 
-        // 4. Map colors explicitly to the category names to match your HTML legend
         const categoryColorMap = {
-            'Barangay': '#FFEB8A', // Yellow
-            'School': '#71D7D0',   // Teal
-            'Walk-in': '#B9E682'   // Green
+            'Barangay': '#FFEB8A', 
+            'School': '#71D7D0',   
+            'Walk-in': '#B9E682'   
         };
         
         const dynamicCategoryColors = categoryLabels.map(cat => categoryColorMap[cat]);
@@ -248,7 +251,6 @@ async function loadDashboardData() {
             }
         };
 
-        // Render to Screen Layout
         updateDashboard(finalDashboardData);
         
     } catch (error) {
@@ -289,7 +291,7 @@ function getMonthlyChronology(items, valueField, relationField, dateField) {
         const monthDiff = (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth());
         
         if (monthDiff >= 0 && monthDiff < 6) {
-            const index = 5 - monthDiff; // order older months first
+            const index = 5 - monthDiff; 
             if (valueField === 'count') {
                 counts[index]++;
             } else {
@@ -303,13 +305,11 @@ function getMonthlyChronology(items, valueField, relationField, dateField) {
 /**
  * Helper: Aggregates weights by matching specific material names per calendar month
  */
-
 function processMaterialData(collectionItems, months, targetYear, materials) {
     return materials.map(mat => {
         const monthlyData = new Array(months.length).fill(0);
         
         collectionItems.forEach(item => {
-            // Safely parse relation objects/arrays
             const priceListData = Array.isArray(item.price_list) ? item.price_list[0] : item.price_list;
             const collectionsData = Array.isArray(item.collections) ? item.collections[0] : item.collections;
             
@@ -320,7 +320,6 @@ function processMaterialData(collectionItems, months, targetYear, materials) {
                     const d = new Date(collectionsData.date_collected);
                     if (d.getFullYear() === targetYear) {
                         const mIndex = d.getMonth(); 
-                        // Only add if the month falls within our generated labels
                         if (mIndex < months.length) {
                             monthlyData[mIndex] += Number(item.weight || 0);
                         }
@@ -372,22 +371,16 @@ function updateStats(stats) {
 function updateTrendIndicator(elementId, isPositive) {
     const trendElement = document.getElementById(elementId);
     if (trendElement) {
-        // 1. Update the colors
         trendElement.classList.remove('positive', 'negative');
         trendElement.classList.add(isPositive ? 'positive' : 'negative');
         
-        // 2. Find the existing icon (it might be an <i> if it hasn't rendered, or an <svg> if it has)
         const existingIcon = trendElement.querySelector('i, svg');
         
         if (existingIcon) {
-            // 3. Create a brand new <i> element with the correct up/down attribute
             const newIcon = document.createElement('i');
             newIcon.setAttribute('data-lucide', isPositive ? 'trending-up' : 'trending-down');
-            
-            // 4. Replace the old icon in the DOM
             existingIcon.replaceWith(newIcon);
             
-            // 5. Tell Lucide to turn this new <i> tag into an SVG
             if (typeof lucide !== 'undefined') {
                 lucide.createIcons();
             }
@@ -396,18 +389,15 @@ function updateTrendIndicator(elementId, isPositive) {
 }
 
 function createSparklines(sparklineData) {
-    // 1. Generate real chronological month/year labels for the last 6 months
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const labels = [];
     const now = new Date();
     
-    // Matches the "5 - monthDiff" logic from getMonthlyChronology (oldest month first)
     for (let i = 5; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         labels.push(`${monthNames[d.getMonth()]} ${d.getFullYear()}`);
     }
 
-    // 2. Pass labels and a display title to each sparkline
     createSparkline('collectionSparkline', sparklineData.collection, '#FFEB8A', labels, 'Collection');
     createSparkline('salesSparkline', sparklineData.sales, '#71D7D0', labels, 'Sales');
     createSparkline('distributorSparkline', sparklineData.distributors, '#B9E682', labels, 'Distributors');
@@ -423,7 +413,7 @@ function createSparkline(canvasId, data, color, labels, labelName) {
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels, // Use the generated month/year labels
+            labels: labels, 
             datasets: [{
                 label: labelName,
                 data: data,
@@ -432,8 +422,8 @@ function createSparkline(canvasId, data, color, labels, labelName) {
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 0,            // Keep points hidden normally to match your clean UI
-                pointHoverRadius: 5,       // Pop up a clean dot when hovered
+                pointRadius: 0,            
+                pointHoverRadius: 5,       
                 pointHoverBackgroundColor: color
             }]
         },
@@ -444,13 +434,12 @@ function createSparkline(canvasId, data, color, labels, labelName) {
             plugins: {
                 legend: { display: false },
                 tooltip: { 
-                    enabled: true,         // Turn on tooltips
+                    enabled: true,         
                     mode: 'index',
-                    intersect: false,      // Triggers tooltip even if they hover slightly above/below the line
+                    intersect: false,      
                     callbacks: {
                         label: function(context) {
                             let value = context.parsed.y;
-                            // Optional: Append distinct units depending on what's being looked at
                             if (labelName === 'Collection') return ` Collected: ${formatNumber(value)} kg`;
                             if (labelName === 'Sales') return ` Total Sales: ₱${formatNumber(value)}`;
                             if (labelName === 'Distributors') return ` New Users: ${formatNumber(value)}`;
@@ -463,7 +452,6 @@ function createSparkline(canvasId, data, color, labels, labelName) {
                 x: { display: false },
                 y: { display: false }
             },
-            // REMOVED "events: []" so Chart.js registers hover states
             interaction: {
                 mode: 'index',
                 intersect: false
