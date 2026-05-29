@@ -4,7 +4,7 @@ window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 window.collections = [];
 window.currentItems = [];
 window.currentCategory = 'School';
-window.editingIndex = -1;
+window.editingIndex = -1; // Consider migrating this to window.editingId as noted above
 let currentPage = 1;
 let currentFilter = 'all';
 const itemsPerPage = 10;
@@ -25,13 +25,12 @@ function refreshIcons() {
 // YYYY-MM-DD string to MM-DD-YYYY
 function formatDateToMDY(dateString) {
     if (!dateString) return 'N/A';
-    // Splits the 'YYYY-MM-DD' format explicitly to prevent timezone shifts
     const parts = dateString.split('-');
     if (parts.length !== 3) return dateString; 
     const [year, month, day] = parts;
     return `${month}-${day}-${year}`;
 }    
-// Add this helper function to handle loading options from the database
+
 window.loadMaterialDropdownOptions = async function() {
     const materialSelect = document.getElementById('selMaterial') || 
                            document.getElementById('inMaterial') || 
@@ -41,15 +40,13 @@ window.loadMaterialDropdownOptions = async function() {
         return;
     } try {
         console.log("Fetching price list categories from Supabase...");
-        // Pull rows without the strict database-side status filter for debugging
         const { data: materials, error } = await _supabase
             .from('price_list')
             .select('id, material_name, price, unit, status');
 
         if (error) throw error;
-        // 🔍 LOOK AT YOUR CONSOLE FOR THIS LOG:
+        
         console.log("Raw data received from Supabase price_list:", materials);
-        // Reset dropdown and add a placeholder default row
         materialSelect.innerHTML = '<option value="" disabled selected>Select a material...</option>';
 
         if (!materials || materials.length === 0) {
@@ -57,7 +54,7 @@ window.loadMaterialDropdownOptions = async function() {
             materialSelect.innerHTML = '<option value="" disabled selected>No materials found (Check RLS/Data)</option>';
             return;
         }
-        // Filter locally using a case-insensitive check. If no status exists, default to showing it.
+
         const activeMaterials = materials.filter(item => {
             if (!item.status) return true; 
             return item.status.toLowerCase() === 'active';
@@ -68,7 +65,7 @@ window.loadMaterialDropdownOptions = async function() {
             materialSelect.innerHTML = '<option value="" disabled selected>No active materials found (Check statuses)</option>';
             return;
         }
-        // Append options containing the numeric primary Key 'id' as the value
+
         activeMaterials.forEach(item => {
             const option = document.createElement('option');
             option.value = item.id; 
@@ -82,6 +79,7 @@ window.loadMaterialDropdownOptions = async function() {
         console.error("Failed to load materials into UI selection dropdown:", err.message);
     }
 };
+
 // 2. DATA MANAGEMENT (FETCH)
 window.fetchAllCollections = async function() {
     console.log("Fetching collections from Supabase...");
@@ -128,9 +126,8 @@ window.fetchAllCollections = async function() {
                 weight: parseFloat(item.weight) || 0,
                 subtotal: parseFloat(item.subtotal) || 0
             };
-        }); // 🟩 Correctly closing rawItems.map
+        });
 
-        // 🟩 Correctly returning the row block inside data.map
         return {
             id: col.id,
             date: formatDateToMDY(col.date_collected),
@@ -142,25 +139,25 @@ window.fetchAllCollections = async function() {
             contact: col.contact_number,
             items: mappedItems 
         };
-    }); // 🟩 Correctly closing data.map
+    });
 
     console.log("Parsed Collections State:", window.collections);
     renderTable();
 };
-// CORE FILTER DATA PROVIDER
+
 function getFilteredCollections() {
     if (currentFilter === 'all') return window.collections;
     return window.collections.filter(col => 
         col.category && col.category.toLowerCase() === currentFilter.toLowerCase()
     );
 }
+
 // 3. UI GENERATION & RENDERING
 function loadModalHTML() {
     fetch('add_collection.html')
         .then(res => res.text())
         .then(async html => {
             document.getElementById('modalContainer').innerHTML = html;
-
             await window.loadMaterialDropdownOptions();
 
             const weightInput = document.getElementById('inWeight');
@@ -173,7 +170,6 @@ function loadModalHTML() {
                 });
             }
 
-            // Intercept form submission or bind update buttons dynamically
             const form = document.querySelector('#modalContainer form') || document.getElementById('collectionForm');
             if (form) {
                 form.addEventListener('submit', async (e) => {
@@ -181,7 +177,6 @@ function loadModalHTML() {
                     await saveCollection();
                 });
             } else {
-                // Fallback direct binding on update action buttons if form wrappers aren't present
                 const submitBtn = document.querySelector('.btn-submit-green') || document.querySelector('.btn-update');
                 if (submitBtn) {
                     submitBtn.addEventListener('click', async (e) => {
@@ -236,7 +231,7 @@ function renderTable() {
             <td onclick="event.stopPropagation()">
               <div class="action-btns">
                 <button class="icon-btn receipt-btn" onclick="viewReceipt(${actualIndex})"><i data-lucide="image"></i></button>
-                <button class="icon-btn" onclick="(${actualIndex})"><i data-lucide="edit-2"></i></button>
+                <button class="icon-btn" onclick="editEntry(${actualIndex})"><i data-lucide="edit-2"></i></button>
                 <button class="icon-btn delete" onclick="deleteEntry(${actualIndex})"><i data-lucide="trash-2"></i></button>
               </div>
             </td>
@@ -254,7 +249,7 @@ function renderTable() {
                           <th style="text-align:center;">AMOUNT</th>
                         </tr>
                       </thead>
-                    <tbody>${buildReceiptItemRows(collection.items || [], 0)}</tbody>
+                    <tbody>${typeof buildReceiptItemRows === 'function' ? buildReceiptItemRows(collection.items || [], 0) : ''}</tbody>
                 </table>
                 <div style="text-align:right; padding: 15px 25px; border-top: 1px solid #f1f5f9;">
                     <span style="font-size:13px; color:#64748b; margin-right:10px;">Total Amount:</span>
@@ -370,24 +365,17 @@ function setupSearch() {
     });
 }
 
-
-// Ensure the global tracker is safely initialized ONLY if it doesn't exist yet
 if (typeof window.editingIndex === 'undefined') {
     window.editingIndex = -1;
 }
 
-/**
- * 1. OPEN MODAL FOR EDITING
- */
 window.editEntry = function(index) {
-    // 1. Explicitly force a base-10 integer to prevent type comparison issues
     const parsedIndex = parseInt(index, 10);
     window.editingIndex = parsedIndex;
     
     console.log(`[SmartCycle] Edit mode triggered! window.editingIndex is now:`, window.editingIndex);
 
-    // 2. Fetch data using your existing filtered list logic
-    const filteredList = getFilteredCollections(); // Make sure this matches your data retriever
+    const filteredList = getFilteredCollections();
     const data = filteredList[parsedIndex]; 
     
     const modal = document.getElementById('addCollectionModal');
@@ -401,49 +389,39 @@ window.editEntry = function(index) {
         return;
     }
 
-    // 3. Populate your form inputs safely
     if (document.getElementById('inCustomer')) document.getElementById('inCustomer').value = data.customer_name || data.customer || '';
     if (document.getElementById('inAddress')) document.getElementById('inAddress').value = data.address || '';
     if (document.getElementById('inContact')) document.getElementById('inContact').value = data.contact_number || data.contact || '';
     
-    // Date conversion (Handles both native YYYY-MM-DD and displayed formats)
     if (document.getElementById('inDate') && data.date_collected) {
         let dateVal = data.date_collected;
         if (dateVal.includes('-') && dateVal.split('-')[0].length !== 4) {
-            // Converts MM-DD-YYYY back to YYYY-MM-DD for native input layout
             const [m, d, y] = dateVal.split('-');
             dateVal = `${y}-${m}-${d}`;
         }
         document.getElementById('inDate').value = dateVal;
     }
 
-    // 4. Update the category tabs matching your HTML buttons
     window.currentCategory = data.type || 'School';
     document.querySelectorAll('.m-tab').forEach(tab => {
         const isMatch = tab.innerText.trim().toLowerCase() === window.currentCategory.toLowerCase();
         tab.classList.toggle('active', isMatch);
     });
 
-    // 5. Load existing items array
     window.currentItems = [...(data.items || [])];
     if (typeof renderItems === 'function') renderItems();
 
-    // 6. Change the green submit button's appearance to "Update"
     const submitBtn = document.querySelector('.btn-submit-green');
     if (submitBtn) {
         submitBtn.innerHTML = '<i data-lucide="check"></i> Update';
     }
 
-    // 7. Show modal
     modal.classList.add('show');
     document.body.style.overflow = 'hidden';
 
-    // 8. Refresh visual components
     if (typeof updatePreview === 'function') updatePreview();
     if (typeof refreshIcons === 'function') setTimeout(refreshIcons, 50);
 };
-
-// Inside collection.js
 
 async function saveCollection() {
     const customer = document.getElementById('inCustomer')?.value.trim();
@@ -468,7 +446,7 @@ async function saveCollection() {
             submitBtn.innerHTML = window.editingIndex > -1 ? 'Updating...' : 'Saving...';
         }
 
-        const formattedCustomer = toTitleCase(customer);
+        const formattedCustomer = typeof toTitleCase === 'function' ? toTitleCase(customer) : customer;
         const collectionPayload = {
             customer_name: formattedCustomer,
             address: address || 'N/A',
@@ -480,7 +458,6 @@ async function saveCollection() {
         let targetId;
 
         if (window.editingIndex > -1) {
-            // --- UPDATE FLOW ---
             const originalCollection = getFilteredCollections()[window.editingIndex];
             targetId = originalCollection.id;
 
@@ -491,7 +468,6 @@ async function saveCollection() {
 
             if (updateCollectionError) throw updateCollectionError;
 
-            // Clear old items
             const { error: deleteItemsError } = await _supabase
                 .from('collection_items')
                 .delete()
@@ -500,8 +476,7 @@ async function saveCollection() {
             if (deleteItemsError) throw deleteItemsError;
 
         } else {
-            // --- INSERT FLOW WITH PROFILES ---
-            const displayId = generateDisplayId('C');
+            const displayId = typeof generateDisplayId === 'function' ? generateDisplayId('C') : 'C-' + Date.now();
             let profileId = null;
 
             const { data: existingProfile } = await _supabase
@@ -556,7 +531,6 @@ async function saveCollection() {
             targetId = newCollection.id;
         }
 
-        // --- UNIFIED ITEM INSERTION ---
         if (window.currentItems.length > 0) {
             const itemsToInsert = window.currentItems.map(item => ({
                 collection_id: targetId,
@@ -575,7 +549,6 @@ async function saveCollection() {
 
         alert(window.editingIndex > -1 ? "Collection updated successfully!" : "Collection saved successfully!");
         
-        // Clean up interface states smoothly
         if (typeof closeAddModal === 'function') closeAddModal(); 
         else if (typeof closeModal === 'function') closeModal();
 
@@ -593,13 +566,11 @@ async function saveCollection() {
     }
 }
 
-// Clean UI closure functionality resets tracking values safely
 function closeModal() {
     const modal = document.getElementById('addCollectionModal');
     if (modal) modal.classList.remove('show');
     document.body.style.overflow = '';
     
-    // Clear dynamic global forms parameters back to original entry states
     window.editingIndex = -1;
     window.currentItems = [];
     const submitBtn = document.querySelector('.btn-submit-green');
@@ -634,14 +605,11 @@ window.deleteEntry = function(index) {
     document.getElementById('deleteConfirmText').textContent = `Are you sure you want to delete the collection for "${collection.customer}"? This action cannot be undone.`;
     modal.style.display = 'flex';
 
-    // Event handlers cleanup to prevent multiple event fires on stale instances
     const confirmBtn = document.getElementById('deleteConfirmBtn');
     const cancelBtn = document.getElementById('deleteCancelBtn');
     
-    // Locate this block in your code and replace confirmBtn.onclick with this:
     confirmBtn.onclick = async () => {
         try {
-            // 1. Delete associated child items first to satisfy the foreign key constraint
             const { error: itemsDeleteError } = await _supabase
                 .from('collection_items')
                 .delete()
@@ -649,7 +617,6 @@ window.deleteEntry = function(index) {
     
             if (itemsDeleteError) throw itemsDeleteError;
     
-            // 2. Now it's perfectly safe to delete the parent collection record
             const { error: collectionDeleteError } = await _supabase
                 .from('collections')
                 .delete()
@@ -657,7 +624,6 @@ window.deleteEntry = function(index) {
                 
             if (collectionDeleteError) throw collectionDeleteError;
     
-            // 3. Update local state array & UI tracking view
             window.collections = window.collections.filter(c => c.id !== collection.id);
             renderTable();
             
@@ -671,110 +637,4 @@ window.deleteEntry = function(index) {
 
     cancelBtn.onclick = () => modal.style.display = 'none';
     modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
-};
-
-// 6. RECEIPT COMPONENT ENGINE
-function buildReceiptItemRows(items, minRows) {
-    let rows = items.map(item => `
-      <tr>
-        <td style="text-align:center;">${item.weight}</td>
-        <td style="text-align:center;">kg</td>
-        <td style="text-align:left; padding-left:8px;">${item.material}</td>
-        <td style="text-align:center;">₱${item.rate}</td>
-        <td style="text-align:center;">₱${item.subtotal.toFixed(2)}</td>
-      </tr>
-    `).join('');
-
-    const emptyCount = Math.max(0, minRows - items.length);
-    for (let i = 0; i < emptyCount; i++) {
-        rows += `<tr class="empty-row"><td></td><td></td><td></td><td></td><td></td></tr>`;
-    }
-    return rows;
-}
-
-window.viewReceipt = function(index) {
-    const data = getFilteredCollections()[index];
-    if (!data) return;
-
-    const receiptHTML = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <base href="${window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1)}">
-      <title>Receipt - ${data.customer}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; background: #f5f5f5; padding: 30px 20px; }
-        .receipt { background: white; border: 2px solid #333; padding: 30px 36px; max-width: 700px; margin: 0 auto; font-size: 12px; color: #111; }
-        .receipt-header { display: flex; align-items: center; gap: 20px; padding-bottom: 16px; border-bottom: 2px solid #111; margin-bottom: 20px; }
-        .receipt-header img { width: 70px; height: 70px; object-fit: contain; }
-        .org-info { flex: 1; text-align: center; }
-        .org-info h2 { font-size: 15px; font-weight: 800; color: #0ea5e9; text-transform: uppercase; margin-bottom: 4px; }
-        .org-info p { font-size: 11px; color: #444; margin: 2px 0; }
-        .org-info a { color: #0ea5e9; }
-        .field-row { display: flex; gap: 30px; margin-bottom: 18px; }
-        .field-item { display: flex; align-items: flex-end; gap: 6px; flex: 1; }
-        .field-item label { font-size: 11px; font-weight: 700; white-space: nowrap; color: #111; }
-        .field-value { flex: 1; border-bottom: 1.5px solid #111; font-size: 11px; color: #111; padding-bottom: 2px; min-height: 16px; overflow: hidden; word-break: break-all; min-width: 0; }
-        table { width: 100%; border-collapse: collapse; border: 1.5px solid #111; margin-bottom: 10px; table-layout: fixed; word-break: break-word;}
-        th { font-size: 11px; font-weight: 800; text-transform: uppercase; text-align: center; padding: 8px 6px; border: 1.5px solid #111; background: white; color: #111; letter-spacing: 0.3px; }
-        th:nth-child(3) { text-align: left; padding-left: 8px; }
-        td { font-size: 11px; padding: 10px 6px; border: 1px solid #111; text-align: center; color: #111; vertical-align: top; }
-        .empty-row td { height: 30px; padding: 0; }
-        .receipt-total { text-align: right; font-size: 13px; font-weight: 800; padding-top: 6px; border-top: 2px solid #111; margin-bottom: 30px; color: #111; }
-        .receipt-total span { color: #46B336; font-size: 14px; }
-        .signatures { display: flex; justify-content: space-between; margin-top: 20px; }
-        .sig-block { width: 45%; }
-        .sig-block p { font-size: 11px; font-weight: 700; margin-bottom: 28px; }
-        .sig-line { border-bottom: 1.5px solid #111; width: 100%; margin-bottom: 4px; }
-        .sig-sublabel { font-size: 9px; font-weight: 600; text-align: center; color: #111; }
-        .no-print { text-align: center; margin-top: 24px; }
-        @media print { body { background: white; padding: 0; } .no-print { display: none; } }
-      </style>
-    </head>
-    <body>
-      <div class="receipt">
-        <div class="receipt-header">
-          <img src="photo/tezwa_logo.jpg" alt="Logo" onerror="this.style.display='none'">
-          <div class="org-info">
-            <h2>TAGUMPAY 83ZERO WASTE ASSOCIATION</h2>
-            <p>South Nagtahan, Brgy. 830, Zone 90 District VI, Paco, Manila</p>
-            <p>Email: <a href="mailto:tezwa.manila@gmail.com">tezwa.manila@gmail.com</a></p>
-            <p>Contact No.: 0927-286-7378</p>
-          </div>
-        </div>
-        <div class="field-row">
-          <div class="field-item"><label>Cash Receipt No.</label><div class="field-value">${data.id || ''}</div></div>
-          <div class="field-item"><label>Date</label><div class="field-value">${data.date || ''}</div></div>
-        </div>
-        <div class="field-row">
-          <div class="field-item"><label>Customer</label><div class="field-value">${data.customer || ''}</div></div>
-          <div class="field-item"><label>Contact No.</label><div class="field-value">${data.contact || ''}</div></div>
-        </div>
-        <div class="field-row">
-          <div class="field-item"><label>Address</label><div class="field-value">${data.address || ''}</div></div>
-          <div class="field-item"><label>Salesman</label><div class="field-value"></div></div>
-        </div>
-        <table>
-          <thead>
-            <tr><th>QTY</th><th>UNIT</th><th style="text-align:left; padding-left:8px;">DESCRIPTION</th><th>PRICE</th><th>AMOUNT</th></tr>
-          </thead>
-          <tbody>${buildReceiptItemRows(data.items || [], 9)}</tbody>
-        </table>
-        <div class="receipt-total">TOTAL: <span>₱${data.totalAmount ? data.totalAmount.toFixed(2) : '0.00'}</span></div>
-        <div class="signatures">
-          <div class="sig-block"><p>Received By:</p><div class="sig-line"></div><div class="sig-sublabel">Signature Over Printed Name</div></div>
-          <div class="sig-block"><p>Approved By:</p><div class="sig-line"></div><div class="sig-sublabel">Signature Over Printed Name</div></div>
-        </div>
-      </div>
-      <div class="no-print">
-        <button onclick="window.print()" style="background:#46B336;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">Print Receipt</button>
-        <button onclick="window.close()" style="background:#6b7280;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-left:10px;">Close</button>
-      </div>
-    </body>
-    </html>`;
-
-    const receiptWindow = window.open('', '_blank', 'width=750,height=900');
-    receiptWindow.document.write(receiptHTML);
-    receiptWindow.document.close();
 };
