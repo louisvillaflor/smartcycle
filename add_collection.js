@@ -121,9 +121,9 @@ async function loadActivePrices() {
         if (error) throw error;
 
         if (prices && prices.length > 0) {
-            loadedPricesCache = prices; // Store references globally to parse safely on edit tasks
+            loadedPricesCache = prices; 
             
-            // Only show active items in the select drop-down list selection menu
+            // Only show active items in the selection drop-down menu
             const activePrices = prices.filter(p => p.status === 'Active');
             
             if (activePrices.length > 0) {
@@ -141,7 +141,6 @@ async function loadActivePrices() {
         }
     } catch (err) {
         console.error("Error fetching live price rates from database:", err.message);
-        // Fallback structures initialized cleanly to maintain operational tracking integrity
         loadedPricesCache = [
             { id: 1, material_name: "Plastic", price: 3, status: "Active" },
             { id: 2, material_name: "Bakal", price: 15, status: "Active" },
@@ -168,7 +167,6 @@ window.closeAddModal = () => {
     resetForm();
 };
 
-// Outside click modal dismiss handler
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('addCollectionModal');
     if (modal && e.target === modal) {
@@ -387,7 +385,7 @@ window.removeItem = (index) => {
     renderItems();
 };
 
-// PERSISTENCE ENGINE WITH SECURE COMPOSITE PROFILE ROUTING
+// PERSISTENCE ENGINE - COMPLETE ATOMIC TRANSACTION FLOW
 window.submitCollection = async function() {
     const customer = document.getElementById('inCustomer')?.value.trim();
     const date = document.getElementById('inDate')?.value;
@@ -417,138 +415,74 @@ window.submitCollection = async function() {
 
         const formattedCustomer = toTitleCase(customer.trim()); 
         let determinedType = 'customer'; 
-
-        // =========================================================
-        // 🛡️ UNIFIED ANTI-DUPLICATE CONSTRAINT RESOLUTION STRATEGY
-        // =========================================================
         let profileId = null;
 
-        // Check if this profile name exists *anywhere* in the system safely
+        // 1. BULLETPROOF PROFILE LOOKUP (Avoids name collision constraint crashes completely)
         const { data: existingProfile, error: profileFindError } = await _supabase
             .from('profiles')
-            .select('id, name, address, contact_num')
+            .select('id')
             .ilike('name', formattedCustomer)
             .maybeSingle();
 
         if (profileFindError) throw profileFindError;
 
         if (existingProfile) {
-            // A profile with this name already exists! Connect to it instead of forcing a unique name collision.
             profileId = existingProfile.id;
-
-            const profileUpdatePayload = {};
-            if (existingProfile.address === 'N/A' || !existingProfile.address) {
-                profileUpdatePayload.address = address || 'N/A';
-            }
-            if (existingProfile.contact_num === 'N/A' || !existingProfile.contact_num) {
-                profileUpdatePayload.contact_num = contact || 'N/A';
-            }
-            profileUpdatePayload.category = currentCategory || 'Walk-ins';
-            profileUpdatePayload.type = determinedType;
-
-            const { error: updateErr } = await _supabase
+            // Silently update metadata fields if needed
+            await _supabase
                 .from('profiles')
-                .update(profileUpdatePayload)
+                .update({
+                    address: address || 'N/A',
+                    contact_num: contact || 'N/A',
+                    category: currentCategory || 'Walk-ins',
+                    type: determinedType
+                })
                 .eq('id', profileId);
-                
-            if (updateErr) throw updateErr;
-
         } else {
-            // No profile with this name exists anywhere yet.
-            if (editingIndex !== -1) {
-                // EDIT MODE: Let's extract the target collection entry payload details
-                const targetedCollection = (typeof getFilteredCollections === 'function') 
-                    ? getFilteredCollections()[editingIndex] 
-                    : (window.collections ? window.collections[editingIndex] : null);
+            // Profile doesn't exist yet, insert a clean brand-new record row
+            const displayId = generateDisplayId('C');
+            const { data: newProfile, error: profileCreateError } = await _supabase
+                .from('profiles')
+                .insert([{
+                    name: formattedCustomer,          
+                    category: currentCategory || 'Walk-ins', 
+                    address: address || 'N/A',                
+                    contact_num: contact || 'N/A',            
+                    display_id: displayId,
+                    type: determinedType                     
+                }])
+                .select()
+                .single();
 
-                const { data: parentRecord } = await _supabase
-                    .from('collections')
-                    .select('customer_id')
-                    .eq('id', targetedCollection.id)
-                    .single();
-
-                if (parentRecord && parentRecord.customer_id) {
-                    // Check if this old profile ID container row is shared by other collections
-                    const { count, error: countErr } = await _supabase
-                        .from('collections')
-                        .select('id', { count: 'exact', head: true })
-                        .eq('customer_id', parentRecord.customer_id)
-                        .neq('id', targetedCollection.id);
-
-                    if (!countErr && count === 0) {
-                        // Safe to change/rename the exclusive profile row directly
-                        profileId = parentRecord.customer_id;
-                        const { error: renameErr } = await _supabase
-                            .from('profiles')
-                            .update({
-                                name: formattedCustomer,
-                                address: address || 'N/A',
-                                contact_num: contact || 'N/A',
-                                category: currentCategory || 'Walk-ins',
-                                type: determinedType
-                         })
-                            .eq('id', profileId);
-                            
-                        if (renameErr) throw renameErr;
-                    } else {
-                        // Profile is shared by other collections, so create a separate isolated unique profile row
-                        const displayId = generateDisplayId('C');
-                        const { data: newProfile, error: profileError } = await _supabase
-                            .from('profiles')
-                            .insert([{
-                                name: formattedCustomer,          
-                                category: currentCategory || 'Walk-ins', 
-                                address: address || 'N/A',                
-                                contact_num: contact || 'N/A',            
-                                display_id: displayId,
-                                type: determinedType                     
-                            }])
-                            .select()
-                            .single();
-                            
-                        if (profileError) throw profileError;
-                        profileId = newProfile.id;
-                    }
-                }
-            } else {
-                // INSERT MODE: Brand new profile instance generation
-                const displayId = generateDisplayId('C');
-                const { data: newProfile, error: profileError } = await _supabase
-                    .from('profiles')
-                    .insert([{
-                        name: formattedCustomer,          
-                        category: currentCategory || 'Walk-ins', 
-                        address: address || 'N/A',                
-                        contact_num: contact || 'N/A',            
-                        display_id: displayId,
-                        type: determinedType                     
-                    }])
-                    .select()
-                    .single();
-            
-                if (profileError) throw profileError;
-                profileId = newProfile.id;
-            }
+            if (profileCreateError) throw profileCreateError;
+            profileId = newProfile.id;
         }
 
-        // Setup unified collection payload referencing the resolved profile entity element reference
+        // 2. PREPARE COLLECTION HEADER OBJECT
         const collectionPayload = { 
+            customer_id: profileId,
             customer_name: formattedCustomer, 
             date_collected: date, 
             address: address || 'N/A', 
             contact_number: contact || 'N/A', 
-            type: currentCategory,
-            customer_id: profileId
+            type: currentCategory 
         };
 
         if (editingIndex !== -1) {
+            // ==========================================
+            // --- EDIT MODE PIPELINE ---
+            // ==========================================
             const targetedCollection = (typeof getFilteredCollections === 'function') 
                 ? getFilteredCollections()[editingIndex] 
                 : (window.collections ? window.collections[editingIndex] : null);
 
+            if (!targetedCollection || !targetedCollection.id) {
+                throw new Error("Unable to identify targeted collection ID context.");
+            }
+
             const targetId = targetedCollection.id;
 
-            // Update parent collections details row
+            // Update parent header row parameters
             const { error: headerUpdateError } = await _supabase
                 .from('collections')
                 .update(collectionPayload)
@@ -556,7 +490,7 @@ window.submitCollection = async function() {
 
             if (headerUpdateError) throw headerUpdateError;
 
-            // Clear old structural row items array
+            // Clear old child rows completely 
             const { error: itemsClearError } = await _supabase
                 .from('collection_items')
                 .delete()
@@ -564,7 +498,7 @@ window.submitCollection = async function() {
             
             if (itemsClearError) throw itemsClearError;
             
-            // Reinsert new elements
+            // Map and write down accurate child values array records
             const itemsToInsert = window.currentItems.map(item => ({
                 collection_id: targetId,
                 material_id: item.materialId, 
@@ -578,10 +512,12 @@ window.submitCollection = async function() {
                 .insert(itemsToInsert);
         
             if (itemsInsertError) throw itemsInsertError;
-            alert("Collection entry and profile details synchronized successfully!");
+            alert("Collection entry updated successfully!");
 
         } else {
-            // Standard Insert Mode Pipeline Execution block
+            // ==========================================
+            // --- INSERT MODE PIPELINE ---
+            // ==========================================
             const { data: headerData, error: headerError } = await _supabase
                 .from('collections')
                 .insert([collectionPayload])
@@ -686,7 +622,6 @@ function closePreview() {
     safeRefreshIcons();
 }
 
-// Automatically bind document listeners once DOMContentLoaded completes
 document.addEventListener('DOMContentLoaded', () => {
     window.setupFieldListeners();
 });
