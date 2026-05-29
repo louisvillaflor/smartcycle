@@ -1,7 +1,7 @@
 // Ensure strict tracking context variables exist safely at module/global scale
 let editingIndex = -1;
 let currentCategory = 'School';
-window.currentItems = []; // Initializing to prevent undefined array pushes
+window.currentItems = []; // Initializing to prevent undefined array
 
 // Local cache to resolve names during edit mode if needed
 let loadedPricesCache = [];
