@@ -35,7 +35,8 @@ window.openAddModal = async () => {
 };
 
 /**
- * FIXED ENGINE FUNCTION: Safely opens edit mode and resolves the missing dropdown values
+ * NEW FIXED ENGINE FUNCTION: Called from your main dashboard controller to safely open edit mode.
+ * Resolves the missing 'material' name mapping bug from 'collection_items' structural relations.
  */
 window.openEditModal = async (index, collectionHeader, detailedItems) => {
     const modal = document.getElementById('addCollectionModal');
@@ -47,7 +48,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     editingIndex = index;
     clearAllErrors();
 
-    // 1. Force reload live prices into dropdown select and wait for DOM synchronization
+    // 1. Force reload live prices into dropdown select and wait for cache population
     await loadActivePrices();
 
     // 2. Populate Header Fields
@@ -94,7 +95,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     setTimeout(refreshIcons, 100);
 };
 
-// FIXED ENGINE: Force select update dynamically and accurately resolve fallback options
+// FIXED ENGINE: Added 'id' to the select string so item.id isn't undefined
 async function loadActivePrices() {
     const selMaterial = document.getElementById('selMaterial');
     if (!selMaterial) return;
@@ -116,10 +117,10 @@ async function loadActivePrices() {
                 </option>`;
             }).join('');
         } else {
-            selMaterial.innerHTML = '<option value="" disabled selected>No active materials found</option>';
+            selMaterial.innerHTML = '<option value="" disabled>No active materials found</option>';
         }
     } catch (err) {
-        console.error("Error fetching live price rates from database, rendering defaults:", err.message);
+        console.error("Error fetching live price rates from database:", err.message);
         // Fallback structures initialized cleanly to maintain operational tracking integrity
         loadedPricesCache = [
             { id: 1, material_name: "Plastic", price: 3 },
@@ -129,11 +130,11 @@ async function loadActivePrices() {
             { id: 5, material_name: "Yero", price: 8 }
         ];
         selMaterial.innerHTML = `
-            <option value="1" data-name="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
-            <option value="2" data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
-            <option value="3" data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
-            <option value="4" data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
-            <option value="5" data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
+            <option value=1 data-name="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
+            <option value=2 data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
+            <option value=3 data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
+            <option value=4 data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
+            <option value=5 data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
         `;
     }
 }
@@ -181,8 +182,8 @@ function clearError(fieldId) {
 
 function clearAllErrors() {
     ['inCustomer', 'inDate', 'inAddress', 'inContact', 'inWeight'].forEach(clearError);
-    const itemsError = document.getElementById('itemsError');
-    if (itemsError) itemsError.textContent = '';
+    const itemsErr = document.getElementById('itemsError');
+    if (itemsErr) itemsErr.textContent = '';
 }
 
 function validateContact(value) {
@@ -225,10 +226,6 @@ function resetForm() {
         if (el) el.innerText = value;
     });
 
-    // Revert selector to structural loading state safely before next open cycle execution
-    const selMaterial = document.getElementById('selMaterial');
-    if (selMaterial) selMaterial.innerHTML = '<option value="" disabled selected>Loading materials...</option>';
-
     refreshIcons();
 }
 
@@ -262,6 +259,7 @@ window.updatePreview = function() {
 };
 
 // RECEIPT LINE ITEMS CONTROLLER
+// Replace your existing window.addItem function with this:
 window.addItem = function() {
     const sel = document.getElementById('selMaterial');
     const weightInput = document.getElementById('inWeight');
@@ -286,8 +284,8 @@ window.addItem = function() {
     }
 
     clearError('inWeight');
-    const itemsError = document.getElementById('itemsError');
-    if (itemsError) itemsError.textContent = '';
+    const itemsErr = document.getElementById('itemsError');
+    if (itemsErr) itemsErr.textContent = '';
 
     window.currentItems.push({ 
         materialId,
@@ -371,6 +369,7 @@ window.removeItem = (index) => {
 };
 
 // PERSISTENCE (SUPABASE SYNC ENGINE)
+// PERSISTENCE (SUPABASE SYNC ENGINE)
 window.submitCollection = async function() {
     const customer = document.getElementById('inCustomer')?.value.trim();
     const date = document.getElementById('inDate')?.value;
@@ -386,8 +385,8 @@ window.submitCollection = async function() {
     if (contact && !validateContact(contact)) { showError('inContact', 'Use format: 09XX-XXX-XXXX'); hasError = true; }
     
     if (window.currentItems.length === 0) {
-        const itemsError = document.getElementById('itemsError');
-        if (itemsError) itemsError.textContent = 'Please add at least one item';
+        const itemsErr = document.getElementById('itemsError');
+        if (itemsErr) itemsErr.textContent = 'Please add at least one item';
         hasError = true;
     }
     if (hasError) return;
@@ -461,9 +460,11 @@ window.submitCollection = async function() {
                 .ilike('name', formattedCustomer)
                 .maybeSingle();
             
+            // NEW LOGIC: Fixed routing per your correction
             const lowerCat = currentCategory ? currentCategory.toLowerCase() : '';
-            let determinedType = 'customer'; 
+            let determinedType = 'customer'; // Default to customer
             
+            // If you have specific categories that act as partners, enter them here:
             if (lowerCat === 'partner_category_name' || lowerCat === 'another_partner') {
                 determinedType = 'partner';
             }
