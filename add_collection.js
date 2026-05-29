@@ -6,15 +6,6 @@ window.currentItems = []; // Initializing to prevent undefined array pushes
 // Local cache to resolve names during edit mode if needed
 let loadedPricesCache = [];
 
-// Safety utility wrapper for external rendering dependencies
-function safeRefreshIcons() {
-    if (typeof refreshIcons === 'function') {
-        refreshIcons();
-    } else if (typeof lucide !== 'undefined' && lucide.createIcons) {
-        lucide.createIcons();
-    }
-}
-
 function generateDisplayId(prefix) {
     return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 }
@@ -38,17 +29,13 @@ window.openAddModal = async () => {
     // Dynamically fetch and fill up material prices matching your Price List dashboard
     await loadActivePrices();
 
-    const dateField = document.getElementById('inDate');
-    if (dateField) {
-        dateField.value = new Date().toISOString().split('T')[0];
-    }
-    
+    document.getElementById('inDate').value = new Date().toISOString().split('T')[0];
     updatePreview();
-    setTimeout(safeRefreshIcons, 100);
+    setTimeout(refreshIcons, 100);
 };
 
 /**
- * FIXED ENGINE FUNCTION: Called from your main dashboard controller to safely open edit mode.
+ * NEW FIXED ENGINE FUNCTION: Called from your main dashboard controller to safely open edit mode.
  * Resolves the missing 'material' name mapping bug from 'collection_items' structural relations.
  */
 window.openEditModal = async (index, collectionHeader, detailedItems) => {
@@ -105,10 +92,10 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
 
     updatePreview();
     renderItems();
-    setTimeout(safeRefreshIcons, 100);
+    setTimeout(refreshIcons, 100);
 };
 
-// FIXED CACHE ENGINE: Fetches all records for precise translation mapping, but dropdown filters for Active ones
+// FIXED ENGINE: Added 'id' to the select string so item.id isn't undefined
 async function loadActivePrices() {
     const selMaterial = document.getElementById('selMaterial');
     if (!selMaterial) return;
@@ -116,44 +103,38 @@ async function loadActivePrices() {
     try {
         const { data: prices, error } = await _supabase
             .from('price_list')
-            .select('id, material_name, price, status');
+            .select('id, material_name, price')
+            .eq('status', 'Active'); 
 
         if (error) throw error;
 
         if (prices && prices.length > 0) {
-            loadedPricesCache = prices; 
-            
-            // Only show active items in the selection drop-down menu
-            const activePrices = prices.filter(p => p.status === 'Active');
-            
-            if (activePrices.length > 0) {
-                selMaterial.innerHTML = activePrices.map((item, idx) => {
-                    const rate = Math.round(item.price); 
-                    return `<option value="${item.id}" data-name="${item.material_name}" data-rate="${rate}" ${idx === 0 ? 'selected' : ''}>
-                        ${item.material_name} - ₱${rate}/kg
-                    </option>`;
-                }).join('');
-            } else {
-                selMaterial.innerHTML = '<option value="" disabled>No active materials found</option>';
-            }
+            loadedPricesCache = prices; // Store references globally to parse safely on edit tasks
+            selMaterial.innerHTML = prices.map((item, idx) => {
+                const rate = Math.round(item.price); 
+                return `<option value="${item.id}" data-name="${item.material_name}" data-rate="${rate}" ${idx === 0 ? 'selected' : ''}>
+                    ${item.material_name} - ₱${rate}/kg
+                </option>`;
+            }).join('');
         } else {
             selMaterial.innerHTML = '<option value="" disabled>No active materials found</option>';
         }
     } catch (err) {
         console.error("Error fetching live price rates from database:", err.message);
+        // Fallback structures initialized cleanly to maintain operational tracking integrity
         loadedPricesCache = [
-            { id: 1, material_name: "Plastic", price: 3, status: "Active" },
-            { id: 2, material_name: "Bakal", price: 15, status: "Active" },
-            { id: 3, material_name: "PET-Assorted", price: 5, status: "Active" },
-            { id: 4, material_name: "Paper Assorted", price: 8, status: "Active" },
-            { id: 5, material_name: "Yero", price: 8, status: "Active" }
+            { id: 1, material_name: "Plastic", price: 3 },
+            { id: 2, material_name: "Bakal", price: 15 },
+            { id: 3, material_name: "PET-Assorted", price: 5 },
+            { id: 4, material_name: "Paper Assorted", price: 8 },
+            { id: 5, material_name: "Yero", price: 8 }
         ];
         selMaterial.innerHTML = `
-            <option value="1" data-name="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
-            <option value="2" data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
-            <option value="3" data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
-            <option value="4" data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
-            <option value="5" data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
+            <option value=1 data-name="Plastic" data-rate="3" selected>Plastic - ₱3/kg</option>
+            <option value=2 data-name="Bakal" data-rate="15">Bakal - ₱15/kg</option>
+            <option value=3 data-name="PET-Assorted" data-rate="5">PET-Assorted - ₱5/kg</option>
+            <option value=4 data-name="Paper Assorted" data-rate="8">Paper Assorted - ₱8/kg</option>
+            <option value=5 data-name="Yero" data-rate="8">Yero - ₱8/kg</option>
         `;
     }
 }
@@ -167,6 +148,7 @@ window.closeAddModal = () => {
     resetForm();
 };
 
+// Outside click modal dismiss handler
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('addCollectionModal');
     if (modal && e.target === modal) {
@@ -244,13 +226,13 @@ function resetForm() {
         if (el) el.innerText = value;
     });
 
-    safeRefreshIcons();
+    refreshIcons();
 }
 
 window.setCategory = (category, btn) => {
     currentCategory = category;
     document.querySelectorAll('.m-tab').forEach(tab => tab.classList.remove('active'));
-    if (btn) btn.classList.add('active');
+    btn.classList.add('active');
     updatePreview();
 };
 
@@ -261,7 +243,7 @@ window.updatePreview = function() {
     const contact = document.getElementById('inContact')?.value || '---';
 
     let formattedDate = date;
-    if (date !== '---' && date) {
+    if (date !== '---') {
         formattedDate = new Date(date).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -272,11 +254,12 @@ window.updatePreview = function() {
     const updates = { preCustomer: customer, preDate: formattedDate, preAddress: address, preContact: contact };
     Object.entries(updates).forEach(([id, value]) => {
         const el = document.getElementById(id);
-        if (el) el.innerText = value || '---';
+        if (el) el.innerText = value;
     });
 };
 
 // RECEIPT LINE ITEMS CONTROLLER
+// Replace your existing window.addItem function with this:
 window.addItem = function() {
     const sel = document.getElementById('selMaterial');
     const weightInput = document.getElementById('inWeight');
@@ -306,8 +289,8 @@ window.addItem = function() {
 
     window.currentItems.push({ 
         materialId,
-        material: materialName,     
-        material_name: materialName, 
+        material: materialName,     // Matches layout expectation
+        material_name: materialName, // Matches database expectation
         rate, 
         weight, 
         subtotal: rate * weight 
@@ -343,7 +326,7 @@ function renderItems() {
                   <td>${item.weight} kg</td>
                   <td><strong>₱${item.subtotal.toFixed(2)}</strong></td>
                   <td>
-                    <button class="remove-item-btn" type="button" onclick="removeItem(${index})" title="Remove item">
+                    <button class="remove-item-btn" onclick="removeItem(${index})" title="Remove item">
                       <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
                     </button>
                   </td>
@@ -377,7 +360,7 @@ function renderItems() {
     const preTotalEl = document.getElementById('preTotal');
     if (preTotalEl) preTotalEl.innerText = `₱${total.toFixed(2)}`;
 
-    safeRefreshIcons();
+    refreshIcons();
 }
 
 window.removeItem = (index) => {
@@ -385,7 +368,8 @@ window.removeItem = (index) => {
     renderItems();
 };
 
-// PERSISTENCE ENGINE - COMPLETE ATOMIC TRANSACTION FLOW
+// PERSISTENCE (SUPABASE SYNC ENGINE)
+// PERSISTENCE (SUPABASE SYNC ENGINE)
 window.submitCollection = async function() {
     const customer = document.getElementById('inCustomer')?.value.trim();
     const date = document.getElementById('inDate')?.value;
@@ -413,68 +397,18 @@ window.submitCollection = async function() {
             submitBtn.innerHTML = editingIndex !== -1 ? 'Updating...' : 'Saving...';
         }
 
-        const formattedCustomer = toTitleCase(customer.trim()); 
-        let determinedType = 'customer'; 
-        let profileId = null;
-
-        // 1. BULLETPROOF PROFILE LOOKUP (Avoids name collision constraint crashes completely)
-        const { data: existingProfile, error: profileFindError } = await _supabase
-            .from('profiles')
-            .select('id')
-            .ilike('name', formattedCustomer)
-            .maybeSingle();
-
-        if (profileFindError) throw profileFindError;
-
-        if (existingProfile) {
-            profileId = existingProfile.id;
-            // Silently update metadata fields if needed
-            await _supabase
-                .from('profiles')
-                .update({
-                    address: address || 'N/A',
-                    contact_num: contact || 'N/A',
-                    category: currentCategory || 'Walk-ins',
-                    type: determinedType
-                })
-                .eq('id', profileId);
-        } else {
-            // Profile doesn't exist yet, insert a clean brand-new record row
-            const displayId = generateDisplayId('C');
-            const { data: newProfile, error: profileCreateError } = await _supabase
-                .from('profiles')
-                .insert([{
-                    name: formattedCustomer,          
-                    category: currentCategory || 'Walk-ins', 
-                    address: address || 'N/A',                
-                    contact_num: contact || 'N/A',            
-                    display_id: displayId,
-                    type: determinedType                     
-                }])
-                .select()
-                .single();
-
-            if (profileCreateError) throw profileCreateError;
-            profileId = newProfile.id;
-        }
-
-        // 2. PREPARE COLLECTION HEADER OBJECT
         const collectionPayload = { 
-            customer_id: profileId,
-            customer_name: formattedCustomer, 
+            customer_name: customer, 
             date_collected: date, 
-            address: address || 'N/A', 
-            contact_number: contact || 'N/A', 
+            address: address, 
+            contact_number: contact, 
             type: currentCategory 
         };
 
         if (editingIndex !== -1) {
-            // ==========================================
-            // --- EDIT MODE PIPELINE ---
-            // ==========================================
             const targetedCollection = (typeof getFilteredCollections === 'function') 
                 ? getFilteredCollections()[editingIndex] 
-                : (window.collections ? window.collections[editingIndex] : null);
+                : window.collections[editingIndex];
 
             if (!targetedCollection || !targetedCollection.id) {
                 throw new Error("Unable to identify targeted collection ID context.");
@@ -482,7 +416,6 @@ window.submitCollection = async function() {
 
             const targetId = targetedCollection.id;
 
-            // Update parent header row parameters
             const { error: headerUpdateError } = await _supabase
                 .from('collections')
                 .update(collectionPayload)
@@ -490,7 +423,6 @@ window.submitCollection = async function() {
 
             if (headerUpdateError) throw headerUpdateError;
 
-            // Clear old child rows completely 
             const { error: itemsClearError } = await _supabase
                 .from('collection_items')
                 .delete()
@@ -498,7 +430,6 @@ window.submitCollection = async function() {
             
             if (itemsClearError) throw itemsClearError;
             
-            // Map and write down accurate child values array records
             const itemsToInsert = window.currentItems.map(item => ({
                 collection_id: targetId,
                 material_id: item.materialId, 
@@ -512,12 +443,74 @@ window.submitCollection = async function() {
                 .insert(itemsToInsert);
         
             if (itemsInsertError) throw itemsInsertError;
+            
             alert("Collection entry updated successfully!");
 
         } else {
-            // ==========================================
-            // --- INSERT MODE PIPELINE ---
-            // ==========================================
+            // --- INSERT MODE ---
+            const displayId = generateDisplayId('C');
+            const formattedCustomer = toTitleCase(customer.trim()); 
+            collectionPayload.customer_name = formattedCustomer; 
+
+            let profileId = null;
+            
+            const { data: existingProfile } = await _supabase
+                .from('profiles')
+                .select('id, name, address, contact_num')
+                .ilike('name', formattedCustomer)
+                .maybeSingle();
+            
+            // NEW LOGIC: Fixed routing per your correction
+            const lowerCat = currentCategory ? currentCategory.toLowerCase() : '';
+            let determinedType = 'customer'; // Default to customer
+            
+            // If you have specific categories that act as partners, enter them here:
+            if (lowerCat === 'partner_category_name' || lowerCat === 'another_partner') {
+                determinedType = 'partner';
+            }
+
+            if (existingProfile) {
+                profileId = existingProfile.id;
+                const updatePayload = {};
+                
+                if (existingProfile.name !== formattedCustomer) {
+                    updatePayload.name = formattedCustomer;
+                }
+                if (existingProfile.address === 'N/A' || !existingProfile.address) {
+                    updatePayload.address = address || 'N/A';
+                }
+                if (existingProfile.contact_num === 'N/A' || !existingProfile.contact_num) {
+                    updatePayload.contact_num = contact || 'N/A';
+                }
+                
+                updatePayload.category = currentCategory || 'Walk-ins';
+                updatePayload.type = determinedType; 
+
+                await _supabase
+                    .from('profiles')
+                    .update(updatePayload)
+                    .eq('id', profileId);
+
+            } else {
+                const { data: newProfile, error: profileError } = await _supabase
+                    .from('profiles')
+                    .insert([{
+                        name: formattedCustomer,          
+                        category: currentCategory || 'Walk-ins', 
+                        address: address || 'N/A',               
+                        contact_num: contact || 'N/A',           
+                        display_id: displayId,
+                        type: determinedType                     
+                    }])
+                    .select()
+                    .single();
+            
+                if (profileError) throw profileError;
+                profileId = newProfile.id;
+            }
+            
+            collectionPayload.customer_id = profileId;
+            
             const { data: headerData, error: headerError } = await _supabase
                 .from('collections')
                 .insert([collectionPayload])
@@ -539,7 +532,6 @@ window.submitCollection = async function() {
                 .insert(itemsToInsert);
             
             if (itemsError) throw itemsError;
-            alert("Collection entry saved successfully!");
         }
 
         closeAddModal();
@@ -551,8 +543,8 @@ window.submitCollection = async function() {
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = editingIndex !== -1 ? '<i data-lucide="check"></i> Update Entry' : '<i data-lucide="check"></i> Submit';
-            safeRefreshIcons();
+            submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
+            refreshIcons();
         }
     }
 };
@@ -560,10 +552,7 @@ window.submitCollection = async function() {
 window.setupFieldListeners = function() {
     const inCustomer = document.getElementById('inCustomer');
     if (inCustomer) {
-        inCustomer.addEventListener('input', () => { 
-            if (inCustomer.value.trim()) clearError('inCustomer'); 
-            updatePreview();
-        });
+        inCustomer.addEventListener('input', () => { if (inCustomer.value.trim()) clearError('inCustomer'); });
         inCustomer.addEventListener('blur', () => {
             const val = inCustomer.value.trim();
             if (!val) showError('inCustomer', 'Customer name is required');
@@ -574,17 +563,7 @@ window.setupFieldListeners = function() {
 
     const inDate = document.getElementById('inDate');
     if (inDate) {
-        inDate.addEventListener('change', () => { 
-            if (inDate.value) clearError('inDate'); else showError('inDate', 'Date is required'); 
-            updatePreview();
-        });
-    }
-
-    const inAddress = document.getElementById('inAddress');
-    if (inAddress) {
-        inAddress.addEventListener('input', () => {
-            updatePreview();
-        });
+        inDate.addEventListener('change', () => { if (inDate.value) clearError('inDate'); else showError('inDate', 'Date is required'); });
     }
 
     const inContact = document.getElementById('inContact');
@@ -592,7 +571,6 @@ window.setupFieldListeners = function() {
         inContact.addEventListener('input', () => {
             inContact.value = formatContact(inContact.value.replace(/[^\d]/g, '').slice(0, 11));
             clearError('inContact');
-            updatePreview();
         });
     }
 
@@ -609,7 +587,7 @@ function togglePreview() {
     
     right.classList.add('show-preview');
     left.style.display = 'none';
-    safeRefreshIcons();
+    refreshIcons();
 }
 
 function closePreview() {
@@ -619,9 +597,5 @@ function closePreview() {
 
     right.classList.remove('show-preview');
     left.style.display = 'block';
-    safeRefreshIcons();
+    refreshIcons();
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    window.setupFieldListeners();
-});
