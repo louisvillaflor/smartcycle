@@ -41,7 +41,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     modal.classList.add('show');
     document.body.style.overflow = 'hidden';
 
-    window.editingIndex = index; // Ensure global context tracking
+    editingIndex = index; // Ensure global context tracking
     clearAllErrors();
 
     await loadActivePrices();
@@ -59,7 +59,6 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
 
     window.currentItems = (detailedItems || []).map(item => {
         let targetMaterialId = parseInt(item.material_id || item.materialId || item.price_list?.id, 10);
-
         if (isNaN(targetMaterialId)) {
             const nameToSearch = item.material_name || item.material || item.price_list?.material_name;
             if (nameToSearch) {
@@ -74,10 +73,10 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
         const finalName = item.material_name || item.material || item.price_list?.material_name || (cachedItem ? cachedItem.material_name : 'Unknown Material');
 
         return {
-            materialId: targetMaterialId, 
+            materialId: targetMaterialId,
+            material_id: targetMaterialId,
             material: finalName,        
             material_name: finalName,   
-            // Prioritizes original historical entry rate so it doesn't change implicitly
             rate: Number(item.rate !== undefined ? item.rate : (cachedItem ? cachedItem.price : 0)),
             weight: Number(item.weight || 0),
             subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
@@ -87,13 +86,14 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     if (window.currentItems.length > 0) {
         const selMaterial = document.getElementById('selMaterial');
         if (selMaterial) {
-            selMaterial.value = window.currentItems[0].materialId;
+           selMaterial.value = window.currentItems[0].material_id || window.currentItems[0].materialId;
+            selMaterial.dispatchEvent(new Event('change'));
         }
     }
 
     const submitBtn = document.querySelector('.btn-submit-green');
     if (submitBtn) {
-        // REMOVED: submitBtn.onclick manual bindings to stop double-triggering
+        submitBtn.onclick = () => submitCollection();
         submitBtn.innerHTML = '<i data-lucide="check"></i> Update Entry';
     }
 
@@ -101,7 +101,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     renderItems();
     setTimeout(refreshIcons, 100);
 };
-// FIXED ENGINE: Added 'id' to the select string so item.id isn't undefined
+
 async function loadActivePrices() {
     const selMaterial = document.getElementById('selMaterial');
     if (!selMaterial) return;
@@ -374,7 +374,6 @@ window.removeItem = (index) => {
 };
 
 // PERSISTENCE (SUPABASE SYNC ENGINE)
-// PERSISTENCE (SUPABASE SYNC ENGINE)
 window.submitCollection = async function() {
     const customer = document.getElementById('inCustomer')?.value.trim();
     const date = document.getElementById('inDate')?.value;
@@ -435,10 +434,8 @@ window.submitCollection = async function() {
             
             if (itemsClearError) throw itemsClearError;
             
-            // Locate this block inside window.submitCollection (around the editingIndex !== -1 section)
             const itemsToInsert = window.currentItems.map(item => {
-                // 🟩 DEFENSIVE CHECK: Fallback to a valid integer if materialId is somehow NaN
-                const validMaterialId = parseInt(item.materialId, 10);
+                const validMaterialId = parseInt(item.material_id || item.materialId, 10);
                 if (isNaN(validMaterialId)) {
                     console.error("Defensive Halt: Detected NaN materialId for item", item);
                 }
@@ -477,11 +474,6 @@ window.submitCollection = async function() {
             // NEW LOGIC: Fixed routing per your correction
             const lowerCat = currentCategory ? currentCategory.toLowerCase() : '';
             let determinedType = 'customer'; // Default to customer
-            
-            // If you have specific categories that act as partners, enter them here:
-            if (lowerCat === 'partner_category_name' || lowerCat === 'another_partner') {
-                determinedType = 'partner';
-            }
 
             if (existingProfile) {
                 profileId = existingProfile.id;
