@@ -57,39 +57,46 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     if (document.getElementById('inAddress')) document.getElementById('inAddress').value = collectionHeader.address || '';
     if (document.getElementById('inContact')) document.getElementById('inContact').value = collectionHeader.contact_number || '';
 
-    window.currentItems = (detailedItems || []).map(item => {
-        let targetMaterialId = parseInt(item.material_id || item.materialId || item.price_list?.id, 10);
-        if (isNaN(targetMaterialId)) {
-            const nameToSearch = item.material_name || item.material || item.price_list?.material_name;
-            if (nameToSearch) {
-                const matchedCache = loadedPricesCache.find(p => p.material_name.toLowerCase() === nameToSearch.toLowerCase());
-                if (matchedCache) {
-                    targetMaterialId = parseInt(matchedCache.id, 10);
-                }
+// Change this block inside openEditModal:
+window.currentItems = (detailedItems || []).map(item => {
+    // 1. Fallback through every possible naming convention your API/join might use
+    let targetMaterialId = parseInt(item.material_id || item.materialId || item.price_list_id || item.price_list?.id, 10);
+    
+    if (isNaN(targetMaterialId)) {
+        const nameToSearch = item.material_name || item.material || item.price_list?.material_name;
+        if (nameToSearch) {
+            const matchedCache = loadedPricesCache.find(p => p.material_name.toLowerCase() === nameToSearch.toLowerCase());
+            if (matchedCache) {
+                targetMaterialId = parseInt(matchedCache.id, 10);
             }
         }
-
-        const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
-        const finalName = item.material_name || item.material || item.price_list?.material_name || (cachedItem ? cachedItem.material_name : 'Unknown Material');
-
-        return {
-            materialId: targetMaterialId,
-            material_id: targetMaterialId,
-            material: finalName,        
-            material_name: finalName,   
-            rate: Number(item.rate !== undefined ? item.rate : (cachedItem ? cachedItem.price : 0)),
-            weight: Number(item.weight || 0),
-            subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
-        };
-    });
-
-    if (window.currentItems.length > 0) {
-        const selMaterial = document.getElementById('selMaterial');
-        if (selMaterial) {
-           selMaterial.value = window.currentItems[0].material_id || window.currentItems[0].materialId;
-           selMaterial.dispatchEvent(new Event('change'));
-        }
     }
+
+    const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
+    const finalName = item.material_name || item.material || item.price_list?.material_name || (cachedItem ? cachedItem.material_name : 'Unknown Material');
+
+    // 2. CRITICAL FIX: Explicitly bind BOTH snake_case and camelCase keys 
+    // to prevent component state mismatch logic from tracking them as separate items.
+    return {
+        materialId: targetMaterialId,
+        material_id: targetMaterialId, 
+        material: finalName,        
+        material_name: finalName,   
+        rate: Number(item.rate !== undefined ? item.rate : (cachedItem ? cachedItem.price : 0)),
+        weight: Number(item.weight || 0),
+        subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
+    };
+});
+
+// 3. Fix the dropdown synchronization immediately below the mapping:
+if (window.currentItems.length > 0) {
+    const selMaterial = document.getElementById('selMaterial');
+    if (selMaterial) {
+       // Consistently grab the fixed ID field
+       selMaterial.value = window.currentItems[0].material_id; 
+       selMaterial.dispatchEvent(new Event('change'));
+    }
+}
 
     const submitBtn = document.querySelector('.btn-submit-green');
     if (submitBtn) {
