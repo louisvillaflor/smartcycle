@@ -63,21 +63,39 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     if (document.getElementById('inAddress')) document.getElementById('inAddress').value = collectionHeader.address || '';
     if (document.getElementById('inContact')) document.getElementById('inContact').value = collectionHeader.contact_number || '';
 
-    // 3. SECURE FIX: Safely parse names using the robust local cache array directly
-        window.currentItems = (detailedItems || []).map(item => {
-        const targetMaterialId = parseInt(item.material_id, 10);
-        const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
-        const finalName = item.material_name || item.material || (cachedItem ? cachedItem.material_name : 'Unknown Material');
+    // ==========================================
+    // 🟩 FIXED SECTION 3 INSIDE window.openEditModal
+    // ==========================================
+    
+    // 3. SECURE FIX: Safely parse names and fallback naming properties safely
+    window.currentItems = (detailedItems || []).map(item => {
+    // 1️⃣ Look for flat snake_case, flat camelCase, or nested Supabase relation IDs
+    let targetMaterialId = parseInt(item.material_id || item.materialId || item.price_list?.id, 10);
 
-        return {
-            materialId: targetMaterialId,
-            material: finalName,        // Resolves your modal preview layout
-            material_name: finalName,   // Resolves your main dashboard loop template
-            rate: Number(item.rate || (cachedItem ? cachedItem.price : 0)),
-            weight: Number(item.weight || 0),
-            subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
-        };
-    });
+    // 2️⃣ Last-resort fallback: If ID is missing/NaN but a name exists, find its ID from your active cache
+    if (isNaN(targetMaterialId)) {
+        const nameToSearch = item.material_name || item.material || item.price_list?.material_name;
+        if (nameToSearch) {
+            const matchedCache = loadedPricesCache.find(p => p.material_name.toLowerCase() === nameToSearch.toLowerCase());
+            if (matchedCache) {
+                targetMaterialId = parseInt(matchedCache.id, 10);
+            }
+        }
+    }
+
+    // Resolve structural naming strings safely
+    const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
+    const finalName = item.material_name || item.material || item.price_list?.material_name || (cachedItem ? cachedItem.material_name : 'Unknown Material');
+
+    return {
+        materialId: targetMaterialId, // Keeps a secure, clean numerical ID for your submit handler
+        material: finalName,        // Resolves your modal preview layout UI
+        material_name: finalName,   // Resolves your main dashboard loop template
+        rate: Number(item.rate || (cachedItem ? cachedItem.price : 0)),
+        weight: Number(item.weight || 0),
+        subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
+    };
+});
 
     // 🟩 ADDED FIX: Match dropdown value to the first existing item in the collection when editing
     if (window.currentItems.length > 0) {
