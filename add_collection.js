@@ -369,7 +369,6 @@ window.removeItem = (index) => {
 };
 
 // PERSISTENCE (SUPABASE SYNC ENGINE)
-// PERSISTENCE (SUPABASE SYNC ENGINE)
 window.submitCollection = async function() {
     const customer = document.getElementById('inCustomer')?.value.trim();
     const date = document.getElementById('inDate')?.value;
@@ -397,15 +396,30 @@ window.submitCollection = async function() {
             submitBtn.innerHTML = editingIndex !== -1 ? 'Updating...' : 'Saving...';
         }
 
+        // Apply clean formatting styling to the customer name string consistently
+        const formattedCustomer = toTitleCase(customer.trim()); 
+
         const collectionPayload = { 
-            customer_name: customer, 
+            customer_name: formattedCustomer, // 🌟 Title case synced for both tables
             date_collected: date, 
             address: address, 
             contact_number: contact, 
             type: currentCategory 
         };
 
+        // NEW PROFILE ROUTING LOGIC (Determining Type)
+        const lowerCat = currentCategory ? currentCategory.toLowerCase() : '';
+        let determinedType = 'customer'; 
+        
+        // Match specific structural categories to change profile type if needed
+        if (lowerCat === 'partner_category_name' || lowerCat === 'another_partner') {
+            determinedType = 'partner';
+        }
+
         if (editingIndex !== -1) {
+            // ==========================================
+            // --- 🟩 FIXED EDIT MODE WITH SYNC ENGINE ---
+            // ==========================================
             const targetedCollection = (typeof getFilteredCollections === 'function') 
                 ? getFilteredCollections()[editingIndex] 
                 : window.collections[editingIndex];
@@ -416,6 +430,35 @@ window.submitCollection = async function() {
 
             const targetId = targetedCollection.id;
 
+            // 1. Fetch the collection parent record first to locate its linked customer_id
+            const { data: parentRecord, error: parentFetchError } = await _supabase
+                .from('collections')
+                .select('customer_id')
+                .eq('id', targetId)
+                .single();
+
+            if (parentFetchError) throw parentFetchError;
+
+            // 2. Now update the matching customer profile inside the profiles table
+            if (parentRecord && parentRecord.customer_id) {
+                const { error: profileUpdateError } = await _supabase
+                    .from('profiles')
+                    .update({
+                        name: formattedCustomer,
+                        address: address || 'N/A',
+                        contact_num: contact || 'N/A',
+                        category: currentCategory || 'Walk-ins',
+                        type: determinedType
+                    })
+                    .eq('id', parentRecord.customer_id);
+
+                if (profileUpdateError) {
+                    console.error("Profiles table update sync crash:", profileUpdateError.message);
+                    throw profileUpdateError;
+                }
+            }
+
+            // 3. Update parent collections details row
             const { error: headerUpdateError } = await _supabase
                 .from('collections')
                 .update(collectionPayload)
@@ -423,6 +466,7 @@ window.submitCollection = async function() {
 
             if (headerUpdateError) throw headerUpdateError;
 
+            // 4. Clear old structural row items array
             const { error: itemsClearError } = await _supabase
                 .from('collection_items')
                 .delete()
@@ -430,6 +474,7 @@ window.submitCollection = async function() {
             
             if (itemsClearError) throw itemsClearError;
             
+            // 5. Reinsert new items array securely carrying structural materialId elements
             const itemsToInsert = window.currentItems.map(item => ({
                 collection_id: targetId,
                 material_id: item.materialId, 
@@ -444,14 +489,13 @@ window.submitCollection = async function() {
         
             if (itemsInsertError) throw itemsInsertError;
             
-            alert("Collection entry updated successfully!");
+            alert("Collection entry and Customer profile updated successfully!");
 
         } else {
-            // --- INSERT MODE ---
+            // ==========================================
+            // --- 🟦 INSERT MODE ---
+            // ==========================================
             const displayId = generateDisplayId('C');
-            const formattedCustomer = toTitleCase(customer.trim()); 
-            collectionPayload.customer_name = formattedCustomer; 
-
             let profileId = null;
             
             const { data: existingProfile } = await _supabase
@@ -460,15 +504,6 @@ window.submitCollection = async function() {
                 .ilike('name', formattedCustomer)
                 .maybeSingle();
             
-            // NEW LOGIC: Fixed routing per your correction
-            const lowerCat = currentCategory ? currentCategory.toLowerCase() : '';
-            let determinedType = 'customer'; // Default to customer
-            
-            // If you have specific categories that act as partners, enter them here:
-            if (lowerCat === 'partner_category_name' || lowerCat === 'another_partner') {
-                determinedType = 'partner';
-            }
-
             if (existingProfile) {
                 profileId = existingProfile.id;
                 const updatePayload = {};
@@ -497,8 +532,8 @@ window.submitCollection = async function() {
                     .insert([{
                         name: formattedCustomer,          
                         category: currentCategory || 'Walk-ins', 
-                        address: address || 'N/A',               
-                        contact_num: contact || 'N/A',           
+                        address: address || 'N/A',                
+                        contact_num: contact || 'N/A',            
                         display_id: displayId,
                         type: determinedType                     
                     }])
@@ -532,6 +567,8 @@ window.submitCollection = async function() {
                 .insert(itemsToInsert);
             
             if (itemsError) throw itemsError;
+            
+            alert("Collection entry saved successfully!");
         }
 
         closeAddModal();
