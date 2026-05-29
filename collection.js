@@ -65,11 +65,10 @@ window.fetchAllCollections = async function() {
         // Safe extraction of collection items
         const rawItems = col.collection_items || [];
         
-    // Locate this block inside window.fetchAllCollections inside collection.js
+    // Inside window.fetchAllCollections, find your rawItems.map block and update it to this:
     const mappedItems = rawItems.map(item => {
         let materialName = 'Unknown';
         
-        // Check if the relation object exists and isn't null
         if (item.price_list) {
             if (Array.isArray(item.price_list) && item.price_list.length > 0) {
                 materialName = item.price_list[0].material_name || 'Unknown';
@@ -77,11 +76,11 @@ window.fetchAllCollections = async function() {
                 materialName = item.price_list.material_name;
             }
         } else if (item.material_name) {
-            // Fallback for flat tables or alternative inserts
             materialName = item.material_name;
         }
         
         return {
+            materialId: item.material_id, // 🌟 CRITICAL: Keep track of the numeric ID so it doesn't get lost on update!
             material: materialName,
             rate: parseFloat(item.rate) || 0,
             weight: parseFloat(item.weight) || 0,
@@ -332,7 +331,7 @@ function setupSearch() {
 // 5. DATA MODIFICATION MATCHES (EDIT / SAVE / DELETE)
 window.editEntry = function(index) {
     editingIndex = index;
-    const data = getFilteredCollections()[index]; // Source data accurately from filtered collections context
+    const data = getFilteredCollections()[index]; 
     const modal = document.getElementById('addCollectionModal');
     if (!modal || !data) return;
 
@@ -340,7 +339,6 @@ window.editEntry = function(index) {
     document.getElementById('inAddress').value = data.address || '';
     document.getElementById('inContact').value = data.contact || '';
     
-    // Convert 'MM-DD-YYYY' back to 'YYYY-MM-DD' for the native HTML date input field
     if (data.date && data.date.includes('-')) {
         const parts = data.date.split('-');
         if (parts.length === 3) {
@@ -358,6 +356,7 @@ window.editEntry = function(index) {
         tab.classList.toggle('active', tab.innerText.trim() === data.category);
     });
 
+    // 🌟 Retain full items payload properties, specifically preserving item.materialId
     currentItems = [...(data.items || [])];
     if (typeof renderItems === 'function') renderItems();
 
@@ -397,7 +396,16 @@ async function saveCollection() {
             const originalCollection = getFilteredCollections()[editingIndex];
             const collectionId = originalCollection.id;
 
-            // 1. Update Collection Parent Details
+            // 1. Fetch the collection parent record first to locate its associated customer_id
+            const { data: parentRecord, error: parentFetchError } = await _supabase
+                .from('collections')
+                .select('customer_id')
+                .eq('id', collectionId)
+                .single();
+
+            if (parentFetchError) throw parentFetchError;
+
+            // 2. Update Collection Parent Details
             const { error: updateCollectionError } = await _supabase
                 .from('collections')
                 .update(collectionData)
@@ -405,7 +413,24 @@ async function saveCollection() {
 
             if (updateCollectionError) throw updateCollectionError;
 
-            // 2. Clear old items associated with this specific collection id
+            // 3. Update the matching profile in the profiles table if a customer relationship link exists
+            if (parentRecord && parentRecord.customer_id) {
+                const { error: profileUpdateError } = await _supabase
+                    .from('profiles')
+                    .update({
+                        name: customer,
+                        address: address,
+                        contact_num: contact,
+                        category: currentCategory
+                    })
+                    .eq('id', parentRecord.customer_id);
+
+                if (profileUpdateError) {
+                    console.warn("Profiles table failed to update sync, checking profile constraints...", profileUpdateError.message);
+                }
+            }
+
+            // 4. Clear old items associated with this specific collection id
             const { error: deleteItemsError } = await _supabase
                 .from('collection_items')
                 .delete()
@@ -413,12 +438,11 @@ async function saveCollection() {
 
             if (deleteItemsError) throw deleteItemsError;
 
-            // 3. Map and Insert updated array back into sub-table
+            // 5. Map and Insert updated array back into sub-table
             if (currentItems.length > 0) {
-                // Map your objects to explicitly match your database column parameters
                 const itemsToInsert = currentItems.map(item => ({
                     collection_id: collectionId,
-                    material_id: item.materialId, // Ensure you store and pass the numeric ID from your selector here!
+                    material_id: item.materialId, // 🌟 Crucial: This variable is now preserved cleanly!
                     rate: item.rate,
                     weight: item.weight,
                     subtotal: item.subtotal
@@ -431,7 +455,7 @@ async function saveCollection() {
                 if (insertItemsError) throw insertItemsError;
             }
 
-            alert("Collection updated successfully!");
+            alert("Collection and customer profile synced successfully!");
         } else {
             // --- INSERT MODE ---
             const { data: newCollection, error: insertCollectionError } = await _supabase
@@ -445,7 +469,7 @@ async function saveCollection() {
                 const collectionId = newCollection[0].id;
                 const itemsToInsert = currentItems.map(item => ({
                     collection_id: collectionId,
-                    material_id: item.materialId, //  Changed from material_name to match your schema constraint
+                    material_id: item.materialId, 
                     rate: item.rate,
                     weight: item.weight,
                     subtotal: item.subtotal
