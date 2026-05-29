@@ -169,9 +169,15 @@ async function loadDashboardData() {
         // 6. CHART: TOP CONTRIBUTION BY CATEGORY (Dynamic)
         // ----------------------------------------
         
-        // Define the exact categories you want to appear in the chart
+        // 1. Define the exact categories in the exact order you want them
         const allowedCategories = ['Barangay', 'School', 'Walk-in'];
-        const categoriesCount = {};
+        
+        // 2. Initialize the count object with 0s so no category is ever missing
+        const categoriesCount = {
+            'Barangay': 0,
+            'School': 0,
+            'Walk-in': 0
+        };
         
         profiles.forEach(p => {
             // Check 'category' first, fallback to 'type', default to 'Uncategorized'
@@ -180,20 +186,27 @@ async function loadDashboardData() {
             // Normalize string (e.g. 'barangay' -> 'Barangay')
             cat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
 
-            // ONLY add to the count if the normalized category is in the allowed list
-            if (allowedCategories.includes(cat)) {
-                categoriesCount[cat] = (categoriesCount[cat] || 0) + 1;
+            // Increment if it's one of our allowed categories
+            if (categoriesCount.hasOwnProperty(cat)) {
+                categoriesCount[cat]++;
             }
         });
 
-        const categoryLabels = Object.keys(categoriesCount);
-        const categoryDataRaw = Object.values(categoriesCount);
+        // 3. Ensure labels and data always use the strict order
+        const categoryLabels = allowedCategories;
+        const categoryDataRaw = allowedCategories.map(cat => categoriesCount[cat]);
         const totalCatSum = categoryDataRaw.reduce((sum, val) => sum + val, 0) || 1;
 
         const categoryPercentages = categoryDataRaw.map(val => Math.round((val / totalCatSum) * 100));
 
-        const donutColors = ['#FFEB8A', '#71D7D0', '#B9E682', '#FFA07A', '#98FB98', '#DDA0DD'];
-        const dynamicCategoryColors = categoryLabels.map((_, i) => donutColors[i % donutColors.length]);
+        // 4. Map colors explicitly to the category names to match your HTML legend
+        const categoryColorMap = {
+            'Barangay': '#FFEB8A', // Yellow
+            'School': '#71D7D0',   // Teal
+            'Walk-in': '#B9E682'   // Green
+        };
+        
+        const dynamicCategoryColors = categoryLabels.map(cat => categoryColorMap[cat]);
 
         // ----------------------------------------
         // BUILD FINAL DATA STRUCTURE
