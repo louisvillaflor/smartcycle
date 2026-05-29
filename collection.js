@@ -1,13 +1,10 @@
-// CONFIGURATION
 const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// 🟩 FIXED GLOBAL APP STATE (Explicitly shared with the window context)
 window.collections = [];
-window.currentItems = [];       // Changed from let to window.
-window.currentCategory = 'School'; // Changed from let to window.
-window.editingIndex = -1;       // Changed from let to window.
+window.currentItems = [];
+window.currentCategory = 'School';
+window.editingIndex = -1;
 let currentPage = 1;
 let currentFilter = 'all';
 const itemsPerPage = 10;
@@ -19,14 +16,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetchAllCollections();
 });
 
-// Helper utility to safely re-trigger Lucide icons across components
 function refreshIcons() {
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
 }
 
-// Helper utility to convert YYYY-MM-DD string to MM-DD-YYYY
+// YYYY-MM-DD string to MM-DD-YYYY
 function formatDateToMDY(dateString) {
     if (!dateString) return 'N/A';
     // Splits the 'YYYY-MM-DD' format explicitly to prevent timezone shifts
@@ -35,31 +31,24 @@ function formatDateToMDY(dateString) {
     const [year, month, day] = parts;
     return `${month}-${day}-${year}`;
 }    
-
 // Add this helper function to handle loading options from the database
 window.loadMaterialDropdownOptions = async function() {
     const materialSelect = document.getElementById('selMaterial') || 
                            document.getElementById('inMaterial') || 
                            document.querySelector('select[name="material"]'); 
-                           
     if (!materialSelect) {
         console.warn("Material select dropdown element not found in DOM.");
         return;
-    }
-
-    try {
+    } try {
         console.log("Fetching price list categories from Supabase...");
-        
         // Pull rows without the strict database-side status filter for debugging
         const { data: materials, error } = await _supabase
             .from('price_list')
             .select('id, material_name, price, unit, status');
 
         if (error) throw error;
-
         // 🔍 LOOK AT YOUR CONSOLE FOR THIS LOG:
         console.log("Raw data received from Supabase price_list:", materials);
-
         // Reset dropdown and add a placeholder default row
         materialSelect.innerHTML = '<option value="" disabled selected>Select a material...</option>';
 
@@ -68,7 +57,6 @@ window.loadMaterialDropdownOptions = async function() {
             materialSelect.innerHTML = '<option value="" disabled selected>No materials found (Check RLS/Data)</option>';
             return;
         }
-
         // Filter locally using a case-insensitive check. If no status exists, default to showing it.
         const activeMaterials = materials.filter(item => {
             if (!item.status) return true; 
@@ -76,12 +64,10 @@ window.loadMaterialDropdownOptions = async function() {
         });
 
         console.log("Filtered active materials to display:", activeMaterials);
-
         if (activeMaterials.length === 0) {
             materialSelect.innerHTML = '<option value="" disabled selected>No active materials found (Check statuses)</option>';
             return;
         }
-
         // Append options containing the numeric primary Key 'id' as the value
         activeMaterials.forEach(item => {
             const option = document.createElement('option');
@@ -96,7 +82,6 @@ window.loadMaterialDropdownOptions = async function() {
         console.error("Failed to load materials into UI selection dropdown:", err.message);
     }
 };
-
 // 2. DATA MANAGEMENT (FETCH)
 window.fetchAllCollections = async function() {
     console.log("Fetching collections from Supabase...");
@@ -120,36 +105,32 @@ window.fetchAllCollections = async function() {
         return;
     }
 
-    console.log("Raw Data Received:", data);
-
     window.collections = data.map(col => {
-        // Safe extraction of collection items
         const rawItems = col.collection_items || [];
         
-    // Locate this block inside window.fetchAllCollections inside collection.js
-    const mappedItems = rawItems.map(item => {
-        let materialName = 'Unknown';
-        
-        if (item.price_list) {
-            if (Array.isArray(item.price_list) && item.price_list.length > 0) {
-                materialName = item.price_list[0].material_name || 'Unknown';
-            } else if (item.price_list.material_name) {
-                materialName = item.price_list.material_name;
+        const mappedItems = rawItems.map(item => {
+            let materialName = 'Unknown';
+            
+            if (item.price_list) {
+                if (Array.isArray(item.price_list) && item.price_list.length > 0) {
+                    materialName = item.price_list[0].material_name || 'Unknown';
+                } else if (item.price_list.material_name) {
+                    materialName = item.price_list.material_name;
+                }
+            } else if (item.material_name) {
+                materialName = item.material_name;
             }
-        } else if (item.material_name) {
-            materialName = item.material_name;
-        }
-        
-        return {
-            material_id: item.material_id, // 🟩 CRITICAL FIX: Pass the ID to the edit modal context!
-            material: materialName,
-            rate: parseFloat(item.rate) || 0,
-            weight: parseFloat(item.weight) || 0,
-            subtotal: parseFloat(item.subtotal) || 0
-        };
-    });
+            
+            return {
+                material_id: item.material_id, 
+                material: materialName,
+                rate: parseFloat(item.rate) || 0,
+                weight: parseFloat(item.weight) || 0,
+                subtotal: parseFloat(item.subtotal) || 0
+            };
+        }); // 🟩 Correctly closing rawItems.map
 
-        // Map database fields directly to the keys your renderTable() expects
+        // 🟩 Correctly returning the row block inside data.map
         return {
             id: col.id,
             date: formatDateToMDY(col.date_collected),
@@ -159,14 +140,13 @@ window.fetchAllCollections = async function() {
             totalWeight: mappedItems.reduce((sum, i) => sum + i.weight, 0),
             address: col.address,
             contact: col.contact_number,
-            items: mappedItems // Crucial: This populates the expanded sub-rows
+            items: mappedItems 
         };
-    });
+    }); // 🟩 Correctly closing data.map
 
     console.log("Parsed Collections State:", window.collections);
     renderTable();
 };
-
 // CORE FILTER DATA PROVIDER
 function getFilteredCollections() {
     if (currentFilter === 'all') return window.collections;
@@ -174,7 +154,6 @@ function getFilteredCollections() {
         col.category && col.category.toLowerCase() === currentFilter.toLowerCase()
     );
 }
-
 // 3. UI GENERATION & RENDERING
 function loadModalHTML() {
     fetch('add_collection.html')
@@ -393,7 +372,7 @@ function setupSearch() {
 
 // 5. DATA MODIFICATION MATCHES (EDIT / SAVE / DELETE)
 window.editEntry = function(index) {
-    editingIndex = index;
+    window.editingIndex = index;
     const data = getFilteredCollections()[index]; // Source data accurately from filtered collections context
     const modal = document.getElementById('addCollectionModal');
     if (!modal || !data) return;
@@ -415,12 +394,12 @@ window.editEntry = function(index) {
         document.getElementById('inDate').value = data.date;
     }
 
-    currentCategory = data.category;
+    window.currentCategory = data.category;
     document.querySelectorAll('.m-tab').forEach(tab => {
         tab.classList.toggle('active', tab.innerText.trim() === data.category);
     });
 
-    currentItems = [...(data.items || [])];
+    window.currentItems = [...(data.items || [])];
     if (typeof renderItems === 'function') renderItems();
 
     const submitBtn = document.querySelector('.btn-submit-green');
@@ -550,7 +529,7 @@ async function saveCollection() {
         if (window.currentItems.length > 0) {
             const itemsToInsert = window.currentItems.map(item => ({
                 collection_id: targetId,
-                material_id: parseInt(item.materialId, 10),
+                material_id: parseInt(item.material_id || item.materialId, 10),
                 rate: item.rate,
                 weight: item.weight,
                 subtotal: item.subtotal
@@ -590,8 +569,8 @@ function closeModal() {
     document.body.style.overflow = '';
     
     // Clear dynamic global forms parameters back to original entry states
-    editingIndex = -1;
-    currentItems = [];
+    window.editingIndex = -1;
+    window.currentItems = [];
     const submitBtn = document.querySelector('.btn-submit-green');
     if (submitBtn) submitBtn.innerHTML = '<i data-lucide="plus"></i> Submit';
 }
