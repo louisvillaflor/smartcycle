@@ -57,50 +57,46 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     if (document.getElementById('inAddress')) document.getElementById('inAddress').value = collectionHeader.address || '';
     if (document.getElementById('inContact')) document.getElementById('inContact').value = collectionHeader.contact_number || '';
 
-// Change this block inside openEditModal:
-window.currentItems = (detailedItems || []).map(item => {
-    // 1. Fallback through every possible naming convention your API/join might use
-    let targetMaterialId = parseInt(item.material_id || item.materialId || item.price_list_id || item.price_list?.id, 10);
-    
-    if (isNaN(targetMaterialId)) {
-        const nameToSearch = item.material_name || item.material || item.price_list?.material_name;
-        if (nameToSearch) {
-            const matchedCache = loadedPricesCache.find(p => p.material_name.toLowerCase() === nameToSearch.toLowerCase());
-            if (matchedCache) {
-                targetMaterialId = parseInt(matchedCache.id, 10);
+    window.currentItems = (detailedItems || []).map(item => {
+        let targetMaterialId = parseInt(item.material_id || item.materialId || item.price_list_id || item.price_list?.id, 10);
+        
+        if (isNaN(targetMaterialId)) {
+            const nameToSearch = item.material_name || item.material || item.price_list?.material_name;
+            if (nameToSearch) {
+                const matchedCache = loadedPricesCache.find(p => p.material_name.toLowerCase() === nameToSearch.toLowerCase());
+                if (matchedCache) {
+                    targetMaterialId = parseInt(matchedCache.id, 10);
+                }
             }
+        }
+
+        const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
+        const finalName = item.material_name || item.material || item.price_list?.material_name || (cachedItem ? cachedItem.material_name : 'Unknown Material');
+
+        return {
+            materialId: targetMaterialId,
+            material_id: targetMaterialId, 
+            material: finalName,        
+            material_name: finalName,   
+            rate: Number(item.rate !== undefined ? item.rate : (cachedItem ? cachedItem.price : 0)),
+            weight: Number(item.weight || 0),
+            subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
+        };
+    });
+
+    if (window.currentItems.length > 0) {
+        const selMaterial = document.getElementById('selMaterial');
+        if (selMaterial) {
+           selMaterial.value = window.currentItems[0].material_id; 
+           selMaterial.dispatchEvent(new Event('change'));
         }
     }
 
-    const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === targetMaterialId);
-    const finalName = item.material_name || item.material || item.price_list?.material_name || (cachedItem ? cachedItem.material_name : 'Unknown Material');
-
-    // 2. CRITICAL FIX: Explicitly bind BOTH snake_case and camelCase keys 
-    // to prevent component state mismatch logic from tracking them as separate items.
-    return {
-        materialId: targetMaterialId,
-        material_id: targetMaterialId, 
-        material: finalName,        
-        material_name: finalName,   
-        rate: Number(item.rate !== undefined ? item.rate : (cachedItem ? cachedItem.price : 0)),
-        weight: Number(item.weight || 0),
-        subtotal: Number(item.subtotal || (item.rate * item.weight) || 0)
-    };
-});
-
-// 3. Fix the dropdown synchronization immediately below the mapping:
-if (window.currentItems.length > 0) {
-    const selMaterial = document.getElementById('selMaterial');
-    if (selMaterial) {
-       // Consistently grab the fixed ID field
-       selMaterial.value = window.currentItems[0].material_id; 
-       selMaterial.dispatchEvent(new Event('change'));
-    }
-}
-
     const submitBtn = document.querySelector('.btn-submit-green');
     if (submitBtn) {
-        submitBtn.onclick = () => submitCollection();
+        // Clear previous event references explicitly to block multiple execution pathways
+        submitBtn.onclick = null;
+        submitBtn.onclick = () => window.submitCollection();
         submitBtn.innerHTML = '<i data-lucide="check"></i> Update Entry';
     }
 
@@ -216,7 +212,7 @@ function resetForm() {
 
     clearAllErrors();
     window.currentItems = []; 
-    editingIndex = -1; // FIXED: Resets the actual locally-scoped module index cleanly
+    editingIndex = -1; 
 
     currentCategory = 'School';
     document.querySelectorAll('.m-tab').forEach((tab, idx) => {
@@ -225,6 +221,7 @@ function resetForm() {
 
     const submitBtn = document.querySelector('.btn-submit-green');
     if (submitBtn) {
+        submitBtn.onclick = () => window.submitCollection();
         submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
     }
 
@@ -348,14 +345,15 @@ function renderItems() {
                 </tr>`;
         });
 
-        itemsBody.innerHTML = mainRowsHtml;
-        preItemsBody.innerHTML = previewRowsHtml;
+    }
 
-        if (formTotalLine) {
-            formTotalLine.style.display = 'flex';
-            const formTotalEl = document.getElementById('formTotal');
-            if (formTotalEl) formTotalEl.innerText = `₱${total.toFixed(2)}`;
-        }
+    itemsBody.innerHTML = mainRowsHtml || '<tr><td colspan="5" style="text-align:center; color: #94a3b8; padding: 20px;">No items added yet</td></tr>';
+    preItemsBody.innerHTML = previewRowsHtml || '<tr><td colspan="5" style="text-align:center; color: #94a3b8; padding: 20px;">No items</td></tr>';
+
+    if (window.currentItems.length > 0 && formTotalLine) {
+        formTotalLine.style.display = 'flex';
+        const formTotalEl = document.getElementById('formTotal');
+        if (formTotalEl) formTotalEl.innerText = `₱${total.toFixed(2)}`;
     }
 
     const emptyRowsNeeded = Math.max(0, 8 - window.currentItems.length);
@@ -402,16 +400,17 @@ window.submitCollection = async function() {
             submitBtn.innerHTML = editingIndex !== -1 ? 'Updating...' : 'Saving...';
         }
 
+        const formattedCustomer = toTitleCase(customer);
         const collectionPayload = { 
-            customer_name: customer, 
+            customer_name: formattedCustomer, 
             date_collected: date, 
-            address: address, 
-            contact_number: contact, 
+            address: address || 'N/A', 
+            contact_number: contact || 'N/A', 
             type: currentCategory 
         };
 
         if (editingIndex !== -1) {
-            // FIXED: Reliably look up context records without leaking array index mismatches
+            // --- UPDATE MODE ---
             const targetedCollection = (typeof getFilteredCollections === 'function') 
                 ? getFilteredCollections()[editingIndex] 
                 : window.collections[editingIndex];
@@ -422,6 +421,7 @@ window.submitCollection = async function() {
 
             const targetId = targetedCollection.id;
 
+            // 1. Sync header changes
             const { error: headerUpdateError } = await _supabase
                 .from('collections')
                 .update(collectionPayload)
@@ -429,6 +429,7 @@ window.submitCollection = async function() {
 
             if (headerUpdateError) throw headerUpdateError;
 
+            // 2. Safely wipe out sub-item rows to overwrite additions/removals smoothly
             const { error: itemsClearError } = await _supabase
                 .from('collection_items')
                 .delete()
@@ -436,14 +437,15 @@ window.submitCollection = async function() {
             
             if (itemsClearError) throw itemsClearError;
             
+            // 3. Batch insert fresh item rows
             const itemsToInsert = window.currentItems.map(item => {
                 const validMaterialId = parseInt(item.material_id || item.materialId, 10);
                 return {
                     collection_id: targetId,
                     material_id: isNaN(validMaterialId) ? null : validMaterialId, 
-                    rate: item.rate,
-                    weight: item.weight,
-                    subtotal: item.subtotal
+                    rate: Number(item.rate),
+                    weight: Number(item.weight),
+                    subtotal: Number(item.subtotal)
                 };
             });
         
@@ -458,9 +460,6 @@ window.submitCollection = async function() {
         } else {
             // --- INSERT MODE ---
             const displayId = generateDisplayId('C');
-            const formattedCustomer = toTitleCase(customer.trim()); 
-            collectionPayload.customer_name = formattedCustomer; 
-
             let profileId = null;
             
             const { data: existingProfile } = await _supabase
@@ -475,15 +474,9 @@ window.submitCollection = async function() {
                 profileId = existingProfile.id;
                 const updatePayload = {};
                 
-                if (existingProfile.name !== formattedCustomer) {
-                    updatePayload.name = formattedCustomer;
-                }
-                if (existingProfile.address === 'N/A' || !existingProfile.address) {
-                    updatePayload.address = address || 'N/A';
-                }
-                if (existingProfile.contact_num === 'N/A' || !existingProfile.contact_num) {
-                    updatePayload.contact_num = contact || 'N/A';
-                }
+                if (existingProfile.name !== formattedCustomer) updatePayload.name = formattedCustomer;
+                if (existingProfile.address === 'N/A' || !existingProfile.address) updatePayload.address = address || 'N/A';
+                if (existingProfile.contact_num === 'N/A' || !existingProfile.contact_num) updatePayload.contact_num = contact || 'N/A';
                 
                 updatePayload.category = currentCategory || 'Walk-ins';
                 updatePayload.type = determinedType; 
@@ -492,7 +485,6 @@ window.submitCollection = async function() {
                     .from('profiles')
                     .update(updatePayload)
                     .eq('id', profileId);
-
             } else {
                 const { data: newProfile, error: profileError } = await _supabase
                     .from('profiles')
@@ -523,10 +515,10 @@ window.submitCollection = async function() {
             
             const itemsToInsert = window.currentItems.map(item => ({
                 collection_id: headerData.id,
-                material_id: item.materialId, 
-                rate: item.rate,
-                weight: item.weight,
-                subtotal: item.subtotal
+                material_id: parseInt(item.materialId || item.material_id, 10), 
+                rate: Number(item.rate),
+                weight: Number(item.weight),
+                subtotal: Number(item.subtotal)
             }));
             
             const { error: itemsError } = await _supabase
@@ -534,6 +526,8 @@ window.submitCollection = async function() {
                 .insert(itemsToInsert);
         
             if (itemsError) throw itemsError;
+
+            alert("Collection entry added successfully!");
         }
 
         closeAddModal();
