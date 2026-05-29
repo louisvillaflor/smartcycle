@@ -38,7 +38,6 @@ function formatDateToMDY(dateString) {
 
 // Add this helper function to handle loading options from the database
 window.loadMaterialDropdownOptions = async function() {
-    // 🟩 FIXED: Added document.getElementById('selMaterial') to match your actual HTML ID
     const materialSelect = document.getElementById('selMaterial') || 
                            document.getElementById('inMaterial') || 
                            document.querySelector('select[name="material"]'); 
@@ -49,19 +48,42 @@ window.loadMaterialDropdownOptions = async function() {
     }
 
     try {
-        console.log("Fetching price list categories for dropdown selection...");
+        console.log("Fetching price list categories from Supabase...");
+        
+        // Pull rows without the strict database-side status filter for debugging
         const { data: materials, error } = await _supabase
             .from('price_list')
-            .select('id, material_name, price, unit')
-            .eq('status', 'active'); 
+            .select('id, material_name, price, unit, status');
 
         if (error) throw error;
+
+        // 🔍 LOOK AT YOUR CONSOLE FOR THIS LOG:
+        console.log("Raw data received from Supabase price_list:", materials);
 
         // Reset dropdown and add a placeholder default row
         materialSelect.innerHTML = '<option value="" disabled selected>Select a material...</option>';
 
+        if (!materials || materials.length === 0) {
+            console.warn("The price_list table returned 0 rows. Check your Supabase RLS policies or table data.");
+            materialSelect.innerHTML = '<option value="" disabled selected>No materials found (Check RLS/Data)</option>';
+            return;
+        }
+
+        // Filter locally using a case-insensitive check. If no status exists, default to showing it.
+        const activeMaterials = materials.filter(item => {
+            if (!item.status) return true; 
+            return item.status.toLowerCase() === 'active';
+        });
+
+        console.log("Filtered active materials to display:", activeMaterials);
+
+        if (activeMaterials.length === 0) {
+            materialSelect.innerHTML = '<option value="" disabled selected>No active materials found (Check statuses)</option>';
+            return;
+        }
+
         // Append options containing the numeric primary Key 'id' as the value
-        materials.forEach(item => {
+        activeMaterials.forEach(item => {
             const option = document.createElement('option');
             option.value = item.id; 
             option.setAttribute('data-rate', item.price);
@@ -69,7 +91,7 @@ window.loadMaterialDropdownOptions = async function() {
             materialSelect.appendChild(option);
         });
 
-        console.log("Dropdown material items successfully bound.");
+        console.log("Dropdown material items successfully bound to UI.");
     } catch (err) {
         console.error("Failed to load materials into UI selection dropdown:", err.message);
     }
