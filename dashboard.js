@@ -176,7 +176,7 @@ async function loadDashboardData() {
         const categoriesCount = {
             'Barangay': 0,
             'School': 0,
-            'Walk-ins': 0
+            'Walk-in': 0
         };
         
         profiles.forEach(p => {
@@ -203,7 +203,7 @@ async function loadDashboardData() {
         const categoryColorMap = {
             'Barangay': '#FFEB8A', // Yellow
             'School': '#71D7D0',   // Teal
-            'Walk-ins': '#B9E682'   // Green
+            'Walk-in': '#B9E682'   // Green
         };
         
         const dynamicCategoryColors = categoryLabels.map(cat => categoryColorMap[cat]);
