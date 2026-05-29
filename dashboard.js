@@ -396,12 +396,24 @@ function updateTrendIndicator(elementId, isPositive) {
 }
 
 function createSparklines(sparklineData) {
-    createSparkline('collectionSparkline', sparklineData.collection, '#FFEB8A');
-    createSparkline('salesSparkline', sparklineData.sales, '#71D7D0');
-    createSparkline('distributorSparkline', sparklineData.distributors, '#B9E682');
+    // 1. Generate real chronological month/year labels for the last 6 months
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const labels = [];
+    const now = new Date();
+    
+    // Matches the "5 - monthDiff" logic from getMonthlyChronology (oldest month first)
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        labels.push(`${monthNames[d.getMonth()]} ${d.getFullYear()}`);
+    }
+
+    // 2. Pass labels and a display title to each sparkline
+    createSparkline('collectionSparkline', sparklineData.collection, '#FFEB8A', labels, 'Collection');
+    createSparkline('salesSparkline', sparklineData.sales, '#71D7D0', labels, 'Sales');
+    createSparkline('distributorSparkline', sparklineData.distributors, '#B9E682', labels, 'Distributors');
 }
 
-function createSparkline(canvasId, data, color) {
+function createSparkline(canvasId, data, color, labels, labelName) {
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
     
@@ -411,15 +423,18 @@ function createSparkline(canvasId, data, color) {
     new Chart(ctx, {
         type: 'line',
         data: {
-            labels: data.map((_, i) => i),
+            labels: labels, // Use the generated month/year labels
             datasets: [{
+                label: labelName,
                 data: data,
                 borderColor: color,
                 backgroundColor: color + '20',
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 0
+                pointRadius: 0,            // Keep points hidden normally to match your clean UI
+                pointHoverRadius: 5,       // Pop up a clean dot when hovered
+                pointHoverBackgroundColor: color
             }]
         },
         options: {
@@ -428,13 +443,31 @@ function createSparkline(canvasId, data, color) {
             animation: false,
             plugins: {
                 legend: { display: false },
-                tooltip: { enabled: false }
+                tooltip: { 
+                    enabled: true,         // Turn on tooltips
+                    mode: 'index',
+                    intersect: false,      // Triggers tooltip even if they hover slightly above/below the line
+                    callbacks: {
+                        label: function(context) {
+                            let value = context.parsed.y;
+                            // Optional: Append distinct units depending on what's being looked at
+                            if (labelName === 'Collection') return ` Collected: ${formatNumber(value)} kg`;
+                            if (labelName === 'Sales') return ` Total Sales: ₱${formatNumber(value)}`;
+                            if (labelName === 'Distributors') return ` New Users: ${formatNumber(value)}`;
+                            return ` ${labelName}: ${formatNumber(value)}`;
+                        }
+                    }
+                }
             },
             scales: {
                 x: { display: false },
                 y: { display: false }
             },
-            events: []
+            // REMOVED "events: []" so Chart.js registers hover states
+            interaction: {
+                mode: 'index',
+                intersect: false
+            }
         }
     });
 }
