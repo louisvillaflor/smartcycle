@@ -180,15 +180,25 @@ async function loadDashboardData() {
         };
         
         profiles.forEach(p => {
-            // Check 'category' first, fallback to 'type', default to 'Uncategorized'
-            let cat = p.category || p.type || 'Uncategorized';
-            
-            // Normalize string (e.g. 'barangay' -> 'Barangay')
-            cat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+            // Check 'category' first, fallback to 'type', default to empty string
+            let rawCat = p.category || p.type || '';
+            let lowerCat = rawCat.toLowerCase();
 
-            // Increment if it's one of our allowed categories
-            if (categoriesCount.hasOwnProperty(cat)) {
-                categoriesCount[cat]++;
+            // Map database variations to your exact allowed categories
+            let mappedCat = 'Uncategorized';
+            
+            if (lowerCat.includes('barangay')) {
+                mappedCat = 'Barangay';
+            } else if (lowerCat.includes('school')) {
+                mappedCat = 'School';
+            } else if (lowerCat.includes('walk-in')) { 
+                // Using .includes() catches both "walk-in" and "walk-ins" from your database
+                mappedCat = 'Walk-in';
+            }
+
+            // Increment if it matched one of our allowed categories
+            if (categoriesCount.hasOwnProperty(mappedCat)) {
+                categoriesCount[mappedCat]++;
             }
         });
 
