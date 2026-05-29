@@ -38,7 +38,11 @@ function formatDateToMDY(dateString) {
 
 // Add this helper function to handle loading options from the database
 window.loadMaterialDropdownOptions = async function() {
-    const materialSelect = document.getElementById('inMaterial') || document.querySelector('select[name="material"]'); // Match your HTML selector ID
+    // 🟩 FIXED: Added document.getElementById('selMaterial') to match your actual HTML ID
+    const materialSelect = document.getElementById('selMaterial') || 
+                           document.getElementById('inMaterial') || 
+                           document.querySelector('select[name="material"]'); 
+                           
     if (!materialSelect) {
         console.warn("Material select dropdown element not found in DOM.");
         return;
@@ -49,7 +53,7 @@ window.loadMaterialDropdownOptions = async function() {
         const { data: materials, error } = await _supabase
             .from('price_list')
             .select('id, material_name, price, unit')
-            .eq('status', 'active'); // Optional: filter out any inactive rates if you track status
+            .eq('status', 'active'); 
 
         if (error) throw error;
 
@@ -59,7 +63,7 @@ window.loadMaterialDropdownOptions = async function() {
         // Append options containing the numeric primary Key 'id' as the value
         materials.forEach(item => {
             const option = document.createElement('option');
-            option.value = item.id; // Crucial: sets the incremental integer ID as the value
+            option.value = item.id; 
             option.setAttribute('data-rate', item.price);
             option.textContent = `${item.material_name} (₱${item.price}/${item.unit || 'kg'})`;
             materialSelect.appendChild(option);
