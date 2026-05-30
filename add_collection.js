@@ -371,7 +371,6 @@ window.removeItem = (index) => {
     renderItems();
 };
 
-// PERSISTENCE (SUPABASE SYNC ENGINE)
 window.submitCollection = async function(e) {
     // Intercept native browser handling to block structural resets mid-operation
     if (e) {
@@ -416,6 +415,9 @@ window.submitCollection = async function(e) {
             type: window.currentCategory 
         };
 
+        // VARIABLE TO TRACK THE TARGET COLLECTION ID FOR ITEM INSERTION
+        let activeCollectionId = null;
+
         if (window.editingIndex !== -1) {
             // --- UPDATE MODE ---
             const targetedCollection = (typeof getFilteredCollections === 'function') 
@@ -427,8 +429,31 @@ window.submitCollection = async function(e) {
             }
 
             const targetId = targetedCollection.id;
+            activeCollectionId = targetId; // Assign for item insertion later
 
-            // 1. Sync header changes in 'collections'
+            // 1. Fetch the actual customer_id directly from the database 
+            const { data: dbCollection, error: fetchErr } = await _supabase
+                .from('collections')
+                .select('customer_id, customer_name')
+                .eq('id', targetId)
+                .single();
+
+            if (fetchErr) throw fetchErr;
+
+            let actualCustomerId = targetedCollection.customer_id || (dbCollection ? dbCollection.customer_id : null);
+
+            // Fallback: If customer_id is somehow still missing, lookup by original name
+            if (!actualCustomerId && dbCollection && dbCollection.customer_name) {
+                const { data: fallbackProfile } = await _supabase
+                    .from('profiles')
+                    .select('id')
+                    .ilike('name', dbCollection.customer_name)
+                    .maybeSingle();
+                
+                if (fallbackProfile) actualCustomerId = fallbackProfile.id;
+            }
+
+            // 2. Sync header changes in 'collections'
             const { error: headerUpdateError } = await _supabase
                 .from('collections')
                 .update(collectionPayload)
@@ -436,8 +461,8 @@ window.submitCollection = async function(e) {
 
             if (headerUpdateError) throw headerUpdateError;
 
-            // 2. NEW FIX: Update the linked profile if customer_id exists
-            if (targetedCollection.customer_id) {
+            // 3. Update the linked profile reliably
+            if (actualCustomerId) {
                 const { error: profileUpdateError } = await _supabase
                     .from('profiles')
                     .update({
@@ -446,38 +471,20 @@ window.submitCollection = async function(e) {
                         address: address || 'N/A',
                         contact_num: contact || 'N/A'
                     })
-                    .eq('id', targetedCollection.customer_id);
+                    .eq('id', actualCustomerId);
 
                 if (profileUpdateError) throw profileUpdateError;
             }
 
-            // 3. Safely wipe out sub-item rows to overwrite additions/removals smoothly
+            // 4. Safely wipe out sub-item rows to overwrite additions/removals smoothly
             const { error: itemsClearError } = await _supabase
                 .from('collection_items')
                 .delete()
                 .eq('collection_id', targetId);
             
             if (itemsClearError) throw itemsClearError;
-            
-            // 4. Batch insert fresh item rows
-            const itemsToInsert = window.currentItems.map(item => {
-                const validMaterialId = parseInt(item.material_id || item.materialId, 10);
-                return {
-                    collection_id: targetId,
-                    material_id: isNaN(validMaterialId) ? null : validMaterialId, 
-                    rate: Number(item.rate),
-                    weight: Number(item.weight),
-                    subtotal: Number(item.subtotal)
-                };
-            });
-        
-            const { error: itemsInsertError } = await _supabase
-                .from('collection_items')
-                .insert(itemsToInsert);
-        
-            if (itemsInsertError) throw itemsInsertError;
-            
-            alert("Collection entry and profile updated successfully!");
+
+            alert("Collection entry updated successfully!");
 
         } else {
             // --- INSERT MODE ---
@@ -511,7 +518,7 @@ window.submitCollection = async function(e) {
                 const { data: newProfile, error: profileError } = await _supabase
                     .from('profiles')
                     .insert([{
-                        name: formattedCustomer,          
+                        name: formattedCustomer,         
                         category: window.currentCategory || 'Walk-ins', 
                         address: address || 'N/A',               
                         contact_num: contact || 'N/A',           
@@ -535,8 +542,15 @@ window.submitCollection = async function(e) {
             
             if (headerError) throw headerError;
             
+            activeCollectionId = headerData.id; // Assign for item insertion later
+            alert("Collection entry added successfully!");
+        }
+
+        // --- SHARED ITEM INSERTION FOR BOTH MODES ---
+        // Ensure we have a valid collection ID before proceeding
+        if (activeCollectionId) {
             const itemsToInsert = window.currentItems.map(item => ({
-                collection_id: headerData.id,
+                collection_id: activeCollectionId,
                 material_id: parseInt(item.materialId || item.material_id, 10), 
                 rate: Number(item.rate),
                 weight: Number(item.weight),
@@ -548,8 +562,6 @@ window.submitCollection = async function(e) {
                 .insert(itemsToInsert);
         
             if (itemsError) throw itemsError;
-
-            alert("Collection entry added successfully!");
         }
 
         window.closeAddModal();
@@ -566,7 +578,7 @@ window.submitCollection = async function(e) {
             } else {
                 submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
             }
-            refreshIcons();
+            if (typeof refreshIcons === 'function') refreshIcons();
         }
     }
 };
