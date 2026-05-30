@@ -119,28 +119,53 @@ document.getElementById('loginForm').addEventListener('submit', function (e) {
 
     if (!isValid) return;
 
+    // Ensure you have initialized your Supabase client at the top of your file
+    // const supabase = supabase.createClient('YOUR_URL', 'YOUR_ANON_KEY');
+    
     loginButton.disabled = true;
     loginButton.classList.add('loading');
-
-    // Replace this block with actual backend call
-    setTimeout(() => {
+    
+    try {
+        // 1. Authenticate the email and password with Supabase
+        const { data, error } = await window._supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
+    
+        if (error) throw error;
+    
+        // 2. Fetch the user's role from your profiles table
+        const { data: profileData, error: profileError } = await window._supabase
+            .from('profiles')
+            .select('type, display_id, name')
+            .eq('id', data.user.id)
+            .single();
+    
+        if (profileError) throw profileError;
+    
+        // 3. Store session data and route based on role
+        sessionStorage.setItem('isLoggedIn', 'true');
+        sessionStorage.setItem('userEmail', email);
+        sessionStorage.setItem('userName', profileData.name);
+        sessionStorage.setItem('userRole', profileData.type); 
+        sessionStorage.setItem('userId', profileData.display_id); 
+    
+        successModal.showModal();
+    
+        setTimeout(() => {
+            // You can route differently based on the role
+            if (profileData.type === 'Super Admin') {
+                window.location.href = 'superadmin_dashboard.html';
+            } else {
+                window.location.href = 'dashboard.html';
+            }
+        }, 2000);
+    
+    } catch (error) {
+        console.error('Login error:', error.message);
+        errorModal.showModal();
+    } finally {
         loginButton.disabled = false;
         loginButton.classList.remove('loading');
-
-        const isAuthenticated = true; // Replace with actual authentication check
-
-        if (isAuthenticated) {
-            sessionStorage.setItem('isLoggedIn', 'true');
-            sessionStorage.setItem('userEmail', email);
-            sessionStorage.setItem('userName', 'Admin'); // Replace with actual user name from backend
-
-            successModal.showModal();
-
-            setTimeout(() => {
-                window.location.href = 'dashboard.html';
-            }, 2000);
-        } else {
-            errorModal.showModal();
-        }
-    }, 2000);
+    }
 });
