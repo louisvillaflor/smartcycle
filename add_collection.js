@@ -96,7 +96,7 @@ window.openEditModal = async (index, collectionHeader, detailedItems) => {
     const submitBtn = document.querySelector('.btn-submit-green');
     if (submitBtn) {
         submitBtn.onclick = null;
-        submitBtn.onclick = (e) => window.submitCollection(e);
+        submitBtn.onclick = (e) => window.(e);
         submitBtn.innerHTML = '<i data-lucide="check"></i> Update Entry';
     }
 
@@ -428,7 +428,7 @@ window.submitCollection = async function(e) {
 
             const targetId = targetedCollection.id;
 
-            // 1. Sync header changes
+            // 1. Sync header changes in 'collections'
             const { error: headerUpdateError } = await _supabase
                 .from('collections')
                 .update(collectionPayload)
@@ -436,7 +436,22 @@ window.submitCollection = async function(e) {
 
             if (headerUpdateError) throw headerUpdateError;
 
-            // 2. Safely wipe out sub-item rows to overwrite additions/removals smoothly
+            // 2. NEW FIX: Update the linked profile if customer_id exists
+            if (targetedCollection.customer_id) {
+                const { error: profileUpdateError } = await _supabase
+                    .from('profiles')
+                    .update({
+                        name: formattedCustomer,
+                        category: window.currentCategory || 'Walk-ins',
+                        address: address || 'N/A',
+                        contact_num: contact || 'N/A'
+                    })
+                    .eq('id', targetedCollection.customer_id);
+
+                if (profileUpdateError) throw profileUpdateError;
+            }
+
+            // 3. Safely wipe out sub-item rows to overwrite additions/removals smoothly
             const { error: itemsClearError } = await _supabase
                 .from('collection_items')
                 .delete()
@@ -444,7 +459,7 @@ window.submitCollection = async function(e) {
             
             if (itemsClearError) throw itemsClearError;
             
-            // 3. Batch insert fresh item rows
+            // 4. Batch insert fresh item rows
             const itemsToInsert = window.currentItems.map(item => {
                 const validMaterialId = parseInt(item.material_id || item.materialId, 10);
                 return {
@@ -462,7 +477,7 @@ window.submitCollection = async function(e) {
         
             if (itemsInsertError) throw itemsInsertError;
             
-            alert("Collection entry updated successfully!");
+            alert("Collection entry and profile updated successfully!");
 
         } else {
             // --- INSERT MODE ---
@@ -546,7 +561,6 @@ window.submitCollection = async function(e) {
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            // Reflect the continuous layout state dynamically if submission hits an error path
             if (window.editingIndex !== -1) {
                 submitBtn.innerHTML = '<i data-lucide="check"></i> Update Entry';
             } else {
