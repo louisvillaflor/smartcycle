@@ -244,7 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td style="color: #334155; padding: 14px 24px;">${rowData.week2.toFixed(1)}</td>
                     <td style="color: #334155; padding: 14px 24px;">${rowData.week3.toFixed(1)}</td>
                     <td style="color: #334155; padding: 14px 24px;">${rowData.week4.toFixed(1)}</td>
-                    <td class="col-total" style="font-weight: 700; color: #0f172a; padding: 14px 24px;"><strong>${rowData.total.toFixed(1)}</strong></td>
+                    <td class="col-total" style="font-weight: 700; color: #10b981; padding: 14px 24px;"><strong>${rowData.total.toFixed(1)}</strong></td>
                 </tr>
             `;
             tableBody.insertAdjacentHTML('beforeend', rowHTML);
