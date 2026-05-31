@@ -1,18 +1,3 @@
-// Mock Data
-var myProfile = {
-    name:   'Juan Dela Cruz',
-    email:  'juan.delacruz@smartcycle.ph',
-    mobile: '+63 917 123 4567',
-    role:   'admin'
-};
-
-var users = [
-    { id: 1, name: 'Maria Santos', email: 'maria.santos@smartcycle.ph',   mobile: '+63 918 234 5678', role: 'moderator' },
-    { id: 2, name: 'Carlos Reyes', email: 'carlos.reyes@smartcycle.ph',   mobile: '+63 919 345 6789', role: 'viewer'    },
-    { id: 3, name: 'Ana Lim',      email: 'ana.lim@smartcycle.ph',         mobile: '+63 920 456 7890', role: 'admin'     },
-    { id: 4, name: 'Rico Mendoza', email: 'rico.mendoza@smartcycle.ph',   mobile: '+63 921 567 8901', role: 'viewer'    },
-];
-
 var nextId         = 5;
 var editingUserId  = null;
 var deletingUserId = null;
@@ -254,15 +239,13 @@ document.getElementById('addUserBtn').addEventListener('click', function() {
     editingUserId = null;
     document.getElementById('userModalTitle').textContent       = 'Add New User';
     document.getElementById('saveUserBtn').innerHTML            = '<i data-lucide="check" aria-hidden="true"></i> Add User';
-    lucide.createIcons();
+    document.getElementById('modalNameGroup').style.display = 'none';
+    document.getElementById('modalMobileGroup').style.display = 'none';
     document.getElementById('modalName').value                  = '';
     document.getElementById('modalEmail').value                 = '';
     document.getElementById('modalMobile').value                = '';
-    document.getElementById('modalPassword').value              = '';
-    document.getElementById('modalConfirmPassword').value       = '';
-    document.getElementById('passwordFields').hidden            = false;
     document.getElementById('modalRole').value                  = '';
-    resetPasswordStrength();
+    
     clearModalErrors();
     userModal.classList.add('show');
     lucide.createIcons();
@@ -274,11 +257,11 @@ function openEditUser(id) {
     editingUserId = id;
     document.getElementById('userModalTitle').textContent = 'Edit User';
     document.getElementById('saveUserBtn').innerHTML      = '<i data-lucide="check" aria-hidden="true"></i> Save Changes';
-    lucide.createIcons();
+    document.getElementById('modalNameGroup').style.display = 'block';
+    document.getElementById('modalMobileGroup').style.display = 'block';
     document.getElementById('modalName').value   = u.name;
     document.getElementById('modalEmail').value  = u.email;
     document.getElementById('modalMobile').value = u.mobile;
-    document.getElementById('passwordFields').hidden = true;
     document.getElementById('modalRole').value   = u.role;
     clearModalErrors();
     userModal.classList.add('show');
@@ -297,13 +280,20 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
     var mobile = document.getElementById('modalMobile').value.trim();
     var role   = document.getElementById('modalRole').value;
     var valid  = true;
-
     clearModalErrors();
-
-    if (!name) {
-        showError('modalNameError', 'modalName', 'Full name is required.');
-        valid = false;
+    
+    // Validate fields based on mode
+    if (editingUserId !== null) {
+        if (!name) {
+            showError('modalNameError', 'modalName', 'Full name is required.');
+            valid = false;
+        }
+        if (mobile && !isValidPHPhone(mobile)) {
+            showError('modalMobileError', 'modalMobile', 'Enter a valid PH number (09XX XXX XXXX).');
+            valid = false;
+        }
     }
+    // Email and Role are mandatory across both actions
     if (!email) {
         showError('modalEmailError', 'modalEmail', 'Email address is required.');
         valid = false;
@@ -311,127 +301,38 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
         showError('modalEmailError', 'modalEmail', 'Enter a valid email address.');
         valid = false;
     }
-    if (mobile && !isValidPHPhone(mobile)) {
-        showError('modalMobileError', 'modalMobile', 'Enter a valid PH number (09XX XXX XXXX).');
-        valid = false;
-    }
-
-    if (editingUserId === null) {
-        var pw  = document.getElementById('modalPassword').value;
-        var cpw = document.getElementById('modalConfirmPassword').value;
-
-        if (!pw) {
-            showError('modalPasswordError', 'modalPassword', 'Password is required.');
-            valid = false;
-        } else if (pw.length < 8) {
-            showError('modalPasswordError', 'modalPassword', 'Password must be at least 8 characters.');
-            valid = false;
-        }
-        if (!cpw) {
-            showError('modalConfirmPasswordError', 'modalConfirmPassword', 'Please confirm your password.');
-            valid = false;
-        } else if (pw && pw !== cpw) {
-            showError('modalConfirmPasswordError', 'modalConfirmPassword', 'Passwords do not match.');
-            valid = false;
-        }
-    }
-
     if (!role) {
         showError('modalRoleError', null, 'Please select a role.');
         valid = false;
     }
-
     if (!valid) return;
-
     if (editingUserId !== null) {
+        // Update Local State Mock
         var u = users.find(function(u) { return u.id === editingUserId; });
-        if (u) { u.name = name; u.email = email; u.mobile = mobile; u.role = role; }
+        if (u) { 
+            u.name = name; 
+            u.email = email; 
+            u.mobile = mobile; 
+            u.role = role; 
+        }
     } else {
-        users.push({ id: nextId++, name: name, email: email, mobile: mobile, role: role });
+        // Mocking the creation workflow locally
+        // Before finalizing the setup, placeholder strings are provided until they verify via Email link
+        users.push({ 
+            id: nextId++, 
+            name: email.split('@')[0], // Temporary fallback name
+            email: email, 
+            mobile: 'Pending Invite', 
+            role: role 
+        });
+        
+        console.log("Triggered Supabase Auth Admin Invite for: " + email + " with App Role: " + role);
+        alert('Invitation sent successfully to ' + email + '!');
     }
 
     renderUsers();
     userModal.classList.remove('show');
 });
-
-
-// Password strength
-document.getElementById('modalPassword').addEventListener('input', function() {
-    var pw = this.value;
-    var strengthWrap = document.getElementById('passwordStrength');
-
-    if (!pw) {
-        resetPasswordStrength();
-        return;
-    }
-
-    strengthWrap.hidden = false;
-    var fill  = document.getElementById('strengthFill');
-    var label = document.getElementById('strengthLabel');
-    var score = getPasswordStrength(pw);
-
-    strengthWrap.className = 'password-strength';
-    if (score <= 1) {
-        strengthWrap.classList.add('strength-weak');
-        fill.style.width = '33%';
-        fill.style.background = '#ef4444';
-        label.style.color = '#ef4444';
-        label.textContent = 'Weak';
-    } else if (score === 2) {
-        strengthWrap.classList.add('strength-fair');
-        fill.style.width = '66%';
-        fill.style.background = '#f59e0b';
-        label.style.color = '#f59e0b';
-        label.textContent = 'Fair';
-    } else {
-        strengthWrap.classList.add('strength-strong');
-        fill.style.width = '100%';
-        fill.style.background = '#46B336';
-        label.style.color = '#46B336';
-        label.textContent = 'Strong';
-    }
-});
-
-function getPasswordStrength(pw) {
-    var score = 0;
-    if (pw.length >= 8)          score++;
-    if (/[A-Z]/.test(pw))        score++;
-    if (/[0-9]/.test(pw))        score++;
-    if (/[^A-Za-z0-9]/.test(pw)) score++;
-    return score;
-}
-
-function resetPasswordStrength() {
-    var strengthWrap = document.getElementById('passwordStrength');
-    strengthWrap.hidden = true;
-    document.getElementById('strengthFill').style.width = '0%';
-    document.getElementById('strengthLabel').textContent = '';
-}
-
-
-// Toggle password visibility
-function togglePasswordField(inputId, iconId, buttonId) {
-    var input      = document.getElementById(inputId);
-    var toggleIcon = document.getElementById(iconId);
-    var toggleBtn  = document.getElementById(buttonId);
-
-    if (input.type === 'password') {
-        input.type = 'text';
-        toggleBtn.setAttribute('aria-pressed', 'true');
-        toggleBtn.setAttribute('aria-label', 'Hide password');
-        toggleIcon.innerHTML =
-            '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>' +
-            '<circle cx="12" cy="12" r="3"></circle>';
-    } else {
-        input.type = 'password';
-        toggleBtn.setAttribute('aria-pressed', 'false');
-        toggleBtn.setAttribute('aria-label', 'Show password');
-        toggleIcon.innerHTML =
-            '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>' +
-            '<line x1="1" y1="1" x2="23" y2="23"></line>';
-    }
-}
-
 
 // Delete modal
 function openDeleteUser(id) {
@@ -542,14 +443,12 @@ function clearModalErrors() {
         ['modalNameError',            'modalName'],
         ['modalEmailError',           'modalEmail'],
         ['modalMobileError',          'modalMobile'],
-        ['modalPasswordError',        'modalPassword'],
-        ['modalConfirmPasswordError', 'modalConfirmPassword'],
         ['modalRoleError',            null],
     ];
     pairs.forEach(function(pair) { clearError(pair[0], pair[1]); });
 }
 
-['modalName', 'modalEmail', 'modalMobile', 'modalPassword', 'modalConfirmPassword'].forEach(function(id) {
+['modalName', 'modalEmail', 'modalMobile'].forEach(function(id) {
     var el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', function() { clearError(id + 'Error', id); });
