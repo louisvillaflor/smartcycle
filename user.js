@@ -4,8 +4,8 @@ const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- Global State Variables ---
-var myProfile = { name: 'Office Admin', email: 'admin@tezwa.com', mobile: '0912-345-6789', role: 'admin' };
-var users = [];
+let myProfile;
+let users = [];
 var searchQuery = '';
 var currentPage = 1;
 var usersPerPage = 5;
