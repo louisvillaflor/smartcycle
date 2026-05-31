@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>History</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="navbar.css">
+    <link rel="stylesheet" href="history.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <nav id="navbar-container"></nav>
+
+    <main class="main-content">
+        <header class="page-header">
+            <h1>History</h1>
+        </header>
+
+        <div class="history-content-box">
+
+            <!-- Toolbar: Archive / Trash / Filter -->
+            <section class="history-toolbar">
+                <div class="toolbar-left">
+                    <button class="view-btn active" data-view="archive" id="archiveBtn">
+                        <i data-lucide="archive"></i>
+                        Archive
+                    </button>
+                    <button class="view-btn" data-view="trash" id="trashBtn">
+                        <i data-lucide="trash-2"></i>
+                        Trash
+                    </button>
+                </div>
+                <div class="toolbar-right">
+                    <button class="filter-btn" id="filterBtn">
+                        <i data-lucide="sliders-horizontal"></i>
+                        Filter
+                    </button>
+                    <!-- Filter Panel (hidden by default) -->
+                    <div class="filter-panel" id="filterPanel">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label class="filter-label">Role</label>
+                                <select class="filter-select" id="roleFilter">
+                                    <option value="">All Roles</option>
+                                    <option value="Super-Admin">Super-Admin</option>
+                                    <option value="Admin">Admin</option>
+                                    <option value="Moderator">Moderator</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label class="filter-label">Action Type</label>
+                                <select class="filter-select" id="actionFilter">
+                                    <option value="">All Actions</option>
+                                    <option value="Added">Added</option>
+                                    <option value="Deleted">Deleted</option>
+                                    <option value="Logged">Logged</option>
+                                    <option value="Viewed">Viewed</option>
+                                    <option value="Edited">Edited</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
+                                <label class="filter-label">Date</label>
+                                <input type="date" class="filter-select" id="dateFilter">
+                            </div>
+                            <button class="filter-clear-btn" id="clearFilter">
+                                <i data-lucide="x"></i>
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History List -->
+            <section class="table-card">
+                <div class="table-wrapper">
+                    <table class="main-table">
+                        <tbody id="historyList">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState" style="display:none;">
+                <i data-lucide="clock"></i>
+                <p>No history found</p>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="navbar.js"></script>
+    <script src="history.js"></script>
+</body>
+</html>
