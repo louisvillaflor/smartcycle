@@ -501,6 +501,20 @@ function clearModalErrors() {
 
 
 document.addEventListener('DOMContentLoaded', function() {
+    // 1. Fetch the actual profile from Supabase first
+    const { data: { user } } = await window._supabase.auth.getUser();
+    if (user) {
+        const { data: profile } = await window._supabase
+            .from('profiles')
+            .select('*')
+            .eq('auth_id', user.id)
+            .single();
+        
+        myProfile = profile || { name: 'New User', email: user.email, mobile: '', role: 'viewer' };
+    } else {
+        myProfile = { name: 'Guest', email: '', mobile: '', role: 'viewer' };
+    }
+    
     renderProfile();
     renderUsers();
     lucide.createIcons();
