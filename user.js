@@ -313,25 +313,20 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
             u.role = role; 
         }
 } else {
-        // ACTUAL Edge Function Call
-        fetch('https://nlybbvlhhdjjmqkzjnhx.supabase.co/functions/v1/invite-user', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email: email, role: role })
+        // Calling the Edge Function using the Supabase Client
+        window._supabase.functions.invoke('invite-user', {
+            body: { email: email, role: role }
         })
         .then(function(response) {
-            return response.json();
-        })
-        .then(function(data) {
-            if (data.error) {
-                alert('Error: ' + data.error);
+            var data = response.data;
+            var error = response.error;
+
+            if (error) {
+                alert('Error: ' + error.message);
             } else {
-                // Success! The Edge function processed the invite.
                 alert('Success: ' + data.message);
                 
-                // Update local UI state
+                // Temporarily add to local UI state
                 users.push({ 
                     id: nextId++, 
                     name: email.split('@')[0], 
@@ -344,12 +339,11 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
                 userModal.classList.remove('show');
             }
         })
-        .catch(function(error) {
-            console.error('Fetch error:', error);
-            alert('Failed to send invitation. Check console for details.');
+        .catch(function(err) {
+            console.error('Invoke error:', err);
+            alert('Failed to send invitation. Check console.');
         });
     }
-
 // Delete modal
 function openDeleteUser(id) {
     var u = users.find(function(u) { return u.id === id; });
