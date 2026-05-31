@@ -312,24 +312,43 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
             u.mobile = mobile; 
             u.role = role; 
         }
-    } else {
-        // Mocking the creation workflow locally
-        // Before finalizing the setup, placeholder strings are provided until they verify via Email link
-        users.push({ 
-            id: nextId++, 
-            name: email.split('@')[0], // Temporary fallback name
-            email: email, 
-            mobile: 'Pending Invite', 
-            role: role 
+} else {
+        // ACTUAL Edge Function Call
+        fetch('https://nlybbvlhhdjjmqkzjnhx.supabase.co/functions/v1/invite-user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: email, role: role })
+        })
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                // Success! The Edge function processed the invite.
+                alert('Success: ' + data.message);
+                
+                // Update local UI state
+                users.push({ 
+                    id: nextId++, 
+                    name: email.split('@')[0], 
+                    email: email, 
+                    mobile: 'Pending Invite', 
+                    role: role 
+                });
+                
+                renderUsers();
+                userModal.classList.remove('show');
+            }
+        })
+        .catch(function(error) {
+            console.error('Fetch error:', error);
+            alert('Failed to send invitation. Check console for details.');
         });
-        
-        console.log("Triggered Supabase Auth Admin Invite for: " + email + " with App Role: " + role);
-        alert('Invitation sent successfully to ' + email + '!');
     }
-
-    renderUsers();
-    userModal.classList.remove('show');
-});
 
 // Delete modal
 function openDeleteUser(id) {
