@@ -325,35 +325,43 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
             u.role = role; 
         }
     } else {
-        // Calling the Edge Function using the Supabase Client
-        window._supabase.functions.invoke('invite-user', {
-            body: { email: email, role: role }
-        })
-        .then(function(response) {
-            var data = response.data;
-            var error = response.error;
+        // Grab the active session token before calling the function
+        window._supabase.auth.getSession().then(function(sessionRes) {
+            var session = sessionRes.data.session;
+            
+            // Calling the Edge Function using the Supabase Client
+            window._supabase.functions.invoke('invite-user', {
+                body: { email: email, role: role },
+                headers: {
+                    Authorization: 'Bearer ' + (session ? session.access_token : '')
+                }
+            })
+            .then(function(response) {
+                var data = response.data;
+                var error = response.error;
 
-            if (error) {
-                alert('Error: ' + error.message);
-            } else {
-                alert('Success: ' + data.message);
-                
-                // Temporarily add to local UI state
-                users.push({ 
-                    id: nextId++, 
-                    name: email.split('@')[0], 
-                    email: email, 
-                    mobile: 'Pending Invite', 
-                    role: role 
-                });
-                
-                renderUsers();
-                userModal.classList.remove('show');
-            }
-        })
-        .catch(function(err) {
-            console.error('Invoke error:', err);
-            alert('Failed to send invitation. Check console.');
+                if (error) {
+                    alert('Error: ' + error.message);
+                } else {
+                    alert('Success: ' + data.message);
+                    
+                    // Temporarily add to local UI state
+                    users.push({ 
+                        id: nextId++, 
+                        name: email.split('@')[0], 
+                        email: email, 
+                        mobile: 'Pending Invite', 
+                        role: role 
+                    });
+                    
+                    renderUsers();
+                    userModal.classList.remove('show');
+                }
+            })
+            .catch(function(err) {
+                console.error('Invoke error:', err);
+                alert('Failed to send invitation. Check console.');
+            });
         });
     }
 }); // <--- THIS WAS THE MISSING BRACKET AND PARENTHESIS
