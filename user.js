@@ -324,47 +324,62 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
             u.mobile = mobile; 
             u.role = role; 
         }
+        // Save and update UI
+        renderUsers();
+        userModal.classList.remove('show');
     } else {
         // Grab the active session token before calling the function
         window._supabase.auth.getSession().then(function(sessionRes) {
             var session = sessionRes.data.session;
-            
-            // Calling the Edge Function using the Supabase Client
-            window._supabase.functions.invoke('invite-user', {
-                body: { email: email, role: role },
-                headers: {
-                    Authorization: 'Bearer ' + (session ? session.access_token : '')
-                }
-            })
-            .then(function(response) {
-                var data = response.data;
-                var error = response.error;
+            var token = session ? session.access_token : null;
 
-                if (error) {
-                    alert('Error: ' + error.message);
-                } else {
-                    alert('Success: ' + data.message);
-                    
-                    // Temporarily add to local UI state
-                    users.push({ 
-                        id: nextId++, 
-                        name: email.split('@')[0], 
-                        email: email, 
-                        mobile: 'Pending Invite', 
-                        role: role 
-                    });
-                    
-                    renderUsers();
-                    userModal.classList.remove('show');
+            if (!token) {
+                alert("Your session has expired. Please log out and log back in.");
+                return;
+            }
+
+            // Pass the dynamic form inputs and explicit Authorization header
+            return window._supabase.functions.invoke('invite-user', {
+                body: { 
+                    email: email, 
+                    role: role 
+                },
+                headers: {
+                    'Authorization': 'Bearer ' + token
                 }
-            })
-            .catch(function(err) {
-                console.error('Invoke error:', err);
-                alert('Failed to send invitation. Check console.');
             });
+        })
+        .then(function(response) {
+            // Guard against potential empty responses
+            if (!response) return; 
+
+            var data = response.data;
+            var error = response.error;
+
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                alert('Success: ' + data.message);
+                
+                // Temporarily add to local UI state using dynamic inputs
+                users.push({ 
+                    id: nextId++, 
+                    name: email.split('@')[0], 
+                    email: email, 
+                    mobile: 'Pending Invite', 
+                    role: role 
+                });
+                
+                renderUsers();
+                userModal.classList.remove('show');
+            }
+        })
+        .catch(function(err) {
+            console.error('Invoke error:', err);
+            alert('Failed to send invitation. Check console.');
         });
     }
-}); // <--- THIS WAS THE MISSING BRACKET AND PARENTHESIS
+});
 
 // Delete modal
 function openDeleteUser(id) {
