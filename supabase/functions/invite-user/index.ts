@@ -42,10 +42,11 @@ export default {
       .from('profiles')
       .insert([
         {
-          auth_id: authData.user.id,  
+          id: authData.user.id, // Explicitly pass the unique auth ID string as the primary key
+          auth_id: authData.user.id, 
           name: email.split('@')[0],
           type: role,
-          category: 'Office Admin' 
+          category: 'Office Admin'
         }
       ]);
 
