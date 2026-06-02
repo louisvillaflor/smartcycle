@@ -11,27 +11,22 @@ const submitButton = document.getElementById('submitBtn');
 const successModal = document.getElementById('successModal');
 const errorModal = document.getElementById('errorModal');
 
-// 1. AUTO-DETECT INVITED USER ON PAGE LOAD
-async function checkInvitedUser() {
-    try {
-        // Supabase parsing the hash fragments automatically authenticates the user locally
-        const { data: { user }, error } = await window._supabase.auth.getUser();
-        
-        if (error || !user) {
-            throw new Error("No active setup session found.");
+// 1. LISTEN FOR AUTH STATE INITIALIZATION (Fixes the "Loading email..." race condition)
+window._supabase.auth.onAuthStateChange((event, session) => {
+    if (session && session.user) {
+        // Token processed successfully, display the email
+        emailInput.value = session.user.email;
+        submitButton.disabled = false;
+    } else {
+        // If initial evaluation finishes and there is no session, the link is invalid/expired
+        if (event === 'INITIAL_SESSION') {
+            document.getElementById('errorDesc').innerText = "This invitation link is invalid or has already expired.";
+            errorModal.showModal();
+            submitButton.disabled = true;
+            emailInput.value = "Session expired";
         }
-        
-        // Show their email address inside the read-only box
-        emailInput.value = user.email;
-    } catch (err) {
-        console.error(err.message);
-        document.getElementById('errorDesc').innerText = "This invitation link is invalid or has already expired.";
-        errorModal.showModal();
-        submitButton.disabled = true;
     }
-}
-
-window.addEventListener('DOMContentLoaded', checkInvitedUser);
+});
 
 // 2. LIVE INPUT VALIDATION
 passwordInput.addEventListener('input', function () {
@@ -109,23 +104,23 @@ document.getElementById('setupForm').addEventListener('submit', async function (
     submitButton.classList.add('loading');
 
     try {
-        // Updates the user's account password via the active invitation token
+        // Finalize credentials via active invite token link
         const { data: updateData, error: updateError } = await window._supabase.auth.updateUser({
             password: password
         });
 
         if (updateError) throw updateError;
 
-        // Fetch user profile properties to setup local storage routing data
+        // FIX: Changed target column parameter from 'id' to 'auth_id' to match your schema
         const { data: profileData, error: profileError } = await window._supabase
             .from('profiles')
             .select('type, display_id, name')
-            .eq('id', updateData.user.id)
+            .eq('auth_id', updateData.user.id) 
             .single();
 
         if (profileError) throw profileError;
 
-        // Setup session tracking values
+        // Store active browser session data
         sessionStorage.setItem('isLoggedIn', 'true');
         sessionStorage.setItem('userEmail', updateData.user.email);
         sessionStorage.setItem('userName', profileData.name);
