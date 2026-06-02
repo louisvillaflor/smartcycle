@@ -2,16 +2,34 @@ const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- Dynamic Role Detection ---
-// This checks your bottom-left user card to see who is logged in automatically.
-function detectUserRole() {
-    const pageText = document.body.innerText || "";
-    if (pageText.includes("tezwamoderator") || pageText.includes("Moderator")) {
+async function detectUserRole() {
+    try {
+        const { data: { user }, error: userError } = await _supabase.auth.getUser();
+        if (userError || !user) {
+            console.error("No logged-in user");
+            window.currentUserRole = 'Moderator'; // safest fallback
+            return;
+        }
+
+        const { data: profile, error } = await _supabase
+            .from('profiles')
+            .select('type')
+            .eq('auth_id', user.id)
+            .single();
+
+        if (error || !profile) {
+            console.error("Profile not found:", error);
+            window.currentUserRole = 'Moderator'; // fallback
+            return;
+        }
+
+        window.currentUserRole = profile.type;
+        console.log("Detected Role:", window.currentUserRole);
+
+    } catch (err) {
+        console.error("Role detection failed:", err);
         window.currentUserRole = 'Moderator';
-    } else {
-        window.currentUserRole = 'Super Admin';
     }
-    console.log("Detected User Role:", window.currentUserRole);
 }
 
 window.collections = [];
@@ -23,13 +41,12 @@ let currentFilter = 'all';
 const itemsPerPage = 10;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    detectUserRole();      // Find out who is logged in first
+    await detectUserRole(); // ✅ WAIT for role first
     loadModalHTML();
     setupSearch();
-    setupAddCollectionButton(); // Bind click handler & handle Moderator visibility
+    setupAddCollectionButton();
     await fetchAllCollections();
 });
-
 // Enforces structural visibility for the top bar buttons based on role
 function setupAddCollectionButton() {
     const buttons = document.querySelectorAll('button');
