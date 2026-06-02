@@ -35,24 +35,21 @@ document.addEventListener('DOMContentLoaded', () => {
         applyRolePermissions();
     }
 
-        function applyRolePermissions() {
-        const exportBtn = document.getElementById('exportDropdownBtn');
-        const exportSection = document.getElementById('exportDropdown');
+    function applyRolePermissions() {
+        const exportSection = document.getElementById('exportSection');
     
-        // 🔴 Moderator = VIEW ONLY
         if (currentUserRole === 'Moderator') {
-            if (exportBtn) exportBtn.style.display = 'none';
+            // 🔴 Hide EVERYTHING (label + button)
             if (exportSection) exportSection.style.display = 'none';
     
-            // Also disable direct export buttons (safety)
+            // Extra safety
             document.querySelectorAll('.btn-export').forEach(btn => {
                 btn.style.display = 'none';
             });
         }
     
-        // 🟢 Admin & Super Admin = allowed
         if (currentUserRole === 'Admin' || currentUserRole === 'Super Admin') {
-            if (exportBtn) exportBtn.style.display = 'block';
+            if (exportSection) exportSection.style.display = 'block'; // or block depending on your layout
         }
     }
 
