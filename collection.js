@@ -2,9 +2,9 @@ const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- RBAC Config ---
-// Roles can be: 'Super Admin', 'Office Admin', 'Admin', or 'Moderator'
-window.currentUserRole = window.currentUserRole || 'Moderator'; 
+// --- RBAC Configuration ---
+// Change this value to test: 'Super Admin', 'Admin', or 'Moderator'
+window.currentUserRole = 'Super Admin'; 
 
 window.collections = [];
 window.currentItems = [];
@@ -15,24 +15,59 @@ let currentFilter = 'all';
 const itemsPerPage = 10;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    applyRoleBasedUI(); // Hide global UI actions immediately based on role
     loadModalHTML();
     setupSearch();
+    setupAddCollectionButton(); // Bind click handler & handle Moderator visibility
     await fetchAllCollections();
 });
 
-function applyRoleBasedUI() {
-    // Hide the primary "+ Add Collection" button if the role is Moderator
-    const addBtn = document.querySelector('.btn-add-collection') || document.querySelector('button[onclick*="Modal"]');
-    // Alternately check if you have an ID or direct match for the green add button
-    const targetAddBtn = addBtn || document.evaluate("//button[contains(., 'Add Collection')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+// Enforces structural visibility for the top bar buttons based on role
+function setupAddCollectionButton() {
+    // Find all buttons on the page to locate the "+ Add Collection" button
+    const buttons = document.querySelectorAll('button');
+    let addBtn = null;
     
-    if (window.currentUserRole === 'Moderator') {
-        // Fallback finder using standard querySelector if button has an absolute locator
-        const greenAddButton = document.querySelector('button.btn-submit-green, .add-btn-global') || document.querySelector('button'); 
-        // Best approach: If it matches your image container top right (+ Add Collection)
-        const topBarBtn = document.querySelector('button:has(.lucide-plus), button') ; 
-        // Note: We safely target elements during table renders and initial boots below.
+    buttons.forEach(btn => {
+        if (btn.textContent.includes('Add Collection')) {
+            addBtn = btn;
+        }
+    });
+
+    if (addBtn) {
+        if (window.currentUserRole === 'Moderator') {
+            // Completely hide it for moderators
+            addBtn.style.display = 'none';
+        } else {
+            // Ensure it's visible and properly wired for Admins / Super Admins
+            addBtn.style.display = 'flex'; 
+            
+            // Remove any old inline handlers and safely attach click trigger
+            addBtn.onclick = null; 
+            addBtn.addEventListener('click', () => {
+                window.editingIndex = -1; // Reset edit state for fresh entries
+                const modal = document.getElementById('addCollectionModal');
+                if (modal) {
+                    modal.classList.add('show');
+                    document.body.style.overflow = 'hidden';
+                    
+                    // Reset input fields
+                    if (document.getElementById('inCustomer')) document.getElementById('inCustomer').value = '';
+                    if (document.getElementById('inAddress')) document.getElementById('inAddress').value = '';
+                    if (document.getElementById('inContact')) document.getElementById('inContact').value = '';
+                    const dateInput = document.getElementById('inDate');
+                    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+                    
+                    window.currentItems = [];
+                    if (typeof renderItems === 'function') renderItems();
+                    
+                    const submitBtn = document.querySelector('.btn-submit-green');
+                    if (submitBtn) submitBtn.innerHTML = '<i data-lucide="plus"></i> Submit';
+                    if (typeof refreshIcons === 'function') refreshIcons();
+                } else {
+                    console.error("Modal element #addCollectionModal not found in DOM.");
+                }
+            });
+        }
     }
 }
 
@@ -54,32 +89,21 @@ window.loadMaterialDropdownOptions = async function() {
     const materialSelect = document.getElementById('selMaterial') || 
                            document.getElementById('inMaterial') || 
                            document.querySelector('select[name="material"]'); 
-    if (!materialSelect) {
-        console.warn("Material select dropdown element not found in DOM.");
-        return;
-    } try {
-        console.log("Fetching price list categories from Supabase...");
+    if (!materialSelect) return;
+    try {
         const { data: materials, error } = await _supabase
             .from('price_list')
             .select('id, material_name, price, unit, status');
         if (error) throw error;
         
         materialSelect.innerHTML = '<option value="" disabled selected>Select a material...</option>';
-
-        if (!materials || materials.length === 0) {
-            materialSelect.innerHTML = '<option value="" disabled selected>No materials found</option>';
-            return;
-        }
+        if (!materials || materials.length === 0) return;
 
         const activeMaterials = materials.filter(item => {
             if (!item.status) return true; 
             return item.status.toLowerCase() === 'active';
         });
         
-        if (activeMaterials.length === 0) {
-            materialSelect.innerHTML = '<option value="" disabled selected>No active materials found</option>';
-            return;
-        }
         activeMaterials.forEach(item => {
             const option = document.createElement('option');
             option.value = item.id; 
@@ -88,12 +112,11 @@ window.loadMaterialDropdownOptions = async function() {
             materialSelect.appendChild(option);
         });
     } catch (err) {
-        console.error("Failed to load materials into UI selection dropdown:", err.message);
+        console.error("Failed to load materials:", err.message);
     }
 };
 
 window.fetchAllCollections = async function() {
-    console.log("Fetching collections from Supabase...");
     const { data, error } = await _supabase
         .from('collections')
         .select(`
@@ -117,7 +140,6 @@ window.fetchAllCollections = async function() {
         const rawItems = col.collection_items || [];
         const mappedItems = rawItems.map(item => {
             let materialName = 'Unknown';
-            
             if (item.price_list) {
                 if (Array.isArray(item.price_list) && item.price_list.length > 0) {
                     materialName = item.price_list[0].material_name || 'Unknown';
@@ -158,7 +180,6 @@ function getFilteredCollections() {
 }
 
 function loadModalHTML() {
-    // If user is a Moderator, do not spend resources mounting input modals
     if (window.currentUserRole === 'Moderator') return;
 
     fetch('add_collection.html')
@@ -171,31 +192,13 @@ function loadModalHTML() {
             if (dateInput && !dateInput.value) {
                 dateInput.value = new Date().toISOString().split('T')[0];
             }
-            const weightInput = document.getElementById('inWeight');
-            if (weightInput) {
-                weightInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addItem();
-                    }
-                });
-            }
             const form = document.querySelector('#modalContainer form') || document.getElementById('collectionForm');
             if (form) {
                 form.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     await saveCollection();
                 });
-            } else {
-                const submitBtn = document.querySelector('.btn-submit-green') || document.querySelector('.btn-update');
-                if (submitBtn) {
-                    submitBtn.addEventListener('click', async (e) => {
-                        e.preventDefault();
-                        await saveCollection();
-                    });
-                }
             }
-            if (typeof setupFieldListeners === 'function') setupFieldListeners();
             refreshIcons();
         })
         .catch(() => console.log('Using fallback inline HTML modal configuration'));
@@ -204,18 +207,16 @@ function loadModalHTML() {
 function renderTable() {
     const tbody = document.getElementById('collectionTableBody');
     if (!tbody) return;
+    
+    // Always make sure the top bar aligns with the current role state during table rendering lifecycles
+    setupAddCollectionButton();
+
     const filtered = getFilteredCollections();
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
     const startIdx = (currentPage - 1) * itemsPerPage;
     const pageCollections = filtered.slice(startIdx, startIdx + itemsPerPage);
 
     tbody.innerHTML = '';
-
-    // Handle global Top Bar Add Button explicitly during table lifecycle tracking
-    const globalAddBtn = document.querySelector('button[onclick*="editEntry"], button.btn-add-collection') || document.querySelector('.container + button') || document.querySelector('button');
-    if (globalAddBtn && globalAddBtn.textContent.includes('Add Collection') && window.currentUserRole === 'Moderator') {
-        globalAddBtn.style.display = 'none';
-    }
 
     if (pageCollections.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">No collections found</td></tr>`;
@@ -233,9 +234,10 @@ function renderTable() {
             materialSummary = uniqueMaterials.length === 1 ? uniqueMaterials[0] : `${uniqueMaterials.length} types`;
         }
 
-        // Dynamically alter action structural tools using the configured RBAC policy Matrix
+        // View receipt button is always accessible to everyone
         let actionButtonsHTML = `<button class="icon-btn receipt-btn" onclick="viewReceipt(${actualIndex})"><i data-lucide="image"></i></button>`;
         
+        // Show edit and delete actions only for Super Admin, Admin, and Office Admin
         if (window.currentUserRole !== 'Moderator') {
             actionButtonsHTML += `
                 <button class="icon-btn" onclick="editEntry(${actualIndex})"><i data-lucide="edit-2"></i></button>
@@ -383,7 +385,6 @@ function setupSearch() {
 }
 
 window.editEntry = function(index) {
-    // Hard check blocking entry mutation execution
     if (window.currentUserRole === 'Moderator') {
         alert("Access Denied: Moderators do not have edit capabilities.");
         return;
@@ -439,7 +440,7 @@ window.editEntry = function(index) {
 
 async function saveCollection() {
     if (window.currentUserRole === 'Moderator') {
-        alert("Access Denied: Critical operational mutation prohibited.");
+        alert("Access Denied: Action prohibited.");
         return;
     }
 
@@ -574,7 +575,7 @@ async function saveCollection() {
     } catch (err) {
         console.error("Database mutation error:", err);
         alert("Failed to save collection updates: " + err.message);
-    } finally {
+    } finaly {
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
@@ -596,7 +597,7 @@ function closeModal() {
 
 window.deleteEntry = function(index) {
     if (window.currentUserRole === 'Moderator') {
-        alert("Access Denied: Operational destruction unauthorized.");
+        alert("Access Denied: Delete operation unauthorized.");
         return;
     }
 
@@ -646,7 +647,6 @@ window.deleteEntry = function(index) {
     
             window.collections = window.collections.filter(c => c.id !== collection.id);
             renderTable();
-            
             modal.style.display = 'none';
             alert("Collection deleted successfully.");
         } catch (err) {
