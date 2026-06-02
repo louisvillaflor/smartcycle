@@ -1,6 +1,11 @@
 const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// --- RBAC Config ---
+// Roles can be: 'Super Admin', 'Office Admin', 'Admin', or 'Moderator'
+window.currentUserRole = window.currentUserRole || 'Moderator'; 
+
 window.collections = [];
 window.currentItems = [];
 window.currentCategory = 'School';
@@ -10,10 +15,26 @@ let currentFilter = 'all';
 const itemsPerPage = 10;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    applyRoleBasedUI(); // Hide global UI actions immediately based on role
     loadModalHTML();
     setupSearch();
     await fetchAllCollections();
 });
+
+function applyRoleBasedUI() {
+    // Hide the primary "+ Add Collection" button if the role is Moderator
+    const addBtn = document.querySelector('.btn-add-collection') || document.querySelector('button[onclick*="Modal"]');
+    // Alternately check if you have an ID or direct match for the green add button
+    const targetAddBtn = addBtn || document.evaluate("//button[contains(., 'Add Collection')]", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+    
+    if (window.currentUserRole === 'Moderator') {
+        // Fallback finder using standard querySelector if button has an absolute locator
+        const greenAddButton = document.querySelector('button.btn-submit-green, .add-btn-global') || document.querySelector('button'); 
+        // Best approach: If it matches your image container top right (+ Add Collection)
+        const topBarBtn = document.querySelector('button:has(.lucide-plus), button') ; 
+        // Note: We safely target elements during table renders and initial boots below.
+    }
+}
 
 function refreshIcons() {
     if (typeof lucide !== 'undefined') {
@@ -41,15 +62,12 @@ window.loadMaterialDropdownOptions = async function() {
         const { data: materials, error } = await _supabase
             .from('price_list')
             .select('id, material_name, price, unit, status');
-
         if (error) throw error;
         
-        console.log("Raw data received from Supabase price_list:", materials);
         materialSelect.innerHTML = '<option value="" disabled selected>Select a material...</option>';
 
         if (!materials || materials.length === 0) {
-            console.warn("The price_list table returned 0 rows. Check your Supabase RLS policies or table data.");
-            materialSelect.innerHTML = '<option value="" disabled selected>No materials found (Check RLS/Data)</option>';
+            materialSelect.innerHTML = '<option value="" disabled selected>No materials found</option>';
             return;
         }
 
@@ -57,13 +75,11 @@ window.loadMaterialDropdownOptions = async function() {
             if (!item.status) return true; 
             return item.status.toLowerCase() === 'active';
         });
-
-        console.log("Filtered active materials to display:", activeMaterials);
+        
         if (activeMaterials.length === 0) {
-            materialSelect.innerHTML = '<option value="" disabled selected>No active materials found (Check statuses)</option>';
+            materialSelect.innerHTML = '<option value="" disabled selected>No active materials found</option>';
             return;
         }
-
         activeMaterials.forEach(item => {
             const option = document.createElement('option');
             option.value = item.id; 
@@ -71,8 +87,6 @@ window.loadMaterialDropdownOptions = async function() {
             option.textContent = `${item.material_name} (₱${item.price}/${item.unit || 'kg'})`;
             materialSelect.appendChild(option);
         });
-
-        console.log("Dropdown material items successfully bound to UI.");
     } catch (err) {
         console.error("Failed to load materials into UI selection dropdown:", err.message);
     }
@@ -80,7 +94,6 @@ window.loadMaterialDropdownOptions = async function() {
 
 window.fetchAllCollections = async function() {
     console.log("Fetching collections from Supabase...");
-    
     const { data, error } = await _supabase
         .from('collections')
         .select(`
@@ -102,7 +115,6 @@ window.fetchAllCollections = async function() {
 
     window.collections = data.map(col => {
         const rawItems = col.collection_items || [];
-        
         const mappedItems = rawItems.map(item => {
             let materialName = 'Unknown';
             
@@ -115,7 +127,6 @@ window.fetchAllCollections = async function() {
             } else if (item.material_name) {
                 materialName = item.material_name;
             }
-            
             return {
                 material_id: item.material_id, 
                 material: materialName,
@@ -124,7 +135,6 @@ window.fetchAllCollections = async function() {
                 subtotal: parseFloat(item.subtotal) || 0
             };
         });
-
         return {
             id: col.id,
             date: formatDateToMDY(col.date_collected),
@@ -137,8 +147,6 @@ window.fetchAllCollections = async function() {
             items: mappedItems 
         };
     });
-
-    console.log("Parsed Collections State:", window.collections);
     renderTable();
 };
 
@@ -150,6 +158,9 @@ function getFilteredCollections() {
 }
 
 function loadModalHTML() {
+    // If user is a Moderator, do not spend resources mounting input modals
+    if (window.currentUserRole === 'Moderator') return;
+
     fetch('add_collection.html')
         .then(res => res.text())
         .then(async html => {
@@ -160,7 +171,6 @@ function loadModalHTML() {
             if (dateInput && !dateInput.value) {
                 dateInput.value = new Date().toISOString().split('T')[0];
             }
-        
             const weightInput = document.getElementById('inWeight');
             if (weightInput) {
                 weightInput.addEventListener('keypress', (e) => {
@@ -170,7 +180,6 @@ function loadModalHTML() {
                     }
                 });
             }
-
             const form = document.querySelector('#modalContainer form') || document.getElementById('collectionForm');
             if (form) {
                 form.addEventListener('submit', async (e) => {
@@ -186,7 +195,6 @@ function loadModalHTML() {
                     });
                 }
             }
-
             if (typeof setupFieldListeners === 'function') setupFieldListeners();
             refreshIcons();
         })
@@ -196,7 +204,6 @@ function loadModalHTML() {
 function renderTable() {
     const tbody = document.getElementById('collectionTableBody');
     if (!tbody) return;
-
     const filtered = getFilteredCollections();
     const totalPages = Math.ceil(filtered.length / itemsPerPage);
     const startIdx = (currentPage - 1) * itemsPerPage;
@@ -204,12 +211,18 @@ function renderTable() {
 
     tbody.innerHTML = '';
 
+    // Handle global Top Bar Add Button explicitly during table lifecycle tracking
+    const globalAddBtn = document.querySelector('button[onclick*="editEntry"], button.btn-add-collection') || document.querySelector('.container + button') || document.querySelector('button');
+    if (globalAddBtn && globalAddBtn.textContent.includes('Add Collection') && window.currentUserRole === 'Moderator') {
+        globalAddBtn.style.display = 'none';
+    }
+
     if (pageCollections.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:40px; color:#94a3b8;">No collections found</td></tr>`;
         updatePagination(totalPages);
         return;
     }
-
+    
     pageCollections.forEach((collection, pageIndex) => {
         const actualIndex = startIdx + pageIndex;
         const rowId = `col-${actualIndex}`;
@@ -218,6 +231,16 @@ function renderTable() {
         if (collection.items && collection.items.length > 0) {
             const uniqueMaterials = [...new Set(collection.items.map(item => item.material))];
             materialSummary = uniqueMaterials.length === 1 ? uniqueMaterials[0] : `${uniqueMaterials.length} types`;
+        }
+
+        // Dynamically alter action structural tools using the configured RBAC policy Matrix
+        let actionButtonsHTML = `<button class="icon-btn receipt-btn" onclick="viewReceipt(${actualIndex})"><i data-lucide="image"></i></button>`;
+        
+        if (window.currentUserRole !== 'Moderator') {
+            actionButtonsHTML += `
+                <button class="icon-btn" onclick="editEntry(${actualIndex})"><i data-lucide="edit-2"></i></button>
+                <button class="icon-btn delete" onclick="deleteEntry(${actualIndex})"><i data-lucide="trash-2"></i></button>
+            `;
         }
 
         tbody.innerHTML += `
@@ -231,9 +254,7 @@ function renderTable() {
             <td style="text-align:right; font-weight:700; color:#10b981;">₱${collection.totalAmount.toFixed(2)}</td>
             <td onclick="event.stopPropagation()">
               <div class="action-btns">
-                <button class="icon-btn receipt-btn" onclick="viewReceipt(${actualIndex})"><i data-lucide="image"></i></button>
-                <button class="icon-btn" onclick="editEntry(${actualIndex})"><i data-lucide="edit-2"></i></button>
-                <button class="icon-btn delete" onclick="deleteEntry(${actualIndex})"><i data-lucide="trash-2"></i></button>
+                ${actionButtonsHTML}
               </div>
             </td>
           </tr>
@@ -260,7 +281,6 @@ function renderTable() {
             </td>
           </tr>`;
     });
-
     refreshIcons();
     updatePagination(totalPages);
 }
@@ -274,7 +294,6 @@ function updatePagination(totalPages) {
         pagination.style.display = 'none';
         return;
     }
-
     pagination.style.display = 'flex';
 
     let paginationHTML = `
@@ -302,12 +321,10 @@ function updatePagination(totalPages) {
           <i data-lucide="chevron-right"></i>
         </button>
     `;
-
     pagination.innerHTML = paginationHTML;
     refreshIcons();
 }
 
-// 4. INTERACTION & UTILITIES
 window.goToPage = function(page) {
     currentPage = page;
     renderTable();
@@ -325,7 +342,6 @@ window.changePage = function(direction) {
 window.toggleDetails = function(id, rowEl) {
     const subRow = document.getElementById(id);
     if (!subRow) return;
-
     const isOpen = subRow.classList.contains('show');
     document.querySelectorAll('.sub-row-container').forEach(r => r.classList.remove('show'));
     document.querySelectorAll('.main-row').forEach(r => r.classList.remove('open'));
@@ -366,29 +382,21 @@ function setupSearch() {
     });
 }
 
-if (typeof window.editingIndex === 'undefined') {
-    window.editingIndex = -1;
-}
-
 window.editEntry = function(index) {
+    // Hard check blocking entry mutation execution
+    if (window.currentUserRole === 'Moderator') {
+        alert("Access Denied: Moderators do not have edit capabilities.");
+        return;
+    }
+
     const parsedIndex = parseInt(index, 10);
     window.editingIndex = parsedIndex;
     
-    console.log(`[SmartCycle] Edit mode triggered! window.editingIndex is now:`, window.editingIndex);
-
     const filteredList = getFilteredCollections();
     const data = filteredList[parsedIndex]; 
     
     const modal = document.getElementById('addCollectionModal');
-    if (!modal) {
-        console.error("Could not find #addCollectionModal in the DOM.");
-        return;
-    }
-
-    if (!data) {
-        console.error(`No collection data found at index: ${parsedIndex}`);
-        return;
-    }
+    if (!modal) return;
 
     if (document.getElementById('inCustomer')) document.getElementById('inCustomer').value = data.customer_name || data.customer || '';
     if (document.getElementById('inAddress')) document.getElementById('inAddress').value = data.address || '';
@@ -396,17 +404,14 @@ window.editEntry = function(index) {
 
     const dateInput = document.getElementById('inDate');
     if (dateInput) {
-        let dateVal = data.date_collected || data.date; // fallback to parsed UI date if raw data is missing
-        
+        let dateVal = data.date_collected || data.date; 
         if (dateVal && dateVal !== 'N/A') {
-            // If it's in MM-DD-YYYY format from the table array, convert it to YYYY-MM-DD for the input
             if (dateVal.includes('-') && dateVal.split('-')[0].length !== 4) {
                 const [m, d, y] = dateVal.split('-');
                 dateVal = `${y}-${m}-${d}`;
             }
             dateInput.value = dateVal;
         } else {
-            // Fallback to today's local date if no date is found
             dateInput.value = new Date().toISOString().split('T')[0];
         }
     }
@@ -433,6 +438,11 @@ window.editEntry = function(index) {
 };
 
 async function saveCollection() {
+    if (window.currentUserRole === 'Moderator') {
+        alert("Access Denied: Critical operational mutation prohibited.");
+        return;
+    }
+
     const customer = document.getElementById('inCustomer')?.value.trim();
     const address = document.getElementById('inAddress')?.value.trim();
     const contact = document.getElementById('inContact')?.value.trim();
@@ -443,12 +453,10 @@ async function saveCollection() {
         alert("Customer name and Date are required fields.");
         return;
     }
-
     if (window.currentItems.length === 0) {
         alert("Please add at least one item before saving.");
         return;
     }
-
     try {
         if (submitBtn) {
             submitBtn.disabled = true;
@@ -570,7 +578,7 @@ async function saveCollection() {
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i data-lucide="check"></i> Submit';
-            if (typeof refreshIcons === 'function') refreshIcons();
+            refreshIcons();
         }
     }
 }
@@ -587,6 +595,11 @@ function closeModal() {
 }
 
 window.deleteEntry = function(index) {
+    if (window.currentUserRole === 'Moderator') {
+        alert("Access Denied: Operational destruction unauthorized.");
+        return;
+    }
+
     const filteredList = getFilteredCollections();
     const collection = filteredList[index];
     if (!collection) return;
@@ -613,10 +626,8 @@ window.deleteEntry = function(index) {
     const modal = document.getElementById('deleteConfirmModal');
     document.getElementById('deleteConfirmText').textContent = `Are you sure you want to delete the collection for "${collection.customer}"? This action cannot be undone.`;
     modal.style.display = 'flex';
-
     const confirmBtn = document.getElementById('deleteConfirmBtn');
     const cancelBtn = document.getElementById('deleteCancelBtn');
-    
     confirmBtn.onclick = async () => {
         try {
             const { error: itemsDeleteError } = await _supabase
@@ -639,7 +650,7 @@ window.deleteEntry = function(index) {
             modal.style.display = 'none';
             alert("Collection deleted successfully.");
         } catch (err) {
-            console.error("Deletion lifecycle failure:", err);
+            console.error(err);
             alert("Error deleting record: " + err.message);
         }
     };
