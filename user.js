@@ -30,15 +30,15 @@ function formatPHNumber(val) {
     }
 }
 function normalizeRole(role) {
-    if (!role) return 'viewer';
+    if (!role) return '';
 
-    const r = role.toLowerCase();
+    const r = role.toLowerCase().trim();
 
-    if (r === 'super admin') return 'super admin';
-    if (r === 'admin') return 'admin';
-    if (r === 'moderator') return 'moderator';
+    if (r === 'super admin') return 'Super Admin';
+    if (r === 'admin') return 'Admin';
+    if (r === 'moderator') return 'Moderator';
 
-    return 'viewer';
+    return role; // fallback
 }
 
 async function loadUsers() {
@@ -73,21 +73,25 @@ function colorFor(name) {
 }
 
 function roleBadgeClass(role) {
+    const r = role?.toLowerCase();
+
     return {
-        'super admin': 'role-super-admin', // ✅ ADD THIS
-        admin: 'role-admin',
-        moderator: 'role-moderator',
-        viewer: 'role-viewer'
-    }[role] || 'role-viewer';
+        'super admin': 'role-super-admin',
+        'admin': 'role-admin',
+        'moderator': 'role-moderator',
+        'viewer': 'role-viewer'
+    }[r] || 'role-viewer';
 }
 
 function roleLabel(role) {
+    const r = role?.toLowerCase();
+
     return {
-        'super admin': 'Super Admin', // ✅ ADD THIS
-        admin: 'Admin',
-        moderator: 'Moderator',
-        viewer: 'Viewer'
-    }[role] || role;
+        'super admin': 'Super Admin',
+        'admin': 'Admin',
+        'moderator': 'Moderator',
+        'viewer': 'Viewer'
+    }[r] || role;
 }
 
 function isValidPHPhone(val) {
@@ -402,17 +406,14 @@ document.getElementById('userForm').addEventListener('submit', async function(e)
         if (!u) return;
         
     const formattedMobile = formatPHNumber(mobile);    
+    const normalizedRole = normalizeRole(role);
     
     const { error } = await window._supabase
         .from('profiles')
         .update({
             name: name,
             contact_num: formattedMobile,
-            type:
-                role === 'super admin' ? 'Super Admin' :
-                role === 'admin' ? 'Admin' :
-                role === 'moderator' ? 'Moderator' :
-                role
+            type: normalizedRole
         })
         .eq('auth_id', u.auth_id);
         
@@ -420,7 +421,7 @@ document.getElementById('userForm').addEventListener('submit', async function(e)
         u.name = name;
         u.email = email;
         u.mobile = formattedMobile;
-        u.role = role;
+        u.role = normalizedRole;
         
         renderUsers();
         userModal.classList.remove('show');
