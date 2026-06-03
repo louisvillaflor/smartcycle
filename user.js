@@ -277,7 +277,7 @@ document.getElementById('editProfileForm').addEventListener('submit', async func
         return;
     }
 
-    cconst formattedMobile = formatPHNumber(mobile);
+    const formattedMobile = formatPHNumber(mobile);
     
     const { error } = await window._supabase
         .from('profiles')
@@ -296,7 +296,7 @@ document.getElementById('editProfileForm').addEventListener('submit', async func
     // ✅ UPDATE LOCAL STATE
     myProfile.name   = name;
     myProfile.email  = email;
-    myProfile.mobile = mobile;
+    myProfile.mobile = formattedMobile;
 
     renderProfile();
 
@@ -419,7 +419,7 @@ document.getElementById('userForm').addEventListener('submit', async function(e)
         // ✅ UPDATE LOCAL STATE AFTER SUCCESS
         u.name = name;
         u.email = email;
-        u.mobile = mobile;
+        u.mobile = formattedMobile;
         u.role = role;
         
         renderUsers();
@@ -626,7 +626,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             myProfile = {
                 name: profile.name,
                 email: user.email,
-                mobile: profile.contact_num || '',
+                mobile: formatPHNumber(profile.contact_num || ''),
                 role: normalizeRole(profile.type)
             };
         } else {
