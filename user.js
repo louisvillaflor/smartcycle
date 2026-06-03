@@ -355,7 +355,7 @@ function openEditUser(id) {
     document.getElementById('modalName').value   = u.name;
     document.getElementById('modalEmail').value  = u.email;
     document.getElementById('modalMobile').value = u.mobile;
-    document.getElementById('modalRole').value   = u.role;
+    document.getElementById('modalRole').value = u.role.toLowerCase();
     clearModalErrors();
     userModal.classList.add('show');
     lucide.createIcons();
