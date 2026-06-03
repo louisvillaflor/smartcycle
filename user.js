@@ -163,18 +163,19 @@ function renderUsers() {
                 ? '<span class="user-mobile">' + u.mobile + '</span>' 
                 : '<span class="text-muted">No number</span>') +
             '</td>' +
-            '<td>' +
-                (isSuperAdmin() 
-                    ? '<div class="action-buttons" role="group" aria-label="Actions for ' + u.name + '">' +
+            (isSuperAdmin() 
+                ? '<td>' +
+                    '<div class="action-buttons" role="group" aria-label="Actions for ' + u.name + '">' +
                         '<button class="action-btn edit-btn" data-id="' + u.id + '" title="Edit">' +
                             '<i data-lucide="edit-2"></i>' +
                         '</button>' +
                         '<button class="action-btn delete-btn" data-id="' + u.id + '" title="Remove">' +
                             '<i data-lucide="trash-2"></i>' +
                         '</button>' +
-                      '</div>'
-                    : ''
-                ) +
+                    '</div>' +
+                  '</td>'
+                : ''
+            )
             '</td>'
         '</tr>';
     }).join('');
@@ -672,7 +673,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     renderProfile();
     if (!isSuperAdmin()) {
         const actionHeader = document.getElementById('actionHeader');
-        if (actionHeader) actionHeader.style.display = 'none';
+        if (actionHeader) actionHeader.remove(); 
     }
     await loadUsers();
     lucide.createIcons();
