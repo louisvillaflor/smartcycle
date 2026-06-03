@@ -87,7 +87,7 @@ body {
 }
 
 .role-super-admin {
-    color: #7c3aed; /* 🔥 purple (distinct from others) */
+    color: #ef4444;
     font-weight: 700;
 }
 .role-admin     { color: #16a34a; }
