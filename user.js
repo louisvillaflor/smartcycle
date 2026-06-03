@@ -44,9 +44,10 @@ async function loadUsers() {
     // Map DB → frontend format
     users = data.map((u, index) => ({
         id: index + 1,
+        auth_id: u.auth_id, // ✅ ADD THIS
         name: u.name || 'No Name',
         email: u.email || 'No Email',
-        mobile: u.contact_num || '', // Map contact_num from DB to your frontend's mobile field
+        mobile: u.contact_num || '',
         role: normalizeRole(u.type)
     }));
     renderUsers();
@@ -228,13 +229,68 @@ function changePage(direction) {
 // Edit profile modal
 var editProfileModal = document.getElementById('editProfileModal');
 
-document.getElementById('editProfileBtn').addEventListener('click', function() {
-    document.getElementById('editName').value   = myProfile.name;
-    document.getElementById('editEmail').value  = myProfile.email;
-    document.getElementById('editMobile').value = myProfile.mobile;
+document.getElementById('editProfileForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    var name   = document.getElementById('editName').value.trim();
+    var email  = document.getElementById('editEmail').value.trim();
+    var mobile = document.getElementById('editMobile').value.trim();
+    var valid  = true;
+
     clearProfileErrors();
-    editProfileModal.classList.add('show');
-    lucide.createIcons();
+
+    if (!name) {
+        showError('editNameError', 'editName', 'Full name is required.');
+        valid = false;
+    }
+    if (!email) {
+        showError('editEmailError', 'editEmail', 'Email address is required.');
+        valid = false;
+    } else if (!isValidEmail(email)) {
+        showError('editEmailError', 'editEmail', 'Enter a valid email address.');
+        valid = false;
+    }
+    if (mobile && !isValidPHPhone(mobile)) {
+        showError('editMobileError', 'editMobile', 'Enter a valid PH number.');
+        valid = false;
+    }
+
+    if (!valid) return;
+
+    // ✅ GET CURRENT USER
+    const { data: { user } } = await window._supabase.auth.getUser();
+
+    if (!user) {
+        alert('User not authenticated.');
+        return;
+    }
+
+    // ✅ UPDATE SUPABASE PROFILE
+    const { error } = await window._supabase
+        .from('profiles')
+        .update({
+            name: name,
+            contact_num: mobile
+        })
+        .eq('auth_id', user.id);
+
+    if (error) {
+        console.error(error);
+        alert('Failed to update profile.');
+        return;
+    }
+
+    // ✅ UPDATE LOCAL STATE
+    myProfile.name   = name;
+    myProfile.email  = email;
+    myProfile.mobile = mobile;
+
+    renderProfile();
+
+    editProfileModal.classList.remove('show');
+    clearProfileErrors();
+
+    alert('Profile updated successfully!');
 });
 
 document.getElementById('cancelEditBtn').addEventListener('click', function() {
@@ -365,17 +421,35 @@ document.getElementById('userForm').addEventListener('submit', function(e) {
     if (!valid) return;
 
     if (editingUserId !== null) {
-        // Update Local State Mock
         var u = users.find(function(u) { return u.id === editingUserId; });
-        if (u) { 
-            u.name = name; 
-            u.email = email; 
-            u.mobile = mobile; 
-            u.role = role; 
+        if (!u) return;
+        
+        // ✅ UPDATE PROFILE TABLE
+        const { error } = await window._supabase
+            .from('profiles')
+            .update({
+                name: name,
+                contact_num: mobile,
+                type: role
+            })
+            .eq('auth_id', u.auth_id) 
+        
+        if (error) {
+            console.error(error);
+            alert('Failed to update user.');
+            return;
         }
-        // Save and update UI
+        
+        // ✅ UPDATE LOCAL STATE AFTER SUCCESS
+        u.name = name;
+        u.email = email;
+        u.mobile = mobile;
+        u.role = role;
+        
         renderUsers();
         userModal.classList.remove('show');
+        
+        alert('User updated successfully!');
     } else {
         window._supabase.functions.invoke('invite-user', {
                 body: { 
