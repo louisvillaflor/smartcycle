@@ -115,7 +115,10 @@ function renderProfile() {
     document.getElementById('displayName').textContent     = myProfile.name;
     document.getElementById('fieldName').textContent       = myProfile.name;
     document.getElementById('fieldEmail').textContent      = myProfile.email;
-    document.getElementById('fieldMobile').textContent     = myProfile.mobile;
+    document.getElementById('fieldMobile').innerHTML =
+        myProfile.mobile
+            ? myProfile.mobile
+            : '<span class="text-muted">No contact number</span>';
 
     var badge = document.getElementById('displayRole');
     badge.textContent = roleLabel(myProfile.role);
@@ -161,7 +164,7 @@ function renderUsers() {
             '<td>' +
               (u.mobile 
                 ? '<span class="user-mobile">' + u.mobile + '</span>' 
-                : '<span class="text-muted">No number</span>') +
+                : '<span class="text-muted">No contact number</span>') +
             '</td>' +
             (isSuperAdmin() 
                 ? '<td>' +
