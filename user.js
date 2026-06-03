@@ -18,6 +18,17 @@ var avatarColors = [
     '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6'
 ];
 
+function formatPHNumber(val) {
+    const digits = val.replace(/\D/g, '').slice(0, 11);
+
+    if (digits.length > 7) {
+        return digits.slice(0, 4) + '-' + digits.slice(4, 7) + '-' + digits.slice(7);
+    } else if (digits.length > 4) {
+        return digits.slice(0, 4) + '-' + digits.slice(4);
+    } else {
+        return digits;
+    }
+}
 function normalizeRole(role) {
     if (!role) return 'viewer';
 
@@ -47,7 +58,7 @@ async function loadUsers() {
         auth_id: u.auth_id, // ✅ ADD THIS
         name: u.name || 'No Name',
         email: u.email || 'No Email',
-        mobile: u.contact_num || '',
+        mobile: formatPHNumber(u.contact_num || ''),
         role: normalizeRole(u.type)
     }));
     renderUsers();
@@ -80,8 +91,8 @@ function roleLabel(role) {
 }
 
 function isValidPHPhone(val) {
-    const cleaned = val.replace(/\D/g, ''); // remove everything except digits
-    return /^(09\d{9}|639\d{9})$/.test(cleaned);
+    const cleaned = val.replace(/\D/g, '');
+    return /^09\d{9}$/.test(cleaned);
 }
 
 function isValidEmail(val) {
@@ -266,13 +277,13 @@ document.getElementById('editProfileForm').addEventListener('submit', async func
         return;
     }
 
-    const cleanedMobile = mobile.replace(/\D/g, ''); // ✅ ADD THIS
+    cconst formattedMobile = formatPHNumber(mobile);
     
     const { error } = await window._supabase
         .from('profiles')
         .update({
             name: name,
-            contact_num: cleanedMobile // ✅ USE CLEANED VALUE
+            contact_num: formattedMobile
         })
         .eq('auth_id', user.id);
 
@@ -390,13 +401,13 @@ document.getElementById('userForm').addEventListener('submit', async function(e)
         var u = users.find(function(u) { return u.id === editingUserId; });
         if (!u) return;
         
-    const cleanedMobile = mobile.replace(/\D/g, '');
+    const formattedMobile = formatPHNumber(mobile);    
     
     const { error } = await window._supabase
         .from('profiles')
         .update({
             name: name,
-            contact_num: cleanedMobile,
+            contact_num: formattedMobile,
             type:
                 role === 'super admin' ? 'Super Admin' :
                 role === 'admin' ? 'Admin' :
