@@ -20,10 +20,9 @@ var avatarColors = [
 
 async function loadUsers() {
     const { data, error } = await window._supabase
-        .from('profiles')
-        .select('auth_id, name, email, contact_num, type') // Changed 'mobile' to 'contact_num' to match your DB column
-        .not('auth_id', 'is', null) 
-        .in('type', ['Super Admin', 'Admin', 'Moderator']); 
+        .from('users_with_auth') // ✅ use view
+        .select('*')
+        .in('type', ['Super Admin', 'Admin', 'Moderator']);
 
     if (error) {
         console.error('Error loading users:', error);
