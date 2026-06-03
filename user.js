@@ -80,7 +80,8 @@ function roleLabel(role) {
 }
 
 function isValidPHPhone(val) {
-    return /^(09\d{9}|\+639\d{9})$/.test(val.replace(/\s+/g, ''));
+    const cleaned = val.replace(/\D/g, ''); // remove everything except digits
+    return /^(09\d{9}|639\d{9})$/.test(cleaned);
 }
 
 function isValidEmail(val) {
@@ -265,12 +266,13 @@ document.getElementById('editProfileForm').addEventListener('submit', async func
         return;
     }
 
-    // ✅ UPDATE SUPABASE PROFILE
+    const cleanedMobile = mobile.replace(/\D/g, ''); // ✅ ADD THIS
+    
     const { error } = await window._supabase
         .from('profiles')
         .update({
             name: name,
-            contact_num: mobile
+            contact_num: cleanedMobile // ✅ USE CLEANED VALUE
         })
         .eq('auth_id', user.id);
 
@@ -388,15 +390,15 @@ document.getElementById('userForm').addEventListener('submit', async function(e)
         var u = users.find(function(u) { return u.id === editingUserId; });
         if (!u) return;
         
-        // ✅ UPDATE PROFILE TABLE
-        const { error } = await window._supabase
-            .from('profiles')
-            .update({
-                name: name,
-                contact_num: mobile,
-                type: role
-            })
-            .eq('auth_id', u.auth_id) 
+    const cleanedMobile = mobile.replace(/\D/g, ''); // ✅ ADD THIS
+    
+    const { error } = await window._supabase
+        .from('profiles')
+        .update({
+            name: name,
+            contact_num: cleanedMobile // ✅ USE CLEANED VALUE
+        })
+        .eq('auth_id', user.id);
         
         if (error) {
             console.error(error);
