@@ -161,7 +161,7 @@ document.getElementById('loginForm').addEventListener('submit', async function (
             if (profileData.type === 'Super Admin') {
                 window.location.href = 'dashboard.html';
             } else {
-                window.location.href = 'admin_dashboard.html';
+                window.location.href = 'dashboard.html';
             }
         }, 2000);
     
