@@ -183,6 +183,9 @@ function addContactToTable(contact) {
             ${actionButtonsHTML}
         </td>
     `;
+    if (currentUserRole === 'Moderator') {
+        row.removeChild(row.lastElementChild);
+    }
 
     row.style.cursor = 'pointer';
     row.addEventListener('click', function(e) {
