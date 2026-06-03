@@ -21,9 +21,9 @@ var avatarColors = [
 async function loadUsers() {
     const { data, error } = await window._supabase
         .from('profiles')
-        .select('auth_id, name, email, mobile, type')
-        .not('auth_id', 'is', null) // ✅ must have auth_id
-        .in('type', ['Super Admin', 'Admin', 'Moderator']); // ✅ only these roles
+        .select('auth_id, name, email, contact_num, type') // Changed 'mobile' to 'contact_num' to match your DB column
+        .not('auth_id', 'is', null) 
+        .in('type', ['Super Admin', 'Admin', 'Moderator']); 
 
     if (error) {
         console.error('Error loading users:', error);
@@ -35,7 +35,7 @@ async function loadUsers() {
         id: index + 1,
         name: u.name || 'No Name',
         email: u.email || 'No Email',
-        mobile: u.mobile || '',
+        mobile: u.contact_num || '', // Map contact_num from DB to your frontend's mobile field
         role: normalizeRole(u.type)
     }));
 
