@@ -3,6 +3,44 @@ const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 
 const pricelistdb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+let currentUserRole = null;
+
+async function getUserRole() {
+    const { data: { user }, error: userError } = await pricelistdb.auth.getUser();
+
+    if (userError || !user) {
+        console.error('User not found');
+        return null;
+    }
+
+    const { data, error } = await pricelistdb
+        .from('profiles')
+        .select('type')
+        .eq('id', user.id)
+        .single();
+
+    if (error) {
+        console.error('Error fetching role:', error);
+        return null;
+    }
+
+    return data.type; // "Super Admin", "Admin", "Moderator"
+}
+
+async function initRoleControl() {
+    currentUserRole = await getUserRole();
+
+    const addBtn = document.getElementById('addItemBtn');
+
+    if (currentUserRole !== 'Super Admin') {
+        // ❌ Hide Add button
+        if (addBtn) addBtn.style.display = 'none';
+
+        // ❌ Remove Action column header
+        const actionHeader = document.querySelector('th.action-column');
+        if (actionHeader) actionHeader.remove();
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -101,6 +139,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // SAVE
     saveBtn?.addEventListener('click', async () => {
+        if (currentUserRole !== 'Super Admin') {
+            alert('Unauthorized action.');
+            return;
+        }
         const material = materialNameInput.value.trim();
         const unit     = unitSelect.value;
         const price    = priceInput.value.trim();
@@ -185,28 +227,40 @@ document.addEventListener('DOMContentLoaded', () => {
     
         row.dataset.id = item.id;
     
+        let actionColumn = '';
+    
+        // ✅ ONLY Super Admin sees Edit/Delete
+        if (currentUserRole === 'Super Admin') {
+            actionColumn = `
+                <td>
+                    <div class="action-buttons">
+                        <button class="action-btn edit-btn" type="button">
+                            <i data-lucide="edit-2"></i>
+                        </button>
+                        <button class="action-btn delete-btn" type="button">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+        }
+    
         row.innerHTML = `
             <td>${item.material_name}</td>
             <td>${item.unit}</td>
             <td>₱${parseFloat(item.price).toFixed(2)}</td>
             <td><span class="status active">${item.status || 'Active'}</span></td>
-            <td>
-                <div class="action-buttons">
-                    <button class="action-btn edit-btn" type="button">
-                        <i data-lucide="edit-2"></i>
-                    </button>
-                    <button class="action-btn delete-btn" type="button">
-                        <i data-lucide="trash-2"></i>
-                    </button>
-                </div>
-            </td>
+            ${actionColumn}
         `;
     
-        row.querySelector('.edit-btn').addEventListener('click', () => editItem(row));
-        row.querySelector('.delete-btn').addEventListener('click', () => deleteItem(row));
+        // ✅ Only attach events if Super Admin
+        if (currentUserRole === 'Super Admin') {
+            row.querySelector('.edit-btn')?.addEventListener('click', () => editItem(row));
+            row.querySelector('.delete-btn')?.addEventListener('click', () => deleteItem(row));
+        }
     
         tableBody.appendChild(row);
-
+    
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
@@ -270,6 +324,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // DELETE
     function deleteItem(row) {
+        if (currentUserRole !== 'Super Admin') {
+            alert('Unauthorized action.');
+            return;
+        }
         const id = row.dataset.id;
         const name = row.cells[0].textContent;
     
@@ -365,6 +423,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    loadPriceList();
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    (async () => {
+        await initRoleControl();
+        await loadPriceList();
+
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    })();
 });
