@@ -33,6 +33,14 @@ async function fetchCurrentUserRole() {
     currentUserRole = data.type;
 }
 
+function applyRoleUI() {
+    const actionHeader = document.getElementById('actionHeader');
+
+    if (currentUserRole === 'Moderator') {
+        if (actionHeader) actionHeader.style.display = 'none';
+    }
+}
+
 async function fetchProfilesFromSupabase() {
     const tableBody = document.getElementById('contactsTableBody');
     tableBody.innerHTML = '';
@@ -343,7 +351,8 @@ function initializeSearch() {
 
 // 3. INITIALIZE ON LOAD
 document.addEventListener('DOMContentLoaded', async() => {
-    await fetchCurrentUserRole()
+    await fetchCurrentUserRole();
+    applyRoleUI();
     await fetchProfilesFromSupabase(); 
     initializeTabSwitching();
     initializeSearch();
