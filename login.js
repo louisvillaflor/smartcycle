@@ -142,7 +142,7 @@ document.getElementById('loginForm').addEventListener('submit', async function (
         const { data: profileData, error: profileError } = await window._supabase
             .from('profiles')
             .select('type, display_id, name')
-            .eq('id', data.user.id)
+            .eq('auth_id', data.user.id)
             .single();
     
         if (profileError) throw profileError;
