@@ -21,7 +21,9 @@ var avatarColors = [
 async function loadUsers() {
     const { data, error } = await window._supabase
         .from('profiles')
-        .select('*');
+        .select('auth_id, name, email, mobile, type')
+        .not('auth_id', 'is', null) // ✅ must have auth_id
+        .in('type', ['Super Admin', 'Admin', 'Moderator']); // ✅ only these roles
 
     if (error) {
         console.error('Error loading users:', error);
