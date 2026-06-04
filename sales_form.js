@@ -252,7 +252,39 @@ function wireModal() {
         let totalWeight = 0;
         saleMaterials.forEach(m => { totalAmount += m.rate * m.weight; totalWeight += m.weight; });
 
-        let receiptImage = (receiptPreviewImg?.src && receiptPreviewImg.src !== window.location.href) ? receiptPreviewImg.src : null;
+        let receiptImage = null;
+
+        if (receiptInput.files.length > 0) {
+            const file = receiptInput.files[0];
+        
+            const fileName = `receipt-${Date.now()}-${file.name}`;
+        
+            const { data, error } = await window._supabase
+                .storage
+                .from('receipts')
+                .upload(fileName, file);
+        
+            if (error) {
+                throw new Error("Image upload failed: " + error.message);
+            }
+        
+            const { data: publicUrlData } = window._supabase
+                .storage
+                .from('receipts')
+                .getPublicUrl(fileName);
+        
+            receiptImage = publicUrlData.publicUrl;
+        }
+        // ✅ KEEP EXISTING IMAGE WHEN EDITING AND NO NEW FILE
+        if (!receiptImage && editingId) {
+            const { data: existingSale } = await window._supabase
+                .from('sales')
+                .select('receipt_image')
+                .eq('id', editingId)
+                .single();
+        
+            receiptImage = existingSale?.receipt_image || null;
+        }
 
         const saleData = {
             date: saleDateFormatted,
