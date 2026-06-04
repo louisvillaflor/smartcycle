@@ -597,15 +597,6 @@ async function saveCollection() {
         
         alert(isEdit ? "Collection updated successfully!" : "Collection saved successfully!");
         
-        // ✅ LOG ACTION
-        if (typeof logAction === 'function') {
-            if (isEdit) {
-                logAction(`Edited collection for ${formattedCustomer}`, window.location.pathname);
-            } else {
-                logAction(`Added collection for ${formattedCustomer}`, window.location.pathname);
-            }
-        }
-        
         if (typeof closeAddModal === 'function') closeAddModal(); 
         else if (typeof closeModal === 'function') closeModal();
 
