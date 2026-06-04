@@ -17,11 +17,16 @@ window.logAction = async function(action, page = '') {
 
         if (error || !profile) return;
 
-        // ✅ SESSION-BASED PREVENTION (once per tab session)
-        const sessionKey = `visited_${action}_${page}`;
-        if (sessionStorage.getItem(sessionKey)) {
-            console.log('⛔ Skipped (session):', action);
-            return;
+        const isViewReceipt = action.includes('Viewed receipt');
+        
+        // SESSION CONTROL (skip for receipts)
+        if (!isViewReceipt) {
+            const sessionKey = `visited_${profile.id}_${action}_${page}`;
+            if (sessionStorage.getItem(sessionKey)) {
+                console.log('⛔ Skipped (session):', action);
+                return;
+            }
+            sessionStorage.setItem(sessionKey, 'true');
         }
 
         // 🔥 TIME-BASED COOLDOWN (30 seconds)
@@ -34,8 +39,6 @@ window.logAction = async function(action, page = '') {
             return;
         }
 
-        // ✅ Save both controls
-        sessionStorage.setItem(sessionKey, 'true');
         localStorage.setItem(cooldownKey, now);
 
         // ✅ Insert log
