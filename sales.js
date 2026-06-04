@@ -435,10 +435,6 @@ window.viewReceipt = function(index) {
     const data = getFilteredCollections()[index];
     if (!data) return;
 
-    if (typeof logAction === 'function') {
-        logAction(`Viewed receipt for ${data.customer}`, window.location.pathname);
-    }
-
     const receiptHTML = `
     <!DOCTYPE html>
     <html>
@@ -511,7 +507,20 @@ window.viewReceipt = function(index) {
         </div>
       </div>
       <div class="no-print">
-        <button onclick="window.print()" style="background:#46B336;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">Print Receipt</button>
+        <button onclick="(async () => {
+            try {
+                if (window.opener && typeof window.opener.logAction === 'function') {
+                    await window.opener.logAction(
+                        'Printed receipt for Barangay ${data.customer || 'Unknown'}',
+                        'receipt'
+                    );
+                }
+            } catch (e) {
+                console.error('Print log failed:', e);
+            }
+        
+            window.print();
+        })()" style="background:#46B336;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">Print Receipt</button>
         <button onclick="window.close()" style="background:#6b7280;color:white;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-left:10px;">Close</button>
       </div>
     </body>
