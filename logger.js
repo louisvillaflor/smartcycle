@@ -17,6 +17,28 @@ window.logAction = async function(action, page = '') {
 
         if (error || !profile) return;
 
+        // ✅ SESSION-BASED PREVENTION (once per tab session)
+        const sessionKey = `visited_${action}_${page}`;
+        if (sessionStorage.getItem(sessionKey)) {
+            console.log('⛔ Skipped (session):', action);
+            return;
+        }
+
+        // 🔥 TIME-BASED COOLDOWN (30 seconds)
+        const now = Date.now();
+        const cooldownKey = `lastLog_${action}_${page}`;
+        const lastTime = localStorage.getItem(cooldownKey);
+
+        if (lastTime && (now - lastTime < 30000)) {
+            console.log('⛔ Skipped (cooldown):', action);
+            return;
+        }
+
+        // ✅ Save both controls
+        sessionStorage.setItem(sessionKey, 'true');
+        localStorage.setItem(cooldownKey, now);
+
+        // ✅ Insert log
         await window._supabase.from('logs').insert({
             user_id: profile.id,
             user_name: profile.name,
@@ -25,7 +47,9 @@ window.logAction = async function(action, page = '') {
             page: page
         });
 
+        console.log('✅ Logged:', action);
+
     } catch (err) {
-        console.error('Log error:', err);
+        console.error('❌ Log error:', err);
     }
-}
+};
