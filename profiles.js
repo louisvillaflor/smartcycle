@@ -198,7 +198,9 @@ function addContactToTable(contact) {
     const deleteBtn = row.querySelector('.delete-btn');
     
     if (!contact.isTemporary && deleteBtn) {
-        deleteBtn.addEventListener('click', async function() {
+        deleteBtn.addEventListener('click', async function(e) {
+            e.stopPropagation(); // ✅ correct placement
+    
             if (confirm(`Are you sure you want to delete ${contact.name}?`)) {
     
                 const { error } = await _supabase
@@ -207,6 +209,7 @@ function addContactToTable(contact) {
                     .eq('id', contact.dbId);
     
                 if (!error) {
+                    await logAction(`Deleted profile: ${contact.name} (${contact.id})`);
                     row.remove();
                     checkEmptyState();
                     applyPagination();
@@ -216,6 +219,7 @@ function addContactToTable(contact) {
             }
         });
     }
+    
 
     tableBody.appendChild(row);
     lucide.createIcons();
