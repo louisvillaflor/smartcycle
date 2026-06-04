@@ -1,7 +1,10 @@
 // --- 1. CONFIGURATION ---
-const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
-const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+if (!window._supabase) {
+    const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
+
+    window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
 
 let currentUserRole = null;
 let currentTab = 'all';
