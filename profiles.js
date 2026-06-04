@@ -196,29 +196,63 @@ function addContactToTable(contact) {
         window.location.href = `profile_transaction.html?id=${contact.dbId}`;
     });
     const deleteBtn = row.querySelector('.delete-btn');
-    
+
+    // Delete action modal
     if (!contact.isTemporary && deleteBtn) {
-        deleteBtn.addEventListener('click', async function(e) {
-            e.stopPropagation(); // ✅ correct placement
-    
-            if (confirm(`Are you sure you want to delete ${contact.name}?`)) {
-    
-                const { error } = await _supabase
-                    .from('profiles')
-                    .delete()
-                    .eq('id', contact.dbId);
-    
-                if (!error) {
-                    await logAction(`Deleted profile: ${contact.name} (${contact.id})`);
-                    row.remove();
-                    checkEmptyState();
-                    applyPagination();
-                } else {
-                    alert("Error deleting: " + error.message);
-                }
+    deleteBtn.addEventListener('click', async function(e) {
+        e.stopPropagation();
+
+        if (!document.getElementById('profileDeleteModal')) {
+            document.body.insertAdjacentHTML('beforeend', `
+                <div id="profileDeleteModal">
+                    <div class="delete-modal-box">
+                        <div class="delete-modal-icon">
+                            <i data-lucide="trash-2"></i>
+                        </div>
+                        <h3>Delete Profile</h3>
+                        <p id="profileDeleteText"></p>
+                        <div class="delete-modal-actions">
+                            <button id="profileDeleteCancel">Cancel</button>
+                            <button id="profileDeleteConfirm">Delete</button>
+                        </div>
+                    </div>
+                </div>
+            `);
+
+            const modal = document.getElementById('profileDeleteModal');
+            document.getElementById('profileDeleteCancel').addEventListener('click', () => modal.style.display = 'none');
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
+        }
+
+        const modal = document.getElementById('profileDeleteModal');
+        document.getElementById('profileDeleteText').textContent = `Are you sure you want to delete "${contact.name}"? This action cannot be undone.`;
+
+        const confirmBtn = document.getElementById('profileDeleteConfirm');
+        const cleanConfirmBtn = confirmBtn.cloneNode(true);
+        confirmBtn.replaceWith(cleanConfirmBtn);
+
+        cleanConfirmBtn.addEventListener('click', async () => {
+            const { error } = await _supabase
+                .from('profiles')
+                .delete()
+                .eq('id', contact.dbId);
+
+            if (!error) {
+                await logAction(`Deleted profile: ${contact.name} (${contact.id})`);
+                modal.style.display = 'none';
+                row.remove();
+                checkEmptyState();
+                applyPagination();
+            } else {
+                alert("Error deleting: " + error.message);
             }
         });
-    }
+
+        modal.style.display = 'flex';
+        lucide.createIcons();
+    });
+  }
+    
     const editBtn = row.querySelector('.edit-btn');
     if (editBtn && !contact.isTemporary) {
         editBtn.addEventListener('click', function(e) {
