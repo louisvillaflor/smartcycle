@@ -1,21 +1,4 @@
-// Dashboard JavaScript with Supabase Integration
-
-// TODO: Replace these with your actual Supabase credentials
-const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
-
-// FIX: Use a unique variable name to avoid global namespace collisions with the CDN
-let supabaseClient;
-
-try {
-    if (window.supabase && typeof window.supabase.createClient === 'function') {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } else {
-        console.error("Supabase CDN library is missing or didn't load properly.");
-    }
-} catch (err) {
-    console.error("Error initializing Supabase client:", err);
-}
+const supabaseClient = window._supabase;
 
 // CHECK AUTHENTICATION - Protect dashboard page
 (function checkAuth() {
