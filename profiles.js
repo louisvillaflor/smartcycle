@@ -219,12 +219,60 @@ function addContactToTable(contact) {
             }
         });
     }
+    const editBtn = row.querySelector('.edit-btn');
+    if (editBtn && !contact.isTemporary) {
+        editBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
     
+            openEditModal(contact);
+        });
+    }
 
     tableBody.appendChild(row);
     lucide.createIcons();
 }
+function openEditModal(contact) {
+    document.getElementById('editProfileId').value = contact.dbId;
+    document.getElementById('editName').value = contact.name;
+    document.getElementById('editAddress').value = contact.address;
+    document.getElementById('editContact').value = contact.contactNumber;
+    document.getElementById('editCategory').value = contact.category;
 
+    document.getElementById('editProfileModal').style.display = 'flex';
+}
+
+function closeEditModal() {
+    document.getElementById('editProfileModal').style.display = 'none';
+}
+document.getElementById('saveEditBtn').addEventListener('click', async () => {
+    const id = document.getElementById('editProfileId').value;
+    const name = document.getElementById('editName').value;
+    const address = document.getElementById('editAddress').value;
+    const contact = document.getElementById('editContact').value;
+    const category = document.getElementById('editCategory').value;
+
+    const { error } = await _supabase
+        .from('profiles')
+        .update({
+            display_name: name,
+            address: address,
+            contact_num: contact,
+            category: category
+        })
+        .eq('id', id);
+
+    if (error) {
+        alert("Error updating profile: " + error.message);
+        return;
+    }
+
+    await logAction(`Updated profile: ${name}`);
+
+    closeEditModal();
+
+    // Refresh table
+    await fetchProfilesFromSupabase();
+});
 // Check if table is empty and show message
 function checkEmptyState() {
     const tableBody = document.getElementById('contactsTableBody');
