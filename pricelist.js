@@ -1,19 +1,21 @@
-const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
+if (!window._supabase) {
+    const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 
-const pricelistdb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
 
 let currentUserRole = null;
 
 async function getUserRole() {
-    const { data: { user }, error: userError } = await pricelistdb.auth.getUser();
+    const { data: { user }, error: userError } =  await _supabase.auth.getUser();
 
     if (userError || !user) {
         console.error('User not found');
         return null;
     }
 
-    const { data, error } = await pricelistdb
+    const { data, error } = await _supabase
         .from('profiles')
         .select('type')
         .eq('id', user.id)
@@ -172,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // =========================
             const id = editRow.dataset.id;
     
-            const { data, error } = await pricelistdb
+            const { data, error } = await _supabase
                 .from('price_list')
                 .update({
                     material_name: material,
@@ -196,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // =========================
             // ➕ INSERT NEW ITEM
             // =========================
-            const { data, error } = await pricelistdb
+            const { data, error } = await _supabase
                 .from('price_list')
                 .insert([
                     {
@@ -333,7 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
         showDeleteConfirm(name, async () => {
     
-            const { error } = await pricelistdb
+            const { error } = await _supabase
                 .from('price_list')
                 .delete()
                 .eq('id', id);
@@ -379,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadPriceList() {
-        const { data, error } = await pricelistdb
+        const { data, error } = await _supabase
             .from('price_list') // <-- your table name
             .select('*')
             .order('id', { ascending: true });
