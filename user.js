@@ -440,6 +440,12 @@ document.getElementById('userForm').addEventListener('submit', async function(e)
             type: normalizedRole
         })
         .eq('auth_id', u.auth_id);
+        if (!error) {
+            await window.logAction(
+                `Edited user: ${name} (${email})`,
+                'User Management'
+            );
+        }
         
         // ✅ UPDATE LOCAL STATE AFTER SUCCESS
         u.name = name;
@@ -559,9 +565,28 @@ function openDeleteUser(id) {
     confirmBtn.replaceWith(newConfirm);
     cancelBtn.replaceWith(newCancel);
 
-    newConfirm.addEventListener('click', function() {
-        users = users.filter(function(u) { return u.id !== deletingUserId; });
-        renderUsers();
+    newConfirm.addEventListener('click', async function() {
+        const u = users.find(x => x.id === deletingUserId);
+        if (!u) return;
+    
+        const { error } = await window._supabase
+            .from('profiles')
+            .delete()
+            .eq('auth_id', u.auth_id);
+    
+        if (!error) {
+            await window.logAction(
+                `Deleted user: ${u.name} (${u.email})`,
+                'User Management'
+            );
+    
+            users = users.filter(x => x.id !== deletingUserId);
+            renderUsers();
+        } else {
+            console.error(error);
+            alert('Failed to delete user.');
+        }
+    
         deleteModal.style.display = 'none';
     });
 
