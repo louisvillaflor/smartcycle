@@ -718,12 +718,14 @@ function buildReceiptItemRows(items, minRows) {
     }
     return rows;
 }
-if (typeof logAction === 'function') {
-    logAction('Printed receipt for ${data.customer}', window.location.pathname);
-}
+
 window.viewReceipt = function(index) {
     const data = getFilteredCollections()[index];
     if (!data) return;
+
+    if (typeof logAction === 'function') {
+        logAction(`Viewed receipt for ${data.customer}`, window.location.pathname);
+    }
 
     const receiptHTML = `
     <!DOCTYPE html>
