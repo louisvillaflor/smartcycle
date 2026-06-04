@@ -5,10 +5,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------------------
     // 1. SUPABASE INITIALIZATION
     // -------------------------------------------------------------------------
-    const SUPABASE_URL = "https://nlybbvlhhdjjmqkzjnhx.supabase.co"; 
-    const SUPABASE_KEY = "sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au"; 
+    if (!window._supabase) {
+        const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
     
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
 
     let currentUserRole = null;
 
