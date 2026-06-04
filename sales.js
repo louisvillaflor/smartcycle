@@ -276,6 +276,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (!canModify) return alert('Unauthorized');
                 window.showDeleteModal(id);
             } else if (action === 'view-receipt' && sale.receipt_image) {
+                // ✅ LOG VIEW RECEIPT (ALL ROLES INCLUDING MODERATOR)
+                window.logAction(`Viewed receipt for ${sale.partner}`, 'Sales')
                 const win = window.open('', '_blank');
                 win.document.write(`<!DOCTYPE html><html><head><title>Receipt - ${sale.partner}</title>
                     <style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#1a1a1a;}
@@ -341,6 +343,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         cleanConfirmBtn.addEventListener('click', async () => {
             const { error } = await window._supabase.from('sales').delete().eq('id', id);
             if (!error) {
+            
+                await window.logAction(`Deleted sale for ${sale.partner}`, 'Sales');
+            
                 modal.style.display = 'none';
                 loadDataAndRender();
             } else {
