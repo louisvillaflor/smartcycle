@@ -1,4 +1,10 @@
-// --- Supabase Initialization ---
+(function checkAuth() {
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+    if (!isLoggedIn || isLoggedIn !== 'true') {
+        window.location.href = 'index.html';
+        return;
+    }
+})();
 
 
 if (!window._supabase) {
@@ -6,7 +12,8 @@ if (!window._supabase) {
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5seWJidmxoaGRqam1xa3pqbmh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1NDAwNzksImV4cCI6MjA4ODExNjA3OX0.QHqEUFwNhwhCyjCMr5MXMPkRqzCNRXP6I9toMdiAZ_4';
     window._supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
-// --- Global State Variables 
+
+// State Variables 
 let myProfile;
 let users = [];
 var searchQuery = '';
@@ -45,7 +52,7 @@ function normalizeRole(role) {
 
 async function loadUsers() {
     const { data, error } = await window._supabase
-        .from('users_with_auth') // ✅ use view
+        .from('users_with_auth') // use view
         .select('*')
         .in('type', ['Super Admin', 'Admin', 'Moderator']);
 
@@ -53,11 +60,11 @@ async function loadUsers() {
         console.error('Error loading users:', error);
         return;
     }
-    // ✅ Get current logged-in user
+    // Get current logged-in user
     const { data: { user } } = await window._supabase.auth.getUser();
     
     users = data
-        // ✅ REMOVE CURRENT USER
+        // REMOVE CURRENT USER
         .filter(u => u.auth_id !== user.id)
         .map((u, index) => ({
             id: index + 1,
@@ -290,7 +297,7 @@ document.getElementById('editProfileForm').addEventListener('submit', async func
 
     if (!valid) return;
 
-    // ✅ GET CURRENT USER
+    // GET CURRENT USER
     const { data: { user } } = await window._supabase.auth.getUser();
 
     if (!user) {
@@ -314,7 +321,7 @@ document.getElementById('editProfileForm').addEventListener('submit', async func
         return;
     }
 
-    // ✅ UPDATE LOCAL STATE
+    // UPDATE LOCAL STATE
     myProfile.name   = name;
     myProfile.email  = email;
     myProfile.mobile = formattedMobile;
@@ -446,7 +453,7 @@ document.getElementById('userForm').addEventListener('submit', async function(e)
             );
         }
         
-        // ✅ UPDATE LOCAL STATE AFTER SUCCESS
+        // UPDATE LOCAL STATE AFTER SUCCESS
         u.name = name;
         u.email = email;
         u.mobile = formattedMobile;
@@ -661,7 +668,7 @@ function clearModalErrors() {
 
 
 document.addEventListener('DOMContentLoaded', async function() {
-    // 1. Fetch the actual profile from Supabase first
+    // Fetch the profile from Supabase first
     const { data: { user } } = await window._supabase.auth.getUser();
 
     if (user) {
@@ -671,7 +678,6 @@ document.addEventListener('DOMContentLoaded', async function() {
             .eq('auth_id', user.id)
             .single();
 
-        // ✅ REPLACED THIS PART
         if (profile) {
             myProfile = {
                 name: profile.name,
@@ -701,7 +707,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const addBtn = document.getElementById('addUserBtn');
 
     if (isSuperAdmin()) {
-        addBtn.style.display = 'inline-flex'; // or 'flex'
+        addBtn.style.display = 'inline-flex';
     } else {
         addBtn.style.display = 'none';
     }
