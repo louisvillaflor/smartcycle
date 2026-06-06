@@ -5,6 +5,8 @@ lucide.createIcons();
 let currentView = 'archive';
 let allLogs = [];
 let filteredLogs = [];
+const ITEMS_PER_PAGE = 10;
+let currentPage = 1;
 
 async function fetchHistory() {
     const { data, error } = await _supabase
@@ -23,6 +25,7 @@ async function fetchHistory() {
 
 // FILTER
 function applyFiltersAndRender() {
+    currentPage = 1;
     const roleFilter   = document.getElementById('roleFilter')?.value   || '';
     const actionFilter = document.getElementById('actionFilter')?.value || '';
     const dateFilter   = document.getElementById('dateFilter')?.value   || '';
@@ -50,13 +53,20 @@ function renderHistory() {
 
     if (filteredLogs.length === 0) {
         emptyEl.style.display = 'flex';
+        renderPagination(0, 0);
         lucide.createIcons();
         return;
     }
 
     emptyEl.style.display = 'none';
 
-    const groups = groupByDate(filteredLogs);
+    const totalPages = Math.ceil(filteredLogs.length / ITEMS_PER_PAGE);
+    if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const end   = start + ITEMS_PER_PAGE;
+    const pageLogs = filteredLogs.slice(start, end);
+
+    const groups = groupByDate(pageLogs);
 
     Object.entries(groups).forEach(([dateLabel, logs]) => {
         const groupEl = document.createElement('tbody');
@@ -73,6 +83,48 @@ function renderHistory() {
 
         listEl.appendChild(groupEl);
     });
+
+    renderPagination(filteredLogs.length, totalPages);
+    lucide.createIcons();
+}
+
+function renderPagination(totalItems, totalPages) {
+    const nav = document.querySelector('.pagination');
+    if (!nav) return;
+
+    if (totalItems <= ITEMS_PER_PAGE) {
+        nav.innerHTML = '';
+        nav.style.display = 'none';
+        return;
+    }
+
+    nav.style.display = 'flex';
+    nav.innerHTML = '';
+
+    const prev = document.createElement('button');
+    prev.className = 'page-btn';
+    prev.innerHTML = '<i data-lucide="chevron-left"></i>';
+    prev.disabled = currentPage === 1;
+    prev.setAttribute('aria-label', 'Previous page');
+    prev.addEventListener('click', () => { currentPage--; renderHistory(); });
+    nav.appendChild(prev);
+
+    for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.className = 'page-btn' + (i === currentPage ? ' active' : '');
+        btn.textContent = i;
+        btn.setAttribute('aria-label', `Page ${i}`);
+        btn.addEventListener('click', () => { currentPage = i; renderHistory(); });
+        nav.appendChild(btn);
+    }
+
+    const next = document.createElement('button');
+    next.className = 'page-btn';
+    next.innerHTML = '<i data-lucide="chevron-right"></i>';
+    next.disabled = currentPage === totalPages;
+    next.setAttribute('aria-label', 'Next page');
+    next.addEventListener('click', () => { currentPage++; renderHistory(); });
+    nav.appendChild(next);
 
     lucide.createIcons();
 }
