@@ -252,7 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${item.material_name}</td>
             <td>${item.unit}</td>
             <td>₱${parseFloat(item.price).toFixed(2)}</td>
-            <td><span class="status active">${item.status || 'Active'}</span></td>
             ${actionColumn}
         `;
     
