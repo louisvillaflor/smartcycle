@@ -1,10 +1,15 @@
+(function checkAuth() {
+    const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+    if (!isLoggedIn || isLoggedIn !== 'true') {
+        window.location.href = 'index.html';
+        return;
+    }
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
     
-    // -------------------------------------------------------------------------
-    // 1. SUPABASE INITIALIZATION
-    // -------------------------------------------------------------------------
     if (!window._supabase) {
         const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
@@ -42,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const exportSection = document.getElementById('exportSection');
     
         if (currentUserRole === 'Moderator') {
-            // 🔴 Hide EVERYTHING (label + button)
+            // Hide EVERYTHING (label + button)
             if (exportSection) exportSection.style.display = 'none';
     
             // Extra safety
@@ -56,9 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 2. POPOVER HELPERS & LIFECYCLE MANAGEMENT
-    // -------------------------------------------------------------------------
+    // POPOVER HELPERS & LIFECYCLE MANAGEMENT
     const allPairs = [];
 
     function openPopover(btn, popover) {
@@ -172,14 +175,12 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', () => handleExport(btn.getAttribute('data-format')));
     });
 
-    // -------------------------------------------------------------------------
-    // 3. STATE MANAGEMENT & DATA COUPLING ENGINE
-    // -------------------------------------------------------------------------
+    // STATE MANAGEMENT & DATA COUPLING ENGINE
     let selectedStart = null;
     let selectedEnd = null;
     let activeCategories = ['collections', 'sales']; 
     
-    // Global variable cache to store current data state safely for your exporter
+    // Global variable cache to store current data state safely
     let processedReportSummary = {}; 
 
     const initDates = () => {
@@ -257,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const diffTime = txDate.getTime() - startRange.getTime();
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
             
-            // Map cleanly to columns matching your DPS form
+            // Map cleanly to columns 
             let weekKey = 'week1';
             if (diffDays > 7 && diffDays <= 14) weekKey = 'week2';
             else if (diffDays > 14 && diffDays <= 21) weekKey = 'week3';
@@ -293,10 +294,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tableBody.insertAdjacentHTML('beforeend', rowHTML);
         });
     }
-
-    // -------------------------------------------------------------------------
-    // 4. FIXED: EXPORT ENGINE AND MODAL INTERACTION CORRECTION
-    // -------------------------------------------------------------------------
+    
+    // EXPORT ENGINE AND MODAL INTERACTION 
     function handleExport(format) {
         if (currentUserRole === 'Moderator') {
             alert("Access denied: You are not allowed to export reports.");
@@ -420,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
         overlay.querySelector('#exportModalConfirm').addEventListener('click', async () => {
-            // CRITICAL FIX: Bundling the compiled metrics payload into your options map
+            // Bundling the compiled metrics payload into options map
             const opts = {
                 month:           parseInt(overlay.querySelector('#expMonth').value),
                 year:            parseInt(overlay.querySelector('#expYear').value),
@@ -435,9 +434,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 dateEstablished: overlay.querySelector('#expDateEst').value.trim(),
                 floorArea:       overlay.querySelector('#expFloor').value.trim(),
                 noOfAide:        overlay.querySelector('#expAide').value.trim(),
-                reportData:      processedReportSummary // Sent directly to the export module template script!
+                reportData:      processedReportSummary // Sent directly to the export module template script
             };
-            // ✅ LOG EXPORT ACTION
+            // LOG EXPORT ACTION
             if (currentUserRole === 'Admin' || currentUserRole === 'Super Admin') {
                 const exportType = format.toUpperCase(); // PDF or CSV
                 await window.logAction(`Exported ${exportType} report for ${opts.junkshopName}`);
@@ -464,9 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // -------------------------------------------------------------------------
-    // 5. CALENDAR & INTERFACE LOGIC SYNC
-    // -------------------------------------------------------------------------
+    // CALENDAR & INTERFACE LOGIC SYNC
     const allCheckboxes = document.querySelectorAll('.category-popover input[type="checkbox"], .popover-content input[type="checkbox"]');
 
     allCheckboxes.forEach(cb => {
@@ -662,9 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // -------------------------------------------------------------------------
     // 6. INITIAL RUN SEQUENCE
-    // -------------------------------------------------------------------------
     getUserRole()
     rebuildAllCalendars();
     fetchAndRenderReportData(formatDateToSQL(selectedStart), formatDateToSQL(selectedEnd));
