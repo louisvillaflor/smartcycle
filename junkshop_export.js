@@ -430,3 +430,5 @@ const JunkshopExport = (() => {
     return { exportPDF, aggregateData: aggregateSupabaseData };
 
 })();
+
+window.JunkshopExport = JunkshopExport;
