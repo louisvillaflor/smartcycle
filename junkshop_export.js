@@ -172,7 +172,7 @@ const JunkshopExport = (() => {
         const year = opts.year ?? now.getFullYear();
 
         // Fetch grid information directly mapping down from Supabase
-        const { dataGrid, materialsList } = await aggregateSupabaseData(month, year);
+        const { dataGrid, materialsList } = opts.reportData || await aggregateSupabaseData(month, year);
         const monthLabel = `${MONTHS[month]} ${year}`;
 
         const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
@@ -427,8 +427,11 @@ const JunkshopExport = (() => {
         doc.save(`JunkshopMonitoringForm_${MONTHS[month]}${year}.pdf`);
     }
 
-    return { exportPDF, aggregateData: aggregateSupabaseData };
-
+    return {
+    aggregateSupabaseData,
+    exportPDF,
+    exportCSV: () => {} // placeholder if not yet implemented
+};
 })();
 
 window.JunkshopExport = JunkshopExport;
