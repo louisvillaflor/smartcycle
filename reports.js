@@ -204,6 +204,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const finalEnd = endDate || formatDateToSQL(selectedEnd);
 
             if (!finalStart || !finalEnd) return;
+            if (!window._supabase || typeof window._supabase.rpc !== 'function') {
+                console.error("Supabase RPC not available");
+                return;
+            }
 
             const { data, error } = await window._supabase.rpc('get_material_transactions', {
                 start_date: finalStart,
@@ -426,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log("MONTH/YEAR:", month, year); // debug
         
             // ✅ NOW CALL FUNCTION (correct order)
-            const aggregated = await JunkshopExport.aggregateData(month, year);
+            const aggregated = await JunkshopExport.aggregateSupabaseData(month, year);
         
             console.log("AGGREGATED DATA:", aggregated); // 👈 debug
             // Bundling the compiled metrics payload into options map
