@@ -419,6 +419,13 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
         overlay.querySelector('#exportModalConfirm').addEventListener('click', async () => {
+            // ✅ GET VALUES FIRST (THIS WAS MISSING)
+            const month = parseInt(overlay.querySelector('#expMonth').value);
+            const year  = parseInt(overlay.querySelector('#expYear').value);
+        
+            console.log("MONTH/YEAR:", month, year); // debug
+        
+            // ✅ NOW CALL FUNCTION (correct order)
             const aggregated = await JunkshopExport.aggregateData(month, year);
         
             console.log("AGGREGATED DATA:", aggregated); // 👈 debug
