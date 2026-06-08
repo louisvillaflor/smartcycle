@@ -233,35 +233,52 @@ function loadModalHTML() {
                 });
             }
 
-            // 2. NEW: Strict Contact Number Filter (Blocks letters completely)
-            // Strict Contact Number Filter (Blocks letters AND caps valid PH mobile numbers)
+            // 2. NEW: Strict Contact Number Filter (Blocks letters completely. Strict Philippine Mobile Masking (Forces 09XX-XXX-XXXX)
             const contactInput = document.getElementById('inContact');
             if (contactInput) {
-                contactInput.addEventListener('input', (e) => {
-                    // 1. Strip out anything that isn't a digit or a plus sign
-                    let value = e.target.value.replace(/[^0-9+]/g, '');
-                    
-                    // 2. Ensure the '+' can only ever exist at the very beginning
-                    if (value.includes('+')) {
-                        value = '+' + value.replace(/\+/g, '');
+                // Optional UX: Auto-fill '09' when the user clicks/focuses on an empty field
+                contactInput.addEventListener('focus', (e) => {
+                    if (!e.target.value) {
+                        e.target.value = '09';
+                        if (typeof updatePreview === 'function') updatePreview();
                     }
-                    
-                    // 3. Enforce Philippine standard lengths
-                    if (value.startsWith('+63')) {
-                        // Format: +63 9XX XXX XXXX -> Max 13 characters
-                        if (value.length > 13) {
-                            value = value.slice(0, 13);
-                        }
-                    } else {
-                        // Format: 09XX XXX XXXX -> Max 11 characters
-                        if (value.length > 11) {
-                            value = value.slice(0, 11);
-                        }
-                    }
-                    
-                    e.target.value = value;
+                });
             
-                    // 4. Force real-time receipt preview sync
+                contactInput.addEventListener('input', (e) => {
+                    // 1. Strip out absolutely everything except numbers
+                    let raw = e.target.value.replace(/\D/g, '');
+                    
+                    // 2. If the user clears the field entirely, let it be empty
+                    if (raw.length === 0) {
+                        e.target.value = '';
+                        if (typeof updatePreview === 'function') updatePreview();
+                        return;
+                    }
+                    
+                    // 3. Force '09' at the very beginning if it's missing
+                    if (!raw.startsWith('09')) {
+                        // Strips any accidental leading zeros the user typed before prepending '09'
+                        raw = '09' + raw.replace(/^0+/, '');
+                    }
+                    
+                    // 4. Cap raw digits to 11 characters maximum (09 + 9 digits)
+                    if (raw.length > 11) {
+                        raw = raw.substring(0, 11);
+                    }
+                    
+                    // 5. Construct the 09XX-XXX-XXXX layout dynamically
+                    let formatted = raw.substring(0, 4); // 09XX
+                    if (raw.length > 4) {
+                        formatted += '-' + raw.substring(4, 7); // 09XX-XXX
+                    }
+                    if (raw.length > 7) {
+                        formatted += '-' + raw.substring(7, 11); // 09XX-XXX-XXXX
+                    }
+                    
+                    // 6. Pass the masked text back to the input UI
+                    e.target.value = formatted;
+                    
+                    // 7. Instantly sync with your receipt preview panel
                     if (typeof updatePreview === 'function') {
                         updatePreview();
                     }
