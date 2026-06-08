@@ -1,5 +1,5 @@
 const SUPABASE_URL = 'https://nlybbvlhhdjjmqkzjnhx.supabase.co';
-const SUPABASE_KEY = 'YOUR_PUBLIC_ANON_KEY';
+const SUPABASE_KEY = 'sb_publishable_tb_WPtZc6awrzrQrDvYUxQ_ndUpe-Au';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // EMAIL VALIDATION
