@@ -293,10 +293,20 @@ window.addItem = function() {
 
     const weight = Number(weightInput.value);
     const selectedOption = sel.selectedOptions[0];
-    const rate = Number(selectedOption?.dataset.rate || 0);
     
     const materialId = parseInt(sel.value, 10); 
-    const materialName = selectedOption?.dataset.name || '';
+    
+    // 1. Attempt to find the rate from dataset, fallback to cache, fallback to parsing text
+    const cachedItem = loadedPricesCache.find(p => parseInt(p.id, 10) === materialId);
+    const rate = Number(selectedOption?.dataset.rate || cachedItem?.price || 0);
+    
+    // 2. Extract material name reliably even if data-name attribute is completely missing
+    let materialName = selectedOption?.dataset.name || cachedItem?.material_name;
+    
+    if (!materialName && selectedOption) {
+        // Splits text at '(' or '-' and trims whitespace to isolate just the name string
+        materialName = selectedOption.textContent.split(/[(-]/)[0].trim();
+    }
 
     if (isNaN(materialId)) {
         alert("Please select a valid material collection type.");
