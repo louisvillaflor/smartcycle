@@ -199,22 +199,27 @@ function validateContact(value) {
 }
 
 function formatContact(value) {
+    // Remove ALL non-numbers
     let cleaned = value.replace(/\D/g, '');
 
-    // Auto add 09
+    // Always force start with 09
     if (!cleaned.startsWith('09')) {
         cleaned = '09' + cleaned.replace(/^0+/, '');
     }
 
-    // Limit to 11 digits
+    // Limit to 11 digits ONLY
     cleaned = cleaned.slice(0, 11);
 
     // Format: 09XX-XXX-XXXX
     if (cleaned.length <= 4) return cleaned;
+
     if (cleaned.length <= 7) {
-        return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`;
+        return cleaned.slice(0, 4) + '-' + cleaned.slice(4);
     }
-    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
+
+    return cleaned.slice(0, 4) + '-' +
+           cleaned.slice(4, 7) + '-' +
+           cleaned.slice(7);
 }
 
 function resetForm() {
@@ -633,8 +638,21 @@ window.setupFieldListeners = function() {
     const inContact = document.getElementById('inContact');
     if (inContact) {
         inContact.addEventListener('input', (e) => {
+            let cursorPos = e.target.selectionStart;
+    
             e.target.value = formatContact(e.target.value);
+    
+            // Optional: keep cursor stable
+            e.target.setSelectionRange(cursorPos, cursorPos);
+    
             clearError('inContact');
+        });
+    
+        // Prevent typing letters at all
+        inContact.addEventListener('keypress', (e) => {
+            if (!/[0-9]/.test(e.key)) {
+                e.preventDefault();
+            }
         });
     }
 
