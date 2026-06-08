@@ -199,37 +199,31 @@ function validateContact(value) {
 }
 
 function formatContact(value) {
-    // Remove everything except numbers
+    // 1. Instantly strip out all non-numeric characters (handles paste-ins safely)
     let cleaned = value.replace(/\D/g, '');
 
-    // Force 09 at the start
+    // 2. If completely empty, allow clearing the field
+    if (!cleaned) return '';
+
+    // 3. Guarantee that it starts with '09'
     if (!cleaned.startsWith('09')) {
-        cleaned = '09' + cleaned.replace(/^0+/, '');
+        if (cleaned.startsWith('9')) {
+            cleaned = '0' + cleaned;
+        } else {
+            cleaned = '09' + cleaned;
+        }
     }
 
-    // Limit to 11 digits
+    // 4. Hard cap the raw digits to 11
     cleaned = cleaned.slice(0, 11);
 
-    // Always build FULL format structure
-    let part1 = cleaned.slice(0, 4);
-    let part2 = cleaned.slice(4, 7);
-    let part3 = cleaned.slice(7, 11);
+    // 5. Build out the 09XX-XXX-XXXX dash sequence systematically
+    let parts = [];
+    if (cleaned.length > 0) parts.push(cleaned.slice(0, 4));  // 09XX
+    if (cleaned.length > 4) parts.push(cleaned.slice(4, 7));  // XXX
+    if (cleaned.length > 7) parts.push(cleaned.slice(7, 11)); // XXXX
 
-    let formatted = part1;
-
-    if (cleaned.length > 4) {
-        formatted += '-' + part2;
-    } else {
-        formatted += '-';
-    }
-
-    if (cleaned.length > 7) {
-        formatted += '-' + part3;
-    } else if (cleaned.length > 4) {
-        formatted += '-';
-    }
-
-    return formatted;
+    return parts.join('-');
 }
 
 function resetForm() {
@@ -645,22 +639,35 @@ window.setupFieldListeners = function() {
         inDate.addEventListener('change', () => { if (inDate.value) clearError('inDate'); else showError('inDate', 'Date is required'); });
     }
 
-const inContact = document.getElementById('inContact');
-
-if (inContact) {
-    inContact.addEventListener('input', (e) => {
-        e.target.value = formatContact(e.target.value);
-        clearError('inContact');
-    });
-
-    // Block non-numeric typing
-    inContact.addEventListener('keypress', (e) => {
-        if (!/[0-9]/.test(e.key)) {
-            e.preventDefault();
-        }
-    });
-}
-
+    const inContact = document.getElementById('inContact');
+    
+    if (inContact) {
+        inContact.addEventListener('input', (e) => {
+            // Apply clean mask formatting
+            e.target.value = formatContact(e.target.value);
+            
+            // Force-sync preview immediately so the receipt matches character-for-character
+            if (typeof updatePreview === 'function') {
+                updatePreview();
+            }
+            clearError('inContact');
+        });
+    
+        // Explicitly block non-numeric typing at keystroke level
+        inContact.addEventListener('keypress', (e) => {
+            if (!/[0-9]/.test(e.key)) {
+                e.preventDefault();
+            }
+        });
+    
+        // Optional Quality of Life: Auto-fill '09' when user clicks into an empty field
+        inContact.addEventListener('focus', (e) => {
+            if (!e.target.value) {
+                e.target.value = '09';
+                if (typeof updatePreview === 'function') updatePreview();
+            }
+        });
+    }
     const inWeight = document.getElementById('inWeight');
     if (inWeight) {
         inWeight.addEventListener('input', () => clearError('inWeight'));
