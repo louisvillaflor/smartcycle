@@ -153,6 +153,38 @@ function wireModal() {
         if (e.key === 'Enter') { e.preventDefault(); addMaterialBtn?.click(); }
     });
 
+    const weightInput = document.getElementById('materialWeight');
+
+    weightInput?.addEventListener('input', (e) => {
+        let value = e.target.value;
+    
+        // Allow only numbers and decimal
+        value = value.replace(/[^0-9.]/g, '');
+    
+        // Prevent multiple decimals
+        const parts = value.split('.');
+        if (parts.length > 2) {
+            value = parts[0] + '.' + parts[1];
+        }
+    
+        let [integer, decimal] = value.split('.');
+    
+        // 🔒 LIMIT INTEGER PART TO 5 DIGITS
+        if (integer.length > 5) {
+            integer = integer.slice(0, 5);
+        }
+    
+        // Optional: limit decimal to 2 places
+        if (decimal) {
+            decimal = decimal.slice(0, 2);
+            value = `${integer}.${decimal}`;
+        } else {
+            value = integer;
+        }
+    
+        e.target.value = value;
+    });
+
     // Remove Material from list
     materialsBody?.addEventListener('click', (e) => {
         const delBtn = e.target.closest('.remove-item-btn');
