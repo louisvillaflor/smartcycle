@@ -222,20 +222,43 @@ function loadModalHTML() {
             document.getElementById('modalContainer').innerHTML = html;
             await window.loadMaterialDropdownOptions();
 
+            // 1. Existing Weight Input Filter
             const weightInput = document.getElementById('inWeight');
             if (weightInput) {
                 weightInput.addEventListener('input', (e) => {
-                    // Restored ability to use single decimal points for weight data values
                     let value = e.target.value.replace(/[^0-9.]/g, '');
                     const parts = value.split('.');
                     if (parts.length > 2) value = parts[0] + '.' + parts.slice(1).join('');
                     e.target.value = value;
                 });
             }
+
+            // 2. NEW: Strict Contact Number Filter (Blocks letters completely)
+            const contactInput = document.getElementById('inContact');
+            if (contactInput) {
+                contactInput.addEventListener('input', (e) => {
+                    // Allows only digits and a single leading '+' for international formatting
+                    let value = e.target.value.replace(/[^0-9+]/g, '');
+                    
+                    // Prevent multiple plus signs or plus signs anywhere but the start
+                    if (value.includes('+')) {
+                        value = '+' + value.replace(/\+/g, '');
+                    }
+                    
+                    e.target.value = value;
+
+                    // Force your real-time preview function to update with the clean data
+                    if (typeof updatePreview === 'function') {
+                        updatePreview();
+                    }
+                });
+            }
+
             const dateInput = document.getElementById('inDate');
             if (dateInput && !dateInput.value) {
                 dateInput.value = new Date().toISOString().split('T')[0];
             }
+            
             const form = document.querySelector('#modalContainer form') || document.getElementById('collectionForm');
             if (form) {
                 form.addEventListener('submit', async (e) => {
