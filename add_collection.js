@@ -199,27 +199,37 @@ function validateContact(value) {
 }
 
 function formatContact(value) {
-    // Remove ALL non-numbers
+    // Remove everything except numbers
     let cleaned = value.replace(/\D/g, '');
 
-    // Always force start with 09
+    // Force 09 at the start
     if (!cleaned.startsWith('09')) {
         cleaned = '09' + cleaned.replace(/^0+/, '');
     }
 
-    // Limit to 11 digits ONLY
+    // Limit to 11 digits
     cleaned = cleaned.slice(0, 11);
 
-    // Format: 09XX-XXX-XXXX
-    if (cleaned.length <= 4) return cleaned;
+    // Always build FULL format structure
+    let part1 = cleaned.slice(0, 4);
+    let part2 = cleaned.slice(4, 7);
+    let part3 = cleaned.slice(7, 11);
 
-    if (cleaned.length <= 7) {
-        return cleaned.slice(0, 4) + '-' + cleaned.slice(4);
+    let formatted = part1;
+
+    if (cleaned.length > 4) {
+        formatted += '-' + part2;
+    } else {
+        formatted += '-';
     }
 
-    return cleaned.slice(0, 4) + '-' +
-           cleaned.slice(4, 7) + '-' +
-           cleaned.slice(7);
+    if (cleaned.length > 7) {
+        formatted += '-' + part3;
+    } else if (cleaned.length > 4) {
+        formatted += '-';
+    }
+
+    return formatted;
 }
 
 function resetForm() {
@@ -635,26 +645,21 @@ window.setupFieldListeners = function() {
         inDate.addEventListener('change', () => { if (inDate.value) clearError('inDate'); else showError('inDate', 'Date is required'); });
     }
 
-    const inContact = document.getElementById('inContact');
-    if (inContact) {
-        inContact.addEventListener('input', (e) => {
-            let cursorPos = e.target.selectionStart;
-    
-            e.target.value = formatContact(e.target.value);
-    
-            // Optional: keep cursor stable
-            e.target.setSelectionRange(cursorPos, cursorPos);
-    
-            clearError('inContact');
-        });
-    
-        // Prevent typing letters at all
-        inContact.addEventListener('keypress', (e) => {
-            if (!/[0-9]/.test(e.key)) {
-                e.preventDefault();
-            }
-        });
-    }
+const inContact = document.getElementById('inContact');
+
+if (inContact) {
+    inContact.addEventListener('input', (e) => {
+        e.target.value = formatContact(e.target.value);
+        clearError('inContact');
+    });
+
+    // Block non-numeric typing
+    inContact.addEventListener('keypress', (e) => {
+        if (!/[0-9]/.test(e.key)) {
+            e.preventDefault();
+        }
+    });
+}
 
     const inWeight = document.getElementById('inWeight');
     if (inWeight) {
