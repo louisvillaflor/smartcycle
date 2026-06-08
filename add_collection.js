@@ -202,6 +202,30 @@ function formatContact(value) {
     if (cleaned.length <= 4) return cleaned;
     if (cleaned.length <= 7) return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`;
     return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 7)}-${cleaned.slice(7, 11)}`;
+    const contactInput = document.getElementById('inContact');
+
+    if (contactInput) {
+        contactInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, '');
+    
+            // Always start with 09
+            if (!value.startsWith('09')) {
+                value = '09' + value.replace(/^0*/, '');
+            }
+    
+            // Limit to 11 digits only
+            value = value.slice(0, 11);
+    
+            // Format: 09XX-XXX-XXXX
+            if (value.length > 4 && value.length <= 7) {
+                value = `${value.slice(0, 4)}-${value.slice(4)}`;
+            } else if (value.length > 7) {
+                value = `${value.slice(0, 4)}-${value.slice(4, 7)}-${value.slice(7)}`;
+            }
+    
+            e.target.value = value;
+        });
+    }
 }
 
 function resetForm() {
