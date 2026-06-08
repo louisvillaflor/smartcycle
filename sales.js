@@ -53,8 +53,10 @@ async function fetchSales() {
         .from('sales')
         .select(`
             *,
-            profiles (
-                name
+           profiles (
+                name,
+                address,
+                contact_num
             ),
             sale_items (
                 *,
@@ -80,6 +82,8 @@ async function fetchSales() {
                 : 'N/A',
             
             partner: sale.profiles ? sale.profiles.name : 'Unknown',
+            address: sale.profiles ? sale.profiles.address : '',
+            contact: sale.profiles ? sale.profiles.contact_num : '',
             
             items: items.map(i => ({
                 material_id: i.material_id, 
