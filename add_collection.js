@@ -193,38 +193,28 @@ function clearAllErrors() {
 
 function validateContact(value) {
     if (!value) return true;
-    return /^09\d{9}$/.test(value.replace(/[-\s]/g, ''));
+
+    const cleaned = value.replace(/\D/g, '');
+    return /^09\d{9}$/.test(cleaned);
 }
 
 function formatContact(value) {
-    const cleaned = value.replace(/\D/g, '');
-    if (cleaned.length <= 4) return cleaned;
-    if (cleaned.length <= 7) return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`;
-    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 7)}-${cleaned.slice(7, 11)}`;
-    const contactInput = document.getElementById('inContact');
+    let cleaned = value.replace(/\D/g, '');
 
-    if (contactInput) {
-        contactInput.addEventListener('input', (e) => {
-            let value = e.target.value.replace(/\D/g, '');
-    
-            // Always start with 09
-            if (!value.startsWith('09')) {
-                value = '09' + value.replace(/^0*/, '');
-            }
-    
-            // Limit to 11 digits only
-            value = value.slice(0, 11);
-    
-            // Format: 09XX-XXX-XXXX
-            if (value.length > 4 && value.length <= 7) {
-                value = `${value.slice(0, 4)}-${value.slice(4)}`;
-            } else if (value.length > 7) {
-                value = `${value.slice(0, 4)}-${value.slice(4, 7)}-${value.slice(7)}`;
-            }
-    
-            e.target.value = value;
-        });
+    // Auto add 09
+    if (!cleaned.startsWith('09')) {
+        cleaned = '09' + cleaned.replace(/^0+/, '');
     }
+
+    // Limit to 11 digits
+    cleaned = cleaned.slice(0, 11);
+
+    // Format: 09XX-XXX-XXXX
+    if (cleaned.length <= 4) return cleaned;
+    if (cleaned.length <= 7) {
+        return `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`;
+    }
+    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
 }
 
 function resetForm() {
@@ -642,8 +632,8 @@ window.setupFieldListeners = function() {
 
     const inContact = document.getElementById('inContact');
     if (inContact) {
-        inContact.addEventListener('input', () => {
-            inContact.value = formatContact(inContact.value.replace(/[^\d]/g, '').slice(0, 11));
+        inContact.addEventListener('input', (e) => {
+            e.target.value = formatContact(e.target.value);
             clearError('inContact');
         });
     }
