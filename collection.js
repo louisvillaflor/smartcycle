@@ -21,7 +21,6 @@ async function detectUserRole() {
             window.currentUserRole = 'Moderator';
             return;
         }
-
         const { data: profile, error } = await _supabase
             .from('profiles')
             .select('type')
