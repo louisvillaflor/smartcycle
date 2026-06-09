@@ -84,7 +84,7 @@ async function fetchProfilesFromSupabase() {
         addContactToTable({
             id: formattedId,                                      
             dbId: profile.id,                                     
-            name: profile.display_name || profile.name || 'Unknown Name',
+            name: profile.name || 'Unknown Name',
             address: profile.address || 'N/A',
             contactNumber: profile.contact_num || 'N/A',
             category: normalizedCategory,
@@ -330,7 +330,7 @@ document.getElementById('saveEditBtn').addEventListener('click', async () => {
     const { error } = await _supabase
         .from('profiles')
         .update({
-            display_name: name,
+            name: name,  // FIXED: Changed 'display_name' to 'name'
             address: address,
             contact_num: contact,
             category: category
