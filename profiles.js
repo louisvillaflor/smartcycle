@@ -55,9 +55,11 @@ async function fetchProfilesFromSupabase() {
     const tableBody = document.getElementById('contactsTableBody');
     tableBody.innerHTML = '';
 
+    // ADDED .is('auth_id', null) to exclude Admin, Moderator, and Super Admin profiles
     const { data: profiles, error } = await _supabase
         .from('profiles')
         .select('*')
+        .is('auth_id', null) 
         .order('created_at', { ascending: false });
 
     if (error) {
@@ -75,7 +77,6 @@ async function fetchProfilesFromSupabase() {
         const rawCategory = profile.category ? String(profile.category).trim() : 'N/A';
         const normalizedCategory = rawCategory.toLowerCase();
         
-        // Fallback: If display_id is missing/null, use a clean slice of the database UUID string
         const targetId = profile.display_id || profile.id.replace(/\D/g, '').slice(-7);
         
         const formattedId = formatProfileId(targetId, normalizedCategory);
