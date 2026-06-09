@@ -258,12 +258,13 @@ function formatTimestamp(isoString) {
 }
 
 function getRoleClass(role) {
+    if (!role) return 'admin';
     const map = {
         'Super-Admin': 'super-admin',
         'Admin':       'admin',
         'Moderator':   'moderator'
     };
-    return map[role] || 'admin';
+    return role.toLowerCase().replace(/[\s_-]+/g, '-');
 }
 
 function getRandomColor() {
