@@ -50,6 +50,7 @@ window.currentCategory = 'School';
 window.editingIndex = -1; 
 let currentPage = 1;
 let currentFilter = 'all';
+let currentSearch = '';
 const itemsPerPage = 10;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -207,10 +208,26 @@ window.fetchAllCollections = async function() {
 };
 
 function getFilteredCollections() {
-    if (currentFilter === 'all') return window.collections;
-    return window.collections.filter(col => 
-        col.category && col.category.toLowerCase() === currentFilter.toLowerCase()
-    );
+    let data = window.collections;
+
+    // 🔹 Filter by category
+    if (currentFilter !== 'all') {
+        data = data.filter(col =>
+            col.category &&
+            col.category.toLowerCase() === currentFilter.toLowerCase()
+        );
+    }
+
+    // 🔹 Filter by CUSTOMER NAME ONLY
+    if (currentSearch) {
+        data = data.filter(col =>
+            col.customer &&
+            col.customer.toLowerCase().replace(/\s+/g, ' ')
+                .includes(currentSearch.replace(/\s+/g, ' '))
+        );
+    }
+
+    return data;
 }
 
 function loadModalHTML() {
@@ -461,20 +478,9 @@ function setupSearch() {
     if (!searchInput) return;
 
     searchInput.addEventListener('input', (e) => {
-        const searchTerm = e.target.value.toLowerCase().trim();
-        document.querySelectorAll('.main-row').forEach(row => {
-            const text = row.innerText.toLowerCase();
-            const actualIndex = row.getAttribute('data-row-idx');
-            const subRow = document.getElementById(`col-${actualIndex}`);
-
-            if (text.includes(searchTerm)) {
-                row.style.display = '';
-                if (subRow && row.classList.contains('open')) subRow.style.display = 'table-row';
-            } else {
-                row.style.display = 'none';
-                if (subRow) subRow.style.display = 'none';
-            }
-        });
+        currentSearch = e.target.value.toLowerCase().trim();
+        currentPage = 1; // reset to first page
+        renderTable();
     });
 }
 
