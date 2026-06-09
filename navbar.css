@@ -114,7 +114,7 @@ body {
     top: 0;
     bottom: 0;
     width: 250px;
-    height: 100vh;
+    height: 100dvh;
     background-color: #f6f6f6;
     display: flex;
     flex-direction: column;
@@ -123,6 +123,7 @@ body {
     border: none;
     z-index: 1000;
     transition: transform 0.3s ease;
+    overflow-y: auto;
 }
 
 /* Logo Section */
