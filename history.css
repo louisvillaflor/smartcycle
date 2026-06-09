@@ -287,11 +287,15 @@ body {
     white-space: nowrap;
 }
 
-.role-super-admin {
+/* Updated selectors to match JS output directly */
+.role-badge.super-admin {
     color: #ef4444;
     font-weight: 700;
 }
-.role-admin     { color: #16a34a; }
+
+.role-badge.admin {
+    color: #16a34a;
+}
 .role-badge.moderator   { color: #6366f1; }
 
 .action-desc {        
